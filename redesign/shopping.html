@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>광고 성과 대시보드</title>
+<title>쇼핑검색 상품 · 광고 성과 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -191,6 +191,10 @@
     .chart-box{height:240px!important;}
     table{font-size:12px;}
   }
+
+/* 쇼핑검색 상품 표: 숫자 칸은 줄바꿈 금지, 상품명만 두 줄 허용. 표가 넓어지면 카드 안에서 가로 스크롤됨 */
+.card table td, .card table th { white-space: nowrap; }
+.card table td.kw-name { white-space: normal; word-break: keep-all; min-width: 250px; }
 </style>
 <style id="km-redesign-skin">
 /* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
@@ -331,17 +335,6 @@ table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px s
 table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
-/* 시간대 표: 24줄이라 그냥 두면 화면이 너무 길어짐 — 영역을 잘라 안에서만 스크롤되게 하고 줄 간격도 좁힘 */
-.hr-scroll{max-height:430px;overflow-y:auto;border:1px solid #262a3b;border-radius:9px}
-.hr-scroll table{margin:0}
-.hr-scroll thead th{position:sticky;top:0;z-index:1;background:#1d2030}
-.hr-scroll td{padding-top:5px!important;padding-bottom:5px!important;font-size:12.5px!important}
-.hr-scroll th{padding-top:8px!important;padding-bottom:8px!important}
-.hr-scroll tbody tr:last-child td{border-bottom:0!important}
-.hr-scroll::-webkit-scrollbar{width:9px}
-.hr-scroll::-webkit-scrollbar-thumb{background:#3f4468;border-radius:5px}
-.hr-scroll::-webkit-scrollbar-track{background:transparent}
-
 /* 줄 많은 표 — 높이를 잘라 안쪽 스크롤, 머리글 고정 */
 .dc-scroll{max-height:440px;overflow-y:auto;overflow-x:auto;border:1px solid #262a3b;border-radius:9px}
 .dc-scroll table{margin:0}
@@ -359,16 +352,6 @@ table tbody tr:hover td{background:#1b1e2c}
 .dc-scroll{overflow-x:auto}
 .dc-scroll-x{max-height:none;overflow-y:visible}
 .hr-scroll{overflow-x:auto}
-
-.hr-unknown td{background:#191b28!important;color:#a9adc2!important}
-.hr-unknown td:first-child{color:#e8e9f2!important}
-.hr-unknown td{border-top:1px solid #3a3350!important}
-
-/* 세 덩어리 중 비는 게 있으면 남은 것들이 폭을 채우도록 flex 사용 */
-.hr-reco{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
-.hr-reco > div{flex:1 1 220px;min-width:0}
-/* 숫자 칸이 두 줄로 접히면 표가 쓸데없이 길어짐 */
-.hr-scroll td,.dc-scroll td{white-space:nowrap}
 
 /* ---- 상단 메뉴바 ---- */
 .topbar{grid-column:1/-1;display:flex;align-items:center;gap:3px;flex-wrap:wrap;row-gap:6px;
@@ -401,7 +384,7 @@ table tbody tr:hover td{background:#1b1e2c}
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
   <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
-    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><a class="nv" href="shopping.html">쇼핑검색 상품</a><span class="nv nv-on">시간대</span><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
+    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><span class="nv nv-on">쇼핑검색 상품</span><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
       <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
@@ -456,7 +439,7 @@ table tbody tr:hover td{background:#1b1e2c}
 <script>
 let activeSlug = null;
 const filterState = {};
-const monthRangeState = {}; // key -> { start: label, end: label } — campaigns/keywords.html과 동일한 시작~종료 임의 구간 패턴
+const monthRangeState = {}; // key -> { start: label, end: label } (start===end 이면 단일 월, 전체 범위면 예전 'ALL'과 동일)
 const compareMonthState = {};
 function ensureMonthRange(key, allMonths){
   if(!allMonths.length) return;
@@ -473,7 +456,7 @@ function monthsInRange(allMonths, range){
   const lo = Math.min(si,ei), hi = Math.max(si,ei);
   return allMonths.slice(lo, hi+1);
 }
-// 캘린더 날짜(일 단위) 필터 — hourlyByCampaignDate가 있는 달에서만 동작(daily.html/keywords.html과 동일한 방식)
+// 캘린더 날짜(일 단위) 필터 — 키워드 일별 추이 패널 전용(dailyByKeyword 기반). daily.html에서 쓰던 것과 동일한 방식.
 const dayRangeState = {}; // key -> { start: 'YYYY-MM-DD'|null, end: 'YYYY-MM-DD'|null }
 // 사용자가 실제로 누른 날짜 버튼을 기억한다. 범위만 보고 되짚으면 '이번달'과 '최근 7일'이
 // 같은 범위로 겹칠 때 엉뚱한 버튼에 색이 들어감.
@@ -519,25 +502,30 @@ function activePresetKey(range, boundsMin, boundsMax){
 function isPresetActive(presetKey, range, boundsMin, boundsMax){
   return activePresetKey(range, boundsMin, boundsMax) === presetKey;
 }
-
 function toDateInputValue(dateStr){
   const parts = String(dateStr).split('.').map(s=>s.trim()).filter(Boolean);
   if(parts.length<3) return null;
   const [y,m,d] = parts;
   return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
 }
-const hourCompareCampaigns = {};
-const hourCompareSearch = {};   // key -> 캠페인 비교 목록 검색어(캠페인이 많은 업체에서 목록을 좁히는 용도)
+function filterRowsByDayRange(rows, range){
+  if(!range || (!range.start && !range.end)) return rows;
+  const startKey = range.start ? range.start.replace(/\D/g,'') : null;
+  const endKey = range.end ? range.end.replace(/\D/g,'') : null;
+  return rows.filter(r=>{
+    const k = dateKey(r.date);
+    if(startKey && k < startKey) return false;
+    if(endKey && k > endKey) return false;
+    return true;
+  });
+}
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const hourCompareMetric = {};
-const hourHeatmapMetric = {};
-const hourAdgroupSelectState = {}; // key -> { campaign, adgroup } — 광고그룹별 시간대 분석에서 선택 중인 캠페인·광고그룹
-const hourAdgroupMetricState = {}; // key -> Set of selected metric keys — 광고그룹별 시간대 분석 차트에 표시할 지표(체크박스)
 function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
 const CAMPAIGN_TYPE_LABELS = { WEB_SITE:'파워링크', SHOPPING:'쇼핑검색', POWER_CONTENTS:'파워컨텐츠', BRAND_SEARCH:'브랜드검색광고', PLACE:'플레이스', PLACE_TP:'플레이스', CATEGORY_EDIT:'세부업종', CAMPAIGN_TYPE_UNKNOWN:'기타' };
 function campaignTypeLabel(t){ return CAMPAIGN_TYPE_LABELS[t] || t; }
 function fmtWon(man){ return Math.round(man*10000).toLocaleString('ko-KR'); }
 function fmtMan(man){ return man>=10000 ? (man/10000).toFixed(man%10000===0?0:1)+'억' : Math.round(man).toLocaleString('ko-KR')+'만'; }
+function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
 function hexToRgba(hex, alpha){
   if(!hex) return `rgba(139,124,255,${alpha})`;
   hex = hex.trim();
@@ -547,7 +535,6 @@ function hexToRgba(hex, alpha){
   if(Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return `rgba(139,124,255,${alpha})`;
   return `rgba(${r},${g},${b},${alpha})`;
 }
-function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
 
 function randomAccentColor(){
   const hue = Math.floor(Math.random()*360);
@@ -829,7 +816,7 @@ async function refreshTabs(selectAfter){
     activeSlug = selectAfter;
     setStoredActiveClient(selectAfter);
     const data = await getClient(selectAfter);
-    if(data){ renderHourlyPage(data); renderClientSwitcher(); }
+    if(data){ renderKeywordsPage(data); renderClientSwitcher(); }
   }
 }
 let clientSwitcherBizFilter = 'ALL';
@@ -852,7 +839,7 @@ function renderClientSwitcher(searchTerm){
       setStoredActiveClient(key);
       document.getElementById('clientSwitcherDropdown').classList.remove('open');
       const data = await getClient(key);
-      if(data){ renderHourlyPage(data); }
+      if(data){ renderKeywordsPage(data); }
       renderClientSwitcher();
     };
   });
@@ -889,20 +876,6 @@ function saveChatHistory(){ try{ sessionStorage.setItem(CHAT_HISTORY_STORAGE, JS
 let aiChatHistory = loadChatHistory();
 function getAIApiKey(){ return localStorage.getItem(AI_KEY_STORAGE) || ''; }
 function setAIApiKey(k){ localStorage.setItem(AI_KEY_STORAGE, k); }
-function extractTopKeywordsFromClientData(data){
-  const months = data.months || [];
-  if(!months.length) return [];
-  const last = months[months.length-1];
-  const maps = [last.keywordsByCampaign, last.brandKeywordsByCampaign, last.searchTermsByCampaign].filter(Boolean);
-  const all = [];
-  maps.forEach(map=>{
-    Object.keys(map||{}).forEach(camp=>{
-      (map[camp]||[]).forEach(item=> all.push({ ...item, campaign: camp }));
-    });
-  });
-  all.sort((a,b)=> ((b.revenue||0)-(a.revenue||0)) || ((b.conv||0)-(a.conv||0)));
-  return all.slice(0,15);
-}
 async function buildAllClientsSummary(){
   const keys = await listClients();
   const rows = (await Promise.all(keys.map(async key=>{
@@ -930,24 +903,22 @@ async function buildAIContext(){
   }
   const lines = [];
   lines.push(`업체명: ${data.name} (${data.industry||'-'}), 업종: ${ctx.isDB?'DB(상담·전환형)':'B2C(매출형)'}`);
-  lines.push(`현재 보고 있는 화면: 시간대별 전용 페이지 - ${ctx.periodLabel} 기준`);
-  const withData = ctx.hourly.filter(h=>h.cost>0 || h.conv>0);
-  if(withData.length){
-    lines.push(ctx.isDB ? '\n시간대별(0~23시) 비용/전환/CPA:' : '\n시간대별(0~23시) 비용/전환/매출/ROAS:');
-    withData.forEach(h=> lines.push(ctx.isDB
-      ? `- ${h.hour}시: 비용 ${Math.round(h.cost*10000).toLocaleString('ko-KR')}원, 전환 ${h.conv}건${h.cpa!==null&&h.cpa!==undefined?`, CPA ${Math.round(h.cpa).toLocaleString('ko-KR')}원`:''}`
-      : `- ${h.hour}시: 비용 ${Math.round(h.cost*10000).toLocaleString('ko-KR')}원, 전환 ${h.conv}건, 매출 ${Math.round((h.revenue||0)*10000).toLocaleString('ko-KR')}원, ROAS ${(h.roas||0).toFixed(0)}%`));
+  lines.push(`현재 보고 있는 화면: 쇼핑검색 상품 전용 페이지 - ${ctx.modeLabel} 모드, ${ctx.periodLabel} 기준`);
+  if(ctx.topRows.length){
+    lines.push('\nTOP 상품:');
+    ctx.topRows.forEach(r=>{
+      const metric = !ctx.isDB ? `매출 ${Math.round(r.revenue*10000).toLocaleString('ko-KR')}원` : `전환 ${r.conv}건`;
+      lines.push(`- ${r.keyword}: 비용 ${Math.round(r.cost*10000).toLocaleString('ko-KR')}원, ${metric}`);
+    });
   }
-  if(ctx.bestHour) lines.push(ctx.isDB
-    ? `\n가장 효율적인 시간대: ${ctx.bestHour.hour}시 (CPA ${Math.round(ctx.bestHour.cpa).toLocaleString('ko-KR')}원, 전환 ${ctx.bestHour.conv}건)`
-    : `\n가장 효율적인 시간대: ${ctx.bestHour.hour}시 (ROAS ${(ctx.bestHour.roas||0).toFixed(0)}%, 전환 ${ctx.bestHour.conv}건)`);
-  if(ctx.cutHours.length) lines.push(`전환 0건인 시간대: ${ctx.cutHours.map(h=>h.hour+'시').join(', ')}`);
-  if(ctx.boostHours.length) lines.push(`확대 검토 시간대(효율 좋음): ${ctx.boostHours.map(h=>h.hour+'시').join(', ')}`);
-  if(ctx.trendInsight) lines.push(`\n${ctx.trendInsight}`);
-  const topKeywords = extractTopKeywordsFromClientData(data);
-  if(topKeywords.length){
-    lines.push('\n참고: 이 업체의 최근 기간 키워드/검색어 성과:');
-    topKeywords.forEach(k=> lines.push(`- ${k.keyword} (${k.campaign}): 비용 ${Math.round((k.cost||0)*10000).toLocaleString('ko-KR')}원, 전환 ${k.conv||0}건`));
+  lines.push(`\n제외추천(전환 없이 비용만 쓴) 키워드/검색어: ${ctx.wasteCount}개, 총 ${Math.round(ctx.wasteCost*10000).toLocaleString('ko-KR')}원`);
+  if(ctx.expandTop.length){
+    lines.push('\n확대추천(효율 좋은데 비용 적게 쓰는) 키워드/검색어:');
+    ctx.expandTop.forEach(r=> lines.push(`- ${r.keyword}`));
+  }
+  if(ctx.insights.length){
+    lines.push('\n이 페이지가 이미 뽑아낸 인사이트:');
+    ctx.insights.forEach(t=> lines.push(`- ${t}`));
   }
   return lines.join('\n');
 }
@@ -1124,20 +1095,20 @@ async function generateAISummary(data, key, periodLabel){
   }
   const sKey = aiSummaryStateKey(key, periodLabel);
   aiSummaryState[sKey] = { status:'loading' };
-  renderHourlyPage(data);
+  renderKeywordsPage(data);
   try{
     const contextStr = await buildAIContext();
-    const systemPrompt = `당신은 네이버 검색광고 대행사의 시니어 매니저입니다. 아래는 지금 보고 있는 화면(시간대 전용 보기)의 데이터 요약과, 이미 규칙 기반으로 뽑아낸 인사이트 목록입니다.\n\n${contextStr}\n\n위 내용을 바탕으로, 고객 보고서에 그대로 붙여넣을 수 있는 자연스러운 한국어 총평을 2~4문장으로 작성하세요. 규칙: (1) 위 데이터·인사이트에 없는 내용은 추측하지 마세요. (2) 인사이트 목록을 그대로 나열하지 말고 핵심만 골라 하나의 자연스러운 글로 종합하세요. (3) 가능하면 다음 기간에 시도해볼 만한 액션을 한 가지 짧게 제안하세요. (4) 마크다운(별표, 목록 기호 등)은 쓰지 마세요.`;
+    const systemPrompt = `당신은 네이버 검색광고 대행사의 시니어 매니저입니다. 아래는 지금 보고 있는 화면(쇼핑검색 전용 보기)의 데이터 요약과, 이미 규칙 기반으로 뽑아낸 인사이트 목록입니다.\n\n${contextStr}\n\n위 내용을 바탕으로, 고객 보고서에 그대로 붙여넣을 수 있는 자연스러운 한국어 총평을 2~4문장으로 작성하세요. 규칙: (1) 위 데이터·인사이트에 없는 내용은 추측하지 마세요. (2) 인사이트 목록을 그대로 나열하지 말고 핵심만 골라 하나의 자연스러운 글로 종합하세요. (3) 가능하면 다음 기간에 시도해볼 만한 액션을 한 가지 짧게 제안하세요. (4) 마크다운(별표, 목록 기호 등)은 쓰지 마세요.`;
     const replyText = await callGeminiGenerateContent(apiKey, systemPrompt, '위 데이터를 바탕으로 총평을 작성해주세요.', (attempt, max)=>{
       aiSummaryState[sKey] = { status:'loading', retryAttempt: attempt, retryMax: max };
-      renderHourlyPage(data);
+      renderKeywordsPage(data);
     });
     aiSummaryState[sKey] = { status:'done', text: replyText };
   }catch(e){
     console.error(e);
     aiSummaryState[sKey] = { status:'error', errorMsg: e.message||String(e) };
   }
-  renderHourlyPage(data);
+  renderKeywordsPage(data);
 }
 function buildAISummaryBoxHTML(key, periodLabel){
   const sKey = aiSummaryStateKey(key, periodLabel);
@@ -1186,6 +1157,239 @@ function mergedCampaignList(data){
 /* ---------- 렌더링 ---------- */
 
 
+const keywordPageState = {}; // key -> 'keyword' or 'searchterm'
+const kwSortState = {}; // key -> { field, dir }
+const wasteSortState = {}; // key -> { field, dir }
+const expandSortState = {}; // key -> { field, dir }
+const topVisibleCount = {}; // key -> number of rows currently shown
+const expandVisibleCount = {};
+const wasteVisibleCount = {};
+
+function mergeKwRows(months, fstate, field){
+  const map = {};
+  months.forEach(m=>{
+    const byCamp = m[field];
+    if(!byCamp) return;
+    Object.keys(byCamp).forEach(camp=>{
+      if(!fstate.campaigns.has(camp)) return;
+      byCamp[camp].forEach(item=>{
+        if(!map[item.keyword]) map[item.keyword] = { keyword:item.keyword, pid:item.pid||null, mallId:item.mallId||null, cost:0, revenue:0, conv:0, impressions:0, clicks:0, rankSum:0, rankImp:0, searchTypes:new Set(), camps:new Set() };
+        if(!map[item.keyword].pid && item.pid) map[item.keyword].pid = item.pid;
+        if(!map[item.keyword].mallId && item.mallId) map[item.keyword].mallId = item.mallId;
+        // 같은 키워드가 여러 캠페인에 걸쳐 있으면 합산되므로, 어느 캠페인에서 나왔는지 모아둔다.
+        map[item.keyword].camps.add(camp);
+        map[item.keyword].cost += item.cost;
+        map[item.keyword].revenue += item.revenue;
+        map[item.keyword].conv += item.conv;
+        map[item.keyword].impressions += item.impressions||0;
+        map[item.keyword].clicks += item.clicks||0;
+        if(item.avgRank!==null && item.avgRank!==undefined && item.impressions>0){
+          map[item.keyword].rankSum += item.avgRank * item.impressions;
+          map[item.keyword].rankImp += item.impressions;
+        }
+        // '검색 유형'(일치/확장) 컬럼이 있는 파일에서만 채워짐(input.html) — 여러 달 걸쳐 값이 갈리면 'mixed'로 합침.
+        if(item.searchType) map[item.keyword].searchTypes.add(item.searchType);
+      });
+    });
+  });
+  return Object.values(map).map(v=>{
+    const { searchTypes, rankSum, rankImp, camps, ...rest } = v;
+    let searchType;
+    if(searchTypes.size) searchType = (searchTypes.size>1 || searchTypes.has('mixed')) ? 'mixed' : [...searchTypes][0];
+    const campList = [...camps];
+    return { ...rest, campaigns: campList, campaign: campList.length===1 ? campList[0] : (campList.length ? campList[0] : null), campaignCount: campList.length,
+      avgRank: rankImp>0 ? (rankSum/rankImp) : null, ...(searchType ? {searchType} : {}) };
+  });
+}
+// 상단 TOP 키워드 표에 날짜 선택(dayRange)이 걸려 있을 때 쓰는 버전 — keywordsByCampaign(월별 집계)엔 날짜가
+// 없어서 대신 dailyByKeyword(날짜×키워드, 캠페인당 top+waste+expand 합쳐 최대 75개까지만 존재)를 현재 모드
+// (sourceMode)와 날짜로 먼저 자르고 키워드 단위로 재집계함. sourceMode가 없는 항목(구버전 데이터)은 파워링크로
+// 간주(하위 호환). 그 모드에 날짜별 원본 자체가 없으면(호출하는 쪽에서 dayBoundsMinKw로 확인) 이 필터가 적용되지 않음.
+// avgRank는 일별 데이터엔 없어서 이 모드에서는 항상 null로 나옴(원본 데이터 자체에 없는 값).
+function mergeKwRowsByDayRange(months, fstate, dayRange, mode){
+  const map = {};
+  // '확장 포함' 배지의 근거가 되는 searchType은 일별 원본에 없어서, 날짜 필터를 켜면 배지가 전부 사라졌음.
+  // 확장검색 여부는 날짜와 무관한 키워드 속성이라 월 단위 목록에서 가져와 채워 넣음.
+  const searchTypeByKeyword = {};
+  const KW_FIELDS = ['keywordsByCampaign','searchTermsByCampaign','brandKeywordsByCampaign'];
+  months.forEach(m=>{
+    KW_FIELDS.forEach(f=>{
+      const byCamp = m[f];
+      if(!byCamp || typeof byCamp !== 'object') return;
+      Object.values(byCamp).forEach(list=>{
+        (Array.isArray(list) ? list : []).forEach(k=>{
+          if(k && k.keyword && k.searchType && !searchTypeByKeyword[k.keyword]) searchTypeByKeyword[k.keyword] = k.searchType;
+        });
+      });
+    });
+  });
+  months.forEach(m=>{
+    let rows = m.dailyByKeyword||[];
+    rows = rows.filter(r=>(r.sourceMode||'powerlink')===mode);
+    rows = filterRowsByDayRange(rows, dayRange);
+    rows.forEach(r=>{
+      if(!fstate.campaigns.has(r.campaign)) return;
+      if(!map[r.keyword]) map[r.keyword] = { keyword:r.keyword, pid:r.pid||null, mallId:r.mallId||null, searchType: r.searchType || searchTypeByKeyword[r.keyword] || null, cost:0, revenue:0, conv:0, impressions:0, clicks:0, rankSum:0, rankImp:0, camps:new Set() };
+      if(!map[r.keyword].pid && r.pid) map[r.keyword].pid = r.pid;
+      map[r.keyword].camps.add(r.campaign);
+      map[r.keyword].cost += r.cost||0; map[r.keyword].revenue += r.revenue||0; map[r.keyword].conv += r.conv||0;
+      map[r.keyword].impressions += r.impressions||0; map[r.keyword].clicks += r.clicks||0;
+      // 평균노출순위 — 일별 행의 avgRank 를 노출수로 가중평균해서 합침(수집기와 같은 방식).
+      // 예전엔 일별 데이터에 순위가 없어서 avgRank:null 로 버렸는데, 이제 수집기가 채워준다.
+      if(r.avgRank!==null && r.avgRank!==undefined && !isNaN(r.avgRank) && (r.impressions||0)>0){
+        map[r.keyword].rankSum += Number(r.avgRank)*(r.impressions||0);
+        map[r.keyword].rankImp += (r.impressions||0);
+      }
+    });
+  });
+  return Object.values(map).map(v=>{
+    const { camps, ...rest } = v;
+    const campList = [...camps];
+    const { rankSum, rankImp, ...clean } = rest;
+    return { ...clean, campaigns: campList, campaign: campList.length ? campList[0] : null, campaignCount: campList.length, avgRank: (rankImp>0) ? (rankSum/rankImp) : null };
+  });
+}
+// TOP 표뿐 아니라 제외추천/확대추천 표에도 날짜 필터를 적용하기 위한 버전 — dailyByKeyword(날짜×키워드,
+// 캠페인당 top+waste+expand 합쳐 최대 75개까지만 존재)를 현재 모드(sourceMode)와 날짜로 먼저 자른 뒤,
+// input.html의 buildTopAndWaste/buildSet과 동일한 저효율(제외추천)·고효율(확대추천) 판정 기준을 그 기간
+// 데이터에 대해 다시 계산함. 그 모드에 날짜별 원본 자체가 없으면(호출하는 쪽에서 확인) 호출되지 않음.
+// avgRank·searchType은 일별 원본에 없어 항상 비워둠.
+function computeWasteExpandByDayRange(months, fstate, dayRange, isDB, mode){
+  // camp -> keyword -> {cost,revenue,conv,impressions,clicks}
+  const campMap = {};
+  months.forEach(m=>{
+    let rows = m.dailyByKeyword||[];
+    rows = rows.filter(r=>(r.sourceMode||'powerlink')===mode);
+    rows = filterRowsByDayRange(rows, dayRange);
+    rows.forEach(r=>{
+      if(!fstate.campaigns.has(r.campaign)) return;
+      if(!campMap[r.campaign]) campMap[r.campaign] = {};
+      const cm = campMap[r.campaign];
+      if(!cm[r.keyword]) cm[r.keyword] = { keyword:r.keyword, cost:0, revenue:0, conv:0, impressions:0, clicks:0 };
+      cm[r.keyword].cost += r.cost||0; cm[r.keyword].revenue += r.revenue||0; cm[r.keyword].conv += r.conv||0;
+      cm[r.keyword].impressions += r.impressions||0; cm[r.keyword].clicks += r.clicks||0;
+    });
+  });
+  const hasRevenue = !isDB; // input.html의 revCol 유무와 동치: B2C만 매출 컬럼을 쓰고, DB는 CPA 기준으로 판정.
+  const waste = [], expand = [];
+  Object.keys(campMap).forEach(camp=>{
+    const arr = Object.values(campMap[camp]);
+    const withConv = arr.filter(a=>a.conv>0 && a.cost>0);
+    const avgCpaCamp = withConv.length ? withConv.reduce((s,a)=>s+(a.cost*10000/a.conv),0)/withConv.length : null;
+    const avgCostCamp = withConv.length ? withConv.reduce((s,a)=>s+a.cost,0)/withConv.length : null;
+    arr.filter(a=>{
+      if(a.cost<1) return false;
+      if(a.conv===0) return true;
+      if(hasRevenue){
+        const roas = a.cost>0 ? (a.revenue/a.cost*100) : 0;
+        return roas < 100;
+      } else if(avgCpaCamp){
+        const cpa = a.cost*10000/a.conv;
+        return cpa > avgCpaCamp*2;
+      }
+      return false;
+    }).forEach(a=>waste.push({ ...a, campaign:camp, avgRank:null, sourceMode:mode }));
+    arr.filter(a=>{
+      if(a.conv===0 || a.cost<1) return false;
+      if(!avgCostCamp || a.cost >= avgCostCamp) return false;
+      if(hasRevenue){
+        const roas = a.cost>0 ? (a.revenue/a.cost*100) : 0;
+        return roas >= 200;
+      } else if(avgCpaCamp){
+        const cpa = a.cost*10000/a.conv;
+        return cpa <= avgCpaCamp*0.5;
+      }
+      return false;
+    }).forEach(a=>expand.push({ ...a, campaign:camp, avgRank:null, sourceMode:mode }));
+  });
+  return { waste, expand };
+}
+// sourceMode: 'powerlink'|'shopping'|'brand' — waste/expand 테이블에서 어떤 모드(파워링크/쇼핑검색/브랜드검색)에서
+// 나온 후보인지 뱃지로 구분해서 보여주기 위해 각 항목에 표시해둠(기존엔 세 모드가 섞여서 구분이 안 됐음).
+function mergeKwWaste(months, fstate, field, sourceMode){
+  const map = {};
+  months.forEach(m=>{
+    const byCamp = m[field];
+    if(!byCamp) return;
+    Object.keys(byCamp).forEach(camp=>{
+      if(!fstate.campaigns.has(camp)) return;
+      byCamp[camp].forEach(item=>{
+        const k = item.keyword+'|'+camp;
+        if(!map[k]) map[k] = { keyword:item.keyword, campaign:camp, cost:0, revenue:0, conv:0, impressions:0, clicks:0, rankSum:0, rankImp:0, sourceMode, searchTypes:new Set() };
+        map[k].cost += item.cost; map[k].revenue += (item.revenue||0); map[k].conv += (item.conv||0);
+        map[k].impressions += (item.impressions||0); map[k].clicks += (item.clicks||0);
+        if(item.avgRank!==null && item.avgRank!==undefined && item.impressions>0){
+          map[k].rankSum += item.avgRank * item.impressions;
+          map[k].rankImp += item.impressions;
+        }
+        // '검색 유형'(일치/확장) 컬럼이 있는 파일에서만 채워짐(input.html) — 여러 달 걸쳐 값이 갈리면 'mixed'로 합침.
+        if(item.searchType) map[k].searchTypes.add(item.searchType);
+      });
+    });
+  });
+  return Object.values(map).map(v=>{
+    const { searchTypes, rankSum, rankImp, ...rest } = v;
+    let searchType;
+    if(searchTypes.size) searchType = (searchTypes.size>1 || searchTypes.has('mixed')) ? 'mixed' : [...searchTypes][0];
+    return { ...rest, avgRank: rankImp>0 ? (rankSum/rankImp) : null, ...(searchType ? {searchType} : {}) };
+  });
+}
+function mergeKwExpand(months, fstate, field, sourceMode){
+  const map = {};
+  months.forEach(m=>{
+    const byCamp = m[field];
+    if(!byCamp) return;
+    Object.keys(byCamp).forEach(camp=>{
+      if(!fstate.campaigns.has(camp)) return;
+      byCamp[camp].forEach(item=>{
+        const k = item.keyword+'|'+camp;
+        if(!map[k]) map[k] = { keyword:item.keyword, campaign:camp, cost:0, revenue:0, conv:0, impressions:0, clicks:0, rankSum:0, rankImp:0, sourceMode, searchTypes:new Set() };
+        map[k].cost += item.cost; map[k].revenue += (item.revenue||0); map[k].conv += (item.conv||0);
+        map[k].impressions += (item.impressions||0); map[k].clicks += (item.clicks||0);
+        if(item.avgRank!==null && item.avgRank!==undefined && item.impressions>0){
+          map[k].rankSum += item.avgRank * item.impressions;
+          map[k].rankImp += item.impressions;
+        }
+        // '검색 유형'(일치/확장) 컬럼이 있는 파일에서만 채워짐(input.html) — 여러 달 걸쳐 값이 갈리면 'mixed'로 합침.
+        if(item.searchType) map[k].searchTypes.add(item.searchType);
+      });
+    });
+  });
+  return Object.values(map).map(v=>{
+    const { searchTypes, rankSum, rankImp, ...rest } = v;
+    let searchType;
+    if(searchTypes.size) searchType = (searchTypes.size>1 || searchTypes.has('mixed')) ? 'mixed' : [...searchTypes][0];
+    return { ...rest, avgRank: rankImp>0 ? (rankSum/rankImp) : null, ...(searchType ? {searchType} : {}) };
+  });
+}
+// waste/expand 테이블에 표시할 모드 뱃지 HTML — MODE_LABEL과 같은 팔레트를 쓰되 더 짧게 축약함.
+const SOURCE_BADGE = { powerlink:'파워링크', plterm:'PL검색어', shopping:'쇼핑검색', brand:'브랜드검색' };
+function sourceBadgeHTML(sourceMode){
+  const label = SOURCE_BADGE[sourceMode] || sourceMode || '-';
+  return `<span style="font-size:12px;padding:1px 6px;border-radius:8px;background:var(--panel-2);border:1px solid var(--border);color:var(--muted);white-space:nowrap;">${label}</span>`;
+}
+// '검색 유형'(일치/확장) 컬럼이 있는 파일을 올렸을 때만 나타남 — 등록 키워드와 정확히 일치한 클릭이 아니라
+// 네이버 '키워드 확장' 자동 매칭으로 노출된 클릭이 섞여있는 키워드를 한눈에 구분할 수 있게 표시.
+// TOP 키워드 표뿐 아니라 확대추천/제외추천 표에도 동일하게 적용(같은 searchType 필드를 씀).
+function searchTypeBadgeHTML(searchType){
+  if(searchType==='expanded') return '<span title="이 키워드의 비용/클릭이 모두 네이버 키워드 확장(자동 매칭)에서 발생했어요" style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:#ff9d4d;color:#1a1b2e;font-weight:700;">확장</span>';
+  if(searchType==='mixed') return '<span title="이 키워드는 일치검색과 키워드 확장(자동 매칭)이 섞여있어요" style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:#ff9d4d;color:#1a1b2e;font-weight:700;">확장 포함</span>';
+  return '';
+}
+
+// 인사이트·원인진단에서 쓰는 임계값들을 한 곳에 모음 — 예전엔 각 함수에 매직넘버로 흩어져 있어서
+// 기준을 바꾸려면 여러 곳을 찾아 고쳐야 했음. (파일마다 독립적으로 동작하는 구조라 다른 페이지와
+// 공유하지는 않지만, 이 파일 안에서는 하나로 통일함.)
+const INSIGHT_THRESHOLDS = {
+  BIG_MOVE_CPA_PCT: 30,      // "직전 대비 크게 나빠짐" 판단 기준 — CPA 변동률(%)
+  BIG_MOVE_ROAS_PP: 20,      // "직전 대비 크게 나빠짐" 판단 기준 — ROAS 변동폭(%p)
+  BIG_MOVE_MIN_SAMPLE: 3,    // 위 두 변동 판단에 필요한 최소 표본(DB는 전환수, B2C는 비용 만원)
+  TREND_DECLINE_PCT: -20,    // 원인진단(diagnose*TrendIssue)에서 "크게 떨어짐" 판단 기준 — CTR/CVR 변동률(%)
+  RANK_WORSEN_PCT: 15,       // 원인진단에서 "순위가 밀림" 판단 기준 — 평균노출순위 악화율(%)
+  WASTE_HIGH_CLICKS: 10,     // 낭비 키워드 진단 — "클릭은 많은데 전환 0"으로 보는 클릭수 기준
+  WASTE_LOW_CLICKS: 3,       // 낭비 키워드 진단 — "클릭 대비 전환 0" (표본은 적음)으로 보는 클릭수 기준
+  WASTE_MIN_IMPRESSIONS: 50, // 낭비 키워드 진단 — 이 미만이면 "판단하기엔 이르다"로 처리
+};
 /* ================= 공통 디자인 조각 (목업 기준) ================= */
 const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
              card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
@@ -1318,7 +1522,7 @@ function syncMonthRangeToDays(key, allMonths, dr){
   return true;
 }
 
-function renderHourlyPage(data){
+function renderKeywordsPage(data){
   const key = 'client:' + slugify(data.name);
   const fstate = ensureFilterState(key, data);
   document.documentElement.style.setProperty('--accent', data.color);
@@ -1329,382 +1533,270 @@ function renderHourlyPage(data){
   const campaignList = mergedCampaignList(data);
   const allTypes = [...new Set(campaignList.map(c=>c.type))];
   const isDB = data.bizType === 'DB';
-  const isFullSelection = campaignList.every(c=>fstate.campaigns.has(c.campaign));
+  const hasShoppingData = allMonths.some(m=>m.searchTermsByCampaign && Object.keys(m.searchTermsByCampaign).length);
+  // 파워링크 검색어(EXPKEYWORD) — 수집기가 채워주면 나타남. 쇼핑검색 위주 업체는 비어 있을 수 있음.
+  const hasPlTermData = allMonths.some(m=>m.plSearchTermsByCampaign && Object.keys(m.plSearchTermsByCampaign).length);
+  const hasBrandData = allMonths.some(m=>m.brandKeywordsByCampaign && Object.keys(m.brandKeywordsByCampaign).length);
 
-  /* 네이버는 시간을 특정할 수 없는 실적을 hour='99'로 내려보냄. 예전엔 0~23시 범위 밖이라고 그냥 버렸는데,
-     그러면 이 페이지 합계가 index.html보다 조용히 작아짐(실측 수만 원 단위). 25번째 칸('시간 미상')으로 모아
-     표와 합계에는 넣고, 그래프·시간대 추천에서는 뺌(몇 시인지 모르니 조치할 수가 없음). */
-  const UNKNOWN_HOUR_IDX = 24;
-  function blankAgg(){
-    const a = Array.from({ length:24 }, (_,i)=>({ hour:String(i).padStart(2,'0'), impressions:0, clicks:0, cost:0, conv:0, revenue:0, rankSum:0, rankImp:0 }));
-    a.push({ hour:'미상', unknown:true, impressions:0, clicks:0, cost:0, conv:0, revenue:0, rankSum:0, rankImp:0 });
-    return a;
-  }
-  function hourLabel(h){ return h && h.unknown ? '시간 미상' : `${h.hour}시`; }
-  function realHours(list){ return list.filter(h=>!h.unknown); }
-  function aggHourly(monthsList, campaignFilterSet){
-    const agg = blankAgg();
-    let hasCampaignData = false;
-    monthsList.forEach(m=>{
-      if(m.hourlyByCampaign && m.hourlyByCampaign.length){
-        hasCampaignData = true;
-        m.hourlyByCampaign.forEach(h=>{
-          if(campaignFilterSet && !campaignFilterSet.has(h.campaign)) return;
-          const idx = hourIndexOf(h.hour);
-          agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0; agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
-          if(h.avgRank!==null && h.avgRank!==undefined && h.impressions>0){
-            agg[idx].rankSum += h.avgRank*h.impressions; agg[idx].rankImp += h.impressions;
-          }
-        });
-      }
-    });
-    return { agg, hasCampaignData };
-  }
-  // 광고그룹별 시간대(0~23시) 데이터(hourlyByAdgroup)를 캠페인 안의 특정 광고그룹 하나로 필터링해서 보여줌.
-  // input.html에서 시간대별 리포트에 광고그룹 컬럼이 있어야만 채워짐(옛날에 저장된 달은 비어있을 수 있음 —
-  // 다시 업로드하면 채워짐). 예전엔 요일별로도 쪼개서(hourlyByDowByAdgroup) 저장했는데 이 화면에서 요일
-  // 구분은 쓰지 않아서, 광고그룹·캠페인이 많은 계정의 문서 용량을 아끼려고 시간 단위로만 저장하도록 변경함.
-  function aggAdgroupHourly(monthsList, campaignName, adgroupName){
-    const agg = blankAgg();
-    let anyData = false;
-    monthsList.forEach(m=>{
-      (m.hourlyByAdgroup||[]).forEach(cell=>{
-        if(cell.campaign!==campaignName || cell.adgroup!==adgroupName) return;
-        anyData = true;
-        const idx = hourIndexOf(cell.hour);
-        agg[idx].impressions += cell.impressions||0; agg[idx].clicks += cell.clicks||0; agg[idx].cost += cell.cost||0; agg[idx].conv += cell.conv||0; agg[idx].revenue += cell.revenue||0;
-        if(cell.avgRank!==null && cell.avgRank!==undefined && cell.impressions>0){
-          agg[idx].rankSum += cell.avgRank*cell.impressions; agg[idx].rankImp += cell.impressions;
-        }
-      });
-    });
-    return { agg, hasData: anyData };
-  }
-  // 캘린더 날짜 범위 필터(dayRangeState) — hourlyByCampaignDate(날짜×시간×캠페인, 광고그룹 차원 없음)가
-  // 있는 달에서만 정확한 날짜 필터링이 가능함. 필터가 꺼져있으면(기본) 기존과 동일하게 월 전체를 씀.
-  const dayBoundsMinHr = (()=>{ const all=[]; months.forEach(m=>(m.hourlyByCampaignDate||[]).forEach(r=>all.push(r.date))); return all.length ? toDateInputValue(all.sort((a,b)=>dateKey(a).localeCompare(dateKey(b)))[0]) : null; })();
-  const dayBoundsMaxHr = (()=>{ const all=[]; months.forEach(m=>(m.hourlyByCampaignDate||[]).forEach(r=>all.push(r.date))); return all.length ? toDateInputValue(all.sort((a,b)=>dateKey(a).localeCompare(dateKey(b)))[all.length-1]) : null; })();
+  const MODE_FIELD = { powerlink:'keywordsByCampaign', plterm:'plSearchTermsByCampaign', shopping:'searchTermsByCampaign', brand:'brandKeywordsByCampaign' };
+  const MODE_WASTE_FIELD = { powerlink:'wasteKeywordsByCampaign', plterm:'wastePlSearchTermsByCampaign', shopping:'wasteSearchTermsByCampaign', brand:'wasteBrandKeywordsByCampaign' };
+  const MODE_EXPAND_FIELD = { powerlink:'expandKeywordsByCampaign', plterm:'expandPlSearchTermsByCampaign', shopping:'expandSearchTermsByCampaign', brand:'expandBrandKeywordsByCampaign' };
+  const MODE_LABEL = { powerlink:'파워링크 키워드', plterm:'파워링크 검색어', shopping:'쇼핑검색 상품', brand:'브랜드검색 키워드' };
+  if(!(key in keywordPageState)) keywordPageState[key] = 'shopping';
+  keywordPageState[key] = 'shopping'; // 이 페이지는 쇼핑검색 전용
+  // 데이터가 없는 모드가 선택돼 있으면(업체를 바꿨거나 예전 선택이 남은 경우) 파워링크로 되돌림 —
+  // 빈 표에 날짜 버튼까지 비활성인 화면이 뜨면 "왜 아무것도 안 되지"로 보이기 때문.
+  // 쇼핑검색 전용 페이지라 다른 모드로 되돌리지 않음
+  const mode = keywordPageState[key];
+  // 파워링크 '검색어'(EXPKEYWORD) 보고서에는 전환/매출 컬럼 자체가 없음(12컬럼: 0~11).
+  // 그래서 이 모드에서는 전환·매출·ROAS·CPA·전환율을 그리지 않고,
+  // 비용을 얼마나 쓰고 있는지(= 제외어 후보 발굴) 중심으로 컬럼을 바꿔 끼운다.
+  const noConv = (mode === 'plterm');
+
+  if(!(key in kwSortState)) kwSortState[key] = { field:'default', dir:'desc' };
+  if(!(key in wasteSortState)) wasteSortState[key] = { field:'cost', dir:'desc' };
+  if(!(key in topVisibleCount)) topVisibleCount[key] = 10;
+  if(!(key in expandVisibleCount)) expandVisibleCount[key] = 10;
+  if(!(key in wasteVisibleCount)) wasteVisibleCount[key] = 10;
+  const sort = kwSortState[key];
+  const wsort = wasteSortState[key];
+
+  // TOP 키워드 표의 날짜 선택(dayRange)용 — dailyByKeyword(캠페인당 top+waste+expand 합쳐 최대 75개 키워드만
+  // 날짜별로 저장됨)에서 현재 모드(파워링크/쇼핑검색/브랜드검색)에 해당하는 것만 골라 날짜 경계(최소/최대)를 뽑아 씀.
+  // sourceMode가 없는 항목(이 변경 이전에 저장된 구버전 데이터)은 파워링크로 간주(하위 호환).
+  // 키워드별 일별 추이/비교 차트는 "키워드를 하나하나 골라야 하는" 방식이 실사용에 안 맞아서 제거함 —
+  // 날짜 범위 자체는 아래 TOP 표 필터에 계속 쓰임.
+  let allDailyByKeyword = [];
+  months.forEach(m=>{ (m.dailyByKeyword||[]).forEach(r=>{ if(fstate.campaigns.has(r.campaign) && (r.sourceMode||'powerlink')===mode) allDailyByKeyword.push(r); }); });
+  const dayBoundsMinKw = allDailyByKeyword.length ? toDateInputValue(allDailyByKeyword.slice().sort((a,b)=>dateKey(a.date).localeCompare(dateKey(b.date)))[0].date) : null;
+  const dayBoundsMaxKwArr = allDailyByKeyword.length ? allDailyByKeyword.slice().sort((a,b)=>dateKey(a.date).localeCompare(dateKey(b.date))) : [];
+  const dayBoundsMaxKw = dayBoundsMaxKwArr.length ? toDateInputValue(dayBoundsMaxKwArr[dayBoundsMaxKwArr.length-1].date) : null;
   if(!(key in dayRangeState)){ dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null; }
   if(!(key in dayRangeCustomOpen)) dayRangeCustomOpen[key] = false;
   {
     const dr = dayRangeState[key];
-    if(dayBoundsMinHr && dayBoundsMaxHr){
+    if(dayBoundsMinKw && dayBoundsMaxKw){
       // 데이터 범위를 벗어나면 통째로 지우지 말고 범위 안으로 당긴다.
       // (통째로 지우면 '최근 7일' 같은 버튼이 눌린 걸로 인식이 안 돼서 색이 안 들어감)
-      if(dr.start && dr.start < dayBoundsMinHr) dr.start = dayBoundsMinHr;
-      if(dr.start && dr.start > dayBoundsMaxHr) dr.start = null;
-      if(dr.end && dr.end > dayBoundsMaxHr) dr.end = dayBoundsMaxHr;
-      if(dr.end && dr.end < dayBoundsMinHr) dr.end = null;
+      if(dr.start && dr.start < dayBoundsMinKw) dr.start = dayBoundsMinKw;
+      if(dr.start && dr.start > dayBoundsMaxKw) dr.start = null;
+      if(dr.end && dr.end > dayBoundsMaxKw) dr.end = dayBoundsMaxKw;
+      if(dr.end && dr.end < dayBoundsMinKw) dr.end = null;
       if(dr.start && dr.end && dr.start > dr.end) { dr.start = null; dr.end = null; }
     } else { dr.start = null; dr.end = null; }
   }
-  const hasHourlyDayFilter = !!(dayRangeState[key].start || dayRangeState[key].end) && !!dayBoundsMinHr;
+  const hasKwTrendDayFilter = !!(dayRangeState[key].start || dayRangeState[key].end);
+  // 날짜 필터는 세 모드(파워링크/쇼핑검색/브랜드검색) 모두 적용 가능 — 다만 그 모드에 실제로 dailyByKeyword가
+  // 있을 때만(dayBoundsMinKw로 판단, 없으면 프리셋 버튼 자체가 비활성화됨).
+  const hasDayFilter = !!dayBoundsMinKw && hasKwTrendDayFilter;
 
-  function aggHourlyByDateRange(monthsList, campaignFilterSet, range){
-    const agg = blankAgg();
-    let anyData = false;
-    monthsList.forEach(m=>{
-      (m.hourlyByCampaignDate||[]).forEach(cell=>{
-        if(campaignFilterSet && !campaignFilterSet.has(cell.campaign)) return;
-        const k = dateKey(cell.date);
-        if(range.start && k < range.start.replace(/\D/g,'')) return;
-        if(range.end && k > range.end.replace(/\D/g,'')) return;
-        anyData = true;
-        const idx = hourIndexOf(cell.hour);
-        agg[idx].impressions += cell.impressions||0; agg[idx].clicks += cell.clicks||0; agg[idx].cost += cell.cost||0; agg[idx].conv += cell.conv||0; agg[idx].revenue += cell.revenue||0;
-        // 다른 집계 경로는 avgRank를 노출수로 가중해 모으는데 이 경로만 빠져서, 날짜 필터를 켜면
-        // 평균노출순위가 전부 '-'로 바뀌었음. 원본에 값이 있는 달에서는 똑같이 채워줌.
-        if(cell.avgRank!==null && cell.avgRank!==undefined && cell.impressions>0){
-          agg[idx].rankSum += cell.avgRank*cell.impressions; agg[idx].rankImp += cell.impressions;
-        }
-      });
+  let rows = hasDayFilter ? mergeKwRowsByDayRange(months, fstate, dayRangeState[key], mode) : mergeKwRows(months, fstate, MODE_FIELD[mode]);
+  rows = rows.map(r=>({ ...r, cpa: r.conv>0 ? Math.round(r.cost*10000/r.conv) : null, roas: r.cost>0 ? (r.revenue/r.cost*100) : 0,
+    ctr: r.impressions>0 ? (r.clicks/r.impressions*100) : 0, cvr: r.clicks>0 ? (r.conv/r.clicks*100) : 0 }));
+  function applySort(list, sortState, defaultField){
+    const field = sortState.field==='default' ? defaultField : sortState.field;
+    const mult = sortState.dir==='asc' ? 1 : -1;
+    return [...list].sort((a,b)=>{
+      // undefined/NaN이 섞이면 비교 함수가 일관성을 잃어 브라우저마다 순서가 달라짐 → 숫자 아닌 값은 맨 뒤로.
+      let av=a[field], bv=b[field];
+      if(!Number.isFinite(av)) av = -Infinity;
+      if(!Number.isFinite(bv)) bv = -Infinity;
+      return (av-bv)*mult;
     });
-    return { agg, hasData: anyData };
   }
+  // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
+  rows = applySort(rows, sort, noConv ? 'cost' : (isDB?'conv':'revenue')).slice(0,50);
 
-  let hourlyAgg, hourlyHasCampaignData;
-  if(hasHourlyDayFilter){
-    const r = aggHourlyByDateRange(months, isFullSelection ? null : fstate.campaigns, dayRangeState[key]);
-    hourlyAgg = r.agg;
-    hourlyHasCampaignData = r.hasData;
-  } else {
-    let hrAggResult = aggHourly(months, fstate.campaigns);
-    hourlyAgg = hrAggResult.agg;
-    hourlyHasCampaignData = hrAggResult.hasCampaignData;
-    if(isFullSelection || !hourlyHasCampaignData){
-      hourlyAgg = blankAgg();
-      months.forEach(m=>{
-        (m.hourly||[]).forEach(h=>{
-          const idx = hourIndexOf(h.hour);
-          hourlyAgg[idx].impressions += h.impressions||0; hourlyAgg[idx].clicks += h.clicks||0; hourlyAgg[idx].cost += h.cost||0; hourlyAgg[idx].conv += h.conv||0; hourlyAgg[idx].revenue += h.revenue||0;
-          if(h.avgRank!==null && h.avgRank!==undefined && h.impressions>0){
-            hourlyAgg[idx].rankSum += h.avgRank*h.impressions; hourlyAgg[idx].rankImp += h.impressions;
-          }
-        });
-      });
-    }
-  }
-  const hourlyFilterLimited = !hasHourlyDayFilter && !isFullSelection && !hourlyHasCampaignData;
-  const hasHourlyData = hourlyAgg.some(h=>h.impressions>0 || h.cost>0);
-
-  // 전기간 대비: 직전 기간 시간대별 집계
-  // 선택 구간이 여러 달이면(isMultiMonth) "직전 기간"도 같은 길이만큼의 직전 구간을 통째로 집계해서 비교함
-  // (index.html/campaigns.html의 prevRangeMonths 패턴과 동일). 특정 월을 콕 집어 비교하고 싶을 땐
-  // 드롭다운에서 직접 고른 단일 월(prevMonth)을 그대로 사용.
+  // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
+  // refMonth = 현재 보고 있는 구간의 마지막 달(단일 월/전체 누적/임의 구간 모두 이 정의 하나로 처리)
+  let refMonth = months.length ? months[months.length-1] : null;
   if(!(key in compareMonthState)) compareMonthState[key] = 'AUTO';
-  let prevMonths = [];
-  if(months.length){
+  let prevMonth = null;
+  if(refMonth){
     if(compareMonthState[key]!=='AUTO'){
-      const picked = allMonths.find(m=>m.label===compareMonthState[key]);
-      if(picked && !months.some(m=>m.label===picked.label)) prevMonths = [picked];
+      prevMonth = allMonths.find(m=>m.label===compareMonthState[key]) || null;
+      if(prevMonth && prevMonth.label===refMonth.label) prevMonth = null;
     } else {
-      const si = allMonths.findIndex(m=>m.label===months[0].label);
-      const rangeLen = months.length;
-      if(si>=rangeLen) prevMonths = allMonths.slice(si-rangeLen, si);
+      const idx = allMonths.findIndex(m=>m.label===refMonth.label);
+      if(idx>0) prevMonth = allMonths[idx-1];
     }
   }
-  const prevRangeLabel = prevMonths.length
-    ? (prevMonths.length>1 ? `${prevMonths[0].label} ~ ${prevMonths[prevMonths.length-1].label}` : prevMonths[0].label)
-    : null;
-  let prevHourlyAgg = null;
-  if(prevMonths.length){
-    let pResult = aggHourly(prevMonths, fstate.campaigns);
-    let pAgg = pResult.agg;
-    if(isFullSelection || !pResult.hasCampaignData){
-      pAgg = blankAgg();
-      prevMonths.forEach(pm=>(pm.hourly||[]).forEach(h=>{
-        const idx = hourIndexOf(h.hour);
-        pAgg[idx].impressions += h.impressions||0; pAgg[idx].clicks += h.clicks||0; pAgg[idx].cost += h.cost||0; pAgg[idx].conv += h.conv||0; pAgg[idx].revenue += h.revenue||0;
-        if(h.avgRank!==null && h.avgRank!==undefined && h.impressions>0){
-          pAgg[idx].rankSum += h.avgRank*h.impressions; pAgg[idx].rankImp += h.impressions;
-        }
-      }));
-    }
-    prevHourlyAgg = pAgg;
+  /* 날짜 필터가 켜져 있으면 현재 값은 잘린 기간인데 비교 대상은 '직전 달 한 달 전체'라서
+     표 전체에 ▼80% 같은 값이 찍혔음. 필터 중엔 바로 앞의 같은 길이 날짜 구간과 비교하고,
+     그 구간에 데이터가 없으면 ▲▼ 자체를 표시하지 않음. */
+  const enrichKw = r => ({ ...r,
+    cpa: r.conv>0 ? Math.round(r.cost*10000/r.conv) : null, roas: r.cost>0 ? (r.revenue/r.cost*100) : 0,
+    ctr: r.impressions>0 ? (r.clicks/r.impressions*100) : 0, cvr: r.clicks>0 ? (r.conv/r.clicks*100) : 0,
+    // 검색어 모드 TOP 표에서 전환 컬럼 대신 쓰는 값 (waste/expand와 같은 계산식)
+    avgCpc: r.clicks>0 ? Math.round(r.cost*10000/r.clicks) : null });
+  let prevMap = {};
+  let prevPeriodLabel = null;
+  let dayTrendOff = false;
+  if(hasDayFilter){
+    const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const curStart = dayRangeState[key].start || dayBoundsMinKw;
+    const curEnd   = dayRangeState[key].end   || dayBoundsMaxKw;
+    const d1 = new Date(curStart+'T00:00:00'), d2 = new Date(curEnd+'T00:00:00');
+    const lenDays = Math.round((d2-d1)/86400000) + 1;
+    if(lenDays>0 && isFinite(lenDays)){
+      const pEnd = new Date(d1.getTime() - 86400000);
+      const pStart = new Date(pEnd.getTime() - (lenDays-1)*86400000);
+      const prevRange = { start: ymd(pStart), end: ymd(pEnd) };
+      const prevRows = mergeKwRowsByDayRange(allMonths, fstate, prevRange, mode);
+      if(prevRows.length){
+        prevRows.forEach(r=>{ prevMap[r.keyword] = enrichKw(r); });
+        prevPeriodLabel = `${prevRange.start} ~ ${prevRange.end} (같은 ${lenDays}일)`;
+      } else { dayTrendOff = true; }
+    } else { dayTrendOff = true; }
+  } else if(prevMonth){
+    mergeKwRows([prevMonth], fstate, MODE_FIELD[mode]).forEach(r=>{ prevMap[r.keyword] = enrichKw(r); });
+    prevPeriodLabel = prevMonth.label;
   }
-  // 직전 기간에 시간대별 데이터 자체가 없으면(0으로만 채워진 배열) 트렌드 계산을 아예 건너뜀 —
-  // 안 그러면 "0 → N"이 전부 "▲100%"로 표시돼서 마치 실제 변화인 것처럼 보이는 오류가 생김.
-  const prevHourlyHasData = !!(prevHourlyAgg && prevHourlyAgg.some(h=>h.impressions>0 || h.cost>0));
-
-  function enrich(agg){
-    return agg.map(h=>({ ...h, cpa: h.conv>0 ? Math.round(h.cost*10000/h.conv) : null, ctr: h.impressions>0 ? (h.clicks/h.impressions*100) : 0, cvr: h.clicks>0 ? (h.conv/h.clicks*100) : 0,
-      roas: h.cost>0 ? (h.revenue/h.cost*100) : 0,
-      avgRank: (h.rankImp>0) ? (h.rankSum/h.rankImp) : null }));
-  }
-  const hourlyEnriched = enrich(hourlyAgg);
-  const prevEnriched = (prevHourlyAgg && prevHourlyHasData) ? enrich(prevHourlyAgg) : null;
+  const hasPrevForTrend = Object.keys(prevMap).length > 0;
   function pctOf(curr, prev){
     if(prev===null || prev===undefined || curr===null || curr===undefined) return null;
     if(prev===0) return curr>0 ? 100 : null;
     return (curr-prev)/prev*100;
   }
-  /* goodDir: 이 지표가 어느 방향으로 가야 "좋은" 것인지.
-     'up'   = 올라가면 좋음(전환수·매출·ROAS·CTR·CVR)
-     'down' = 내려가야 좋음(비용·CPA·평균노출순위)
-     호출부는 이미 정확히 넘기고 있었는데 함수가 이 값을 쓰지 않아, 비용이나 CPA가 올라도
-     초록(▲)으로 표시돼 나빠진 것이 좋아 보이는 문제가 있었음. */
+  /* goodDir: 'up'=올라가면 좋음, 'down'=내려가야 좋음(비용·CPA·평균노출순위).
+     호출부는 방향을 넘기는데 함수가 안 써서 비용·CPA가 올라도 초록으로 보이던 문제. */
   function cellTrend(pct, goodDir){
     if(pct===null || pct===undefined || isNaN(pct) || Math.abs(pct)<5) return '';
     const rising = pct >= 0;
     const isGood = (goodDir === 'down') ? !rising : rising;
     return `<span style="margin-left:5px;font-size:12px;font-weight:700;color:${isGood?'var(--up)':'var(--down)'};">${rising?'▲':'▼'}${Math.abs(pct).toFixed(0)}%</span>`;
   }
-  const hourlyWithTrend = hourlyEnriched.map((h,i)=>{
-    const p = prevEnriched ? prevEnriched[i] : null;
-    const trends = p ? { cost: pctOf(h.cost,p.cost), conv: pctOf(h.conv,p.conv), cpa: pctOf(h.cpa,p.cpa), revenue: pctOf(h.revenue,p.revenue), roas: pctOf(h.roas,p.roas), ctr: pctOf(h.ctr,p.ctr), cvr: pctOf(h.cvr,p.cvr), avgRank: pctOf(h.avgRank,p.avgRank) } : {};
-    return { ...h, trends };
+  rows = rows.map(k=>{
+    const prev = hasPrevForTrend ? prevMap[k.keyword] : null;
+    const isNewKw = hasPrevForTrend && !prev;
+    const trends = prev ? {
+      cost: pctOf(k.cost, prev.cost), conv: pctOf(k.conv, prev.conv), revenue: pctOf(k.revenue, prev.revenue),
+      cpa: pctOf(k.cpa, prev.cpa), roas: pctOf(k.roas, prev.roas), ctr: pctOf(k.ctr, prev.ctr), cvr: pctOf(k.cvr, prev.cvr),
+      avgRank: pctOf(k.avgRank, prev.avgRank)
+    } : {};
+    return { ...k, isNewKw, trends };
   });
 
-  // 시간대 운영 추천
-  const withConv = realHours(hourlyEnriched).filter(h=>h.conv>0 && h.cost>0);
-  const MIN_CONV_HOUR = 5; // 표본이 너무 적은 시간대는 우연일 수 있어서 제외
-  const totalCostWithConv = withConv.reduce((s,h)=>s+h.cost,0), totalConvWithConv = withConv.reduce((s,h)=>s+h.conv,0), totalRevenueWithConv = withConv.reduce((s,h)=>s+h.revenue,0);
-  const avgCpaHour = totalConvWithConv>0 ? (totalCostWithConv*10000/totalConvWithConv) : null; // 전환수로 가중한 평균 CPA (시간대별 단순평균이 아님)
-  const avgRoasHour = totalCostWithConv>0 ? (totalRevenueWithConv/totalCostWithConv*100) : null; // 비용으로 가중한 평균 ROAS
-  const cutCandidates = realHours(hourlyEnriched).filter(h=> h.cost>=1 && h.conv===0).sort((a,b)=>b.cost-a.cost).slice(0,5);
-  const boostCandidates = isDB
-    ? (avgCpaHour ? realHours(hourlyEnriched).filter(h=> h.conv>=MIN_CONV_HOUR && h.cpa < avgCpaHour*0.6).sort((a,b)=>a.cpa-b.cpa).slice(0,5) : [])
-    : (avgRoasHour ? realHours(hourlyEnriched).filter(h=> h.conv>=MIN_CONV_HOUR && h.roas > avgRoasHour*1.4).sort((a,b)=>b.roas-a.roas).slice(0,5) : []);
-  const bestHourCandidates = withConv.filter(h=>h.conv>=MIN_CONV_HOUR);
-  const bestHour = bestHourCandidates.length ? bestHourCandidates.reduce((a,b)=> isDB ? (a.cpa<b.cpa?a:b) : (a.roas>b.roas?a:b)) : null;
-  let overallTrendInsight = null;
-  if(prevEnriched){
-    const curTotalCost = hourlyEnriched.reduce((a,b)=>a+b.cost,0), curTotalConv = hourlyEnriched.reduce((a,b)=>a+b.conv,0), curTotalRevenue = hourlyEnriched.reduce((a,b)=>a+b.revenue,0);
-    const prevTotalCost = prevEnriched.reduce((a,b)=>a+b.cost,0), prevTotalConv = prevEnriched.reduce((a,b)=>a+b.conv,0), prevTotalRevenue = prevEnriched.reduce((a,b)=>a+b.revenue,0);
-    if(isDB){
-      const curCpa = curTotalConv>0 ? curTotalCost*10000/curTotalConv : null;
-      const prevCpa = prevTotalConv>0 ? prevTotalCost*10000/prevTotalConv : null;
-      if(curCpa!==null && prevCpa!==null && curTotalConv>=5 && prevTotalConv>=5){
-        const diff = (curCpa-prevCpa)/prevCpa*100;
-        if(Math.abs(diff)>=10) overallTrendInsight = { good: diff<=0, text:`직전 기간 대비 전체 시간대 CPA가 ${Math.abs(diff).toFixed(0)}% ${diff<=0?'개선':'상승'}됐어요 (${Math.round(prevCpa).toLocaleString('ko-KR')}원 → ${Math.round(curCpa).toLocaleString('ko-KR')}원).` };
-      }
-    } else {
-      const curRoas = curTotalCost>0 ? curTotalRevenue/curTotalCost*100 : null;
-      const prevRoas = prevTotalCost>0 ? prevTotalRevenue/prevTotalCost*100 : null;
-      if(curRoas!==null && prevRoas!==null && prevRoas>0 && curTotalCost>=1 && prevTotalCost>=1){
-        const diff = curRoas-prevRoas;
-        if(Math.abs(diff)>=5) overallTrendInsight = { good: diff>=0, text:`직전 기간 대비 전체 시간대 ROAS가 ${Math.abs(diff).toFixed(0)}%p ${diff>=0?'상승':'하락'}했어요 (${prevRoas.toFixed(0)}% → ${curRoas.toFixed(0)}%).` };
-      }
-    }
+  // 날짜 필터가 걸려 있으면(현재 모드에 날짜별 원본이 있을 때) 그 모드의 제외추천/확대추천도 dailyByKeyword
+  // 기준으로 그 기간에 맞춰 다시 계산함 — 나머지 두 모드는 항상 월 단위(mergeKwWaste/mergeKwExpand) 그대로,
+  // 날짜별 원본 자체가 없는 모드도 마찬가지(dayBoundsMinKw가 null이면 hasDayFilter가 애초에 false가 됨).
+  /* 날짜 필터를 켜면 현재 모드만 그 기간으로 잘리고 나머지 두 모드는 월 전체 값이라,
+     "최근 7일 파워링크 3만원"과 "한 달치 쇼핑검색 200만원"이 한 표에서 비용순으로 경쟁했음.
+     기간이 다른 값을 같은 순위표에 섞지 않도록, 필터 중엔 현재 모드만 보여줌. */
+  const OTHER_MODES = hasDayFilter ? [] : ['powerlink','plterm','shopping','brand'].filter(m=>m!==mode);
+  const dayFilteredWasteExpand = hasDayFilter ? computeWasteExpandByDayRange(months, fstate, dayRangeState[key], isDB, mode) : null;
+  let waste = [
+    ...(dayFilteredWasteExpand ? dayFilteredWasteExpand.waste : mergeKwWaste(months, fstate, MODE_WASTE_FIELD[mode], mode)),
+    ...OTHER_MODES.flatMap(m=>mergeKwWaste(months, fstate, MODE_WASTE_FIELD[m], m)),
+  ];
+  waste = waste.map(w=>({ ...w, cpa: w.conv>0 ? Math.round(w.cost*10000/w.conv) : null, roas: w.cost>0 ? (w.revenue/w.cost*100) : 0,
+    ctr: w.impressions>0 ? (w.clicks/w.impressions*100) : 0, cvr: w.clicks>0 ? (w.conv/w.clicks*100) : 0,
+    avgCpc: w.clicks>0 ? Math.round(w.cost*10000/w.clicks) : null }));
+  waste = applySort(waste, wsort, 'cost').slice(0,50);
+
+  // 확대 추천: 효율은 좋은데 비용이 평균보다 낮은 키워드 (제외추천과 대칭)
+  let expand = [
+    ...(dayFilteredWasteExpand ? dayFilteredWasteExpand.expand : mergeKwExpand(months, fstate, MODE_EXPAND_FIELD[mode], mode)),
+    ...OTHER_MODES.flatMap(m=>mergeKwExpand(months, fstate, MODE_EXPAND_FIELD[m], m)),
+  ];
+  expand = expand.map(e=>({ ...e, cpa: e.conv>0 ? Math.round(e.cost*10000/e.conv) : null, roas: e.cost>0 ? (e.revenue/e.cost*100) : 0,
+    ctr: e.impressions>0 ? (e.clicks/e.impressions*100) : 0, cvr: e.clicks>0 ? (e.conv/e.clicks*100) : 0,
+    avgCpc: e.clicks>0 ? Math.round(e.cost*10000/e.clicks) : null }));
+  if(!(key in expandSortState)) expandSortState[key] = { field:'default', dir:'desc' };
+  const esort = expandSortState[key];
+  expand = applySort(expand, esort, isDB?'cpa':'roas');
+  if(esort.field==='default'){ expand.sort((a,b)=> isDB ? a.cpa-b.cpa : b.roas-a.roas); }
+  expand = expand.slice(0,50);
+
+  // 💡 키워드 성과 인사이트 (현재 모드·기간·필터 기준)
+  // 원인 추정: 전환 없이 비용만 쓴 키워드 — 클릭은 있는데 전환이 없으면 타겟팅/랜딩페이지 불일치,
+  // 노출 자체가 적으면 아직 판단하기 이르다는 식으로 campaigns.html의 원인 진단과 같은 관점을 키워드 단위로 적용.
+  function diagnoseWasteKeywordIssue(w){
+    const clicks = w.clicks||0, impressions = w.impressions||0;
+    if(clicks>=INSIGHT_THRESHOLDS.WASTE_HIGH_CLICKS) return `클릭은 ${clicks}건 있었는데 전환이 없어요 — 키워드 검색 의도와 랜딩페이지가 맞지 않거나 타겟팅이 어긋났을 수 있어요, 랜딩페이지를 점검해보세요.`;
+    if(clicks>=INSIGHT_THRESHOLDS.WASTE_LOW_CLICKS) return `클릭 대비 전환이 없어요 — 광고 문구(소재)가 이 키워드의 검색 의도와 맞는지, 랜딩페이지가 적절한지 점검해보세요.`;
+    if(impressions<INSIGHT_THRESHOLDS.WASTE_MIN_IMPRESSIONS) return `아직 노출·클릭이 적어서(노출 ${impressions}회) 판단하기엔 일러요 — 조금 더 지켜본 뒤 결정하세요.`;
+    return `클릭률이 낮아 판단할 데이터가 부족해요 — 입찰가나 키워드 매칭 방식을 점검해보세요.`;
   }
+  // 원인 추정: 직전 기간 대비 CPA/ROAS가 크게 나빠진 키워드 — CTR 하락이면 소재(문구) 매칭 문제,
+  // CVR 하락이면 랜딩페이지/타겟팅 문제, 평균노출순위 하락이면 입찰 경쟁(입찰가) 문제로 구분.
+  function diagnoseKeywordTrendIssue(r){
+    const t = r.trends||{};
+    if(t.ctr!==null && t.ctr!==undefined && t.ctr<=INSIGHT_THRESHOLDS.TREND_DECLINE_PCT) return `클릭률이 크게 떨어졌어요 — 키워드와 광고 문구(소재)가 검색 의도와 잘 맞는지 점검해보세요.`;
+    if(t.cvr!==null && t.cvr!==undefined && t.cvr<=INSIGHT_THRESHOLDS.TREND_DECLINE_PCT) return `클릭 대비 전환율이 크게 떨어졌어요 — 랜딩페이지나 타겟팅을 점검해보세요.`;
+    if(t.avgRank!==null && t.avgRank!==undefined && t.avgRank>=INSIGHT_THRESHOLDS.RANK_WORSEN_PCT) return `평균노출순위가 밀렸어요 — 입찰 경쟁이 심해졌을 수 있어요, 입찰가를 확인해보세요.`;
+    return null;
+  }
+  function generateKeywordInsights(){
+    const insights = [];
+    // 검색어 모드: 전환/매출 데이터가 없으므로 "성과가 좋다/나쁘다"를 말할 수 없다.
+    // 대신 돈이 어디로 새는지(비용 집중·클릭률)만 근거 있게 짚어준다.
+    if(noConv){
+      if(rows.length){
+        const top = rows[0];
+        const totalCost = rows.reduce((a,b)=>a+b.cost,0);
+        const share = totalCost>0 ? (top.cost/totalCost*100) : 0;
+        insights.push({type:'neutral', text:`'${top.keyword}' 검색어에 비용이 가장 많이 나갔어요 (${fmtMan(top.cost)}원, 상위 50개 중 ${share.toFixed(0)}%). 우리 상품과 맞는 검색어인지 확인해보세요.`});
+        const lowCtr = rows.filter(r=>r.cost>0 && r.clicks>0 && r.ctr < 1).sort((a,b)=>b.cost-a.cost).slice(0,1)[0];
+        if(lowCtr) insights.push({type:'warn', text:`'${lowCtr.keyword}'는 ${fmtMan(lowCtr.cost)}원을 쓰면서 클릭률이 ${lowCtr.ctr.toFixed(2)}%로 낮아요 — 검색 의도가 우리 상품과 어긋났을 수 있으니 제외어 후보로 검토해보세요.`});
+        const noClick = rows.filter(r=>r.cost>0 && (r.clicks||0)===0);
+        if(noClick.length) insights.push({type:'warn', text:`클릭이 한 번도 없는데 비용이 나간 검색어가 ${noClick.length}개 있어요 (총 ${fmtMan(noClick.reduce((a,b)=>a+b.cost,0))}원).`});
+      }
+      insights.push({type:'neutral', text:'ℹ️ 네이버 검색어 보고서에는 전환·매출 항목이 없어서 이 화면에서는 ROAS·CPA를 계산할 수 없어요. 성과 판단은 파워링크 키워드 화면에서 해주세요.'});
+      return insights;
+    }
+    if(rows.length){
+      const top = rows[0];
+      if(!isDB && top.revenue>0) insights.push({type:'good', text:`'${top.keyword}' ${MODE_LABEL[mode]}가 매출 ${fmtMan(top.revenue)}원으로 가장 성과가 좋아요 (비용 ${fmtMan(top.cost)}원 기준).`});
+      else if(top.conv>0) insights.push({type:'good', text:`'${top.keyword}' ${MODE_LABEL[mode]}가 전환 ${top.conv}건으로 가장 성과가 좋아요 (비용 ${fmtMan(top.cost)}원 기준).`});
+    }
+    if(waste.length){
+      const totalWasteCost = waste.reduce((a,b)=>a+b.cost,0);
+      const worstWaste = waste[0];
+      const diag = worstWaste ? ` 가장 큰 '${worstWaste.keyword}'(${fmtMan(worstWaste.cost)}원)의 경우: ${diagnoseWasteKeywordIssue(worstWaste)}` : '';
+      insights.push({type:'warn', text:`전환 없이 비용만 쓴 키워드/검색어가 ${waste.length}개, 총 ${fmtMan(totalWasteCost)}원이에요.${diag} 아래 제외 추천 목록을 확인해보세요.`});
+    }
+    if(expand.length){
+      const top2 = expand[0];
+      insights.push({type:'good', text:`💡 '${top2.keyword}'는 효율은 좋은데 비용을 적게 쓰고 있어요 (${isDB ? 'CPA '+(top2.cpa!==null?top2.cpa.toLocaleString('ko-KR')+'원':'-') : 'ROAS '+top2.roas.toFixed(0)+'%'}). 입찰가·예산 확대를 검토해보세요.`});
+    }
+    const bigMoves = rows.filter(r=>{
+      const t = r.trends||{};
+      return (isDB
+        ? (t.cpa!==null && t.cpa!==undefined && Math.abs(t.cpa)>=INSIGHT_THRESHOLDS.BIG_MOVE_CPA_PCT && r.conv>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_SAMPLE)
+        : (t.roas!==null && t.roas!==undefined && Math.abs(t.roas)>=INSIGHT_THRESHOLDS.BIG_MOVE_ROAS_PP && r.cost>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_SAMPLE));
+    }).slice(0,2);
+    bigMoves.forEach(r=>{
+      const t = r.trends;
+      const isBad = isDB ? t.cpa>0 : t.roas<0;
+      const diagTxt = isBad ? diagnoseKeywordTrendIssue(r) : null;
+      if(isDB) insights.push({type: t.cpa<=0?'good':'warn', text:`'${r.keyword}', 직전 기간 대비 CPA가 ${Math.abs(t.cpa).toFixed(0)}% ${t.cpa<=0?'개선':'상승'}됐어요.${diagTxt?' '+diagTxt:''}`});
+      else insights.push({type: t.roas>=0?'good':'warn', text:`'${r.keyword}', 직전 기간 대비 ROAS가 ${Math.abs(t.roas).toFixed(0)}%p ${t.roas>=0?'상승':'하락'}했어요.${diagTxt?' '+diagTxt:''}`});
+    });
+    if(!insights.length) insights.push({type:'neutral', text:'아직 인사이트를 뽑기엔 데이터가 더 필요해요.'});
+    return insights;
+  }
+  function buildKeywordInsightsHTML(insights){
+    const icon = t => t==='good' ? '📈' : t==='warn' ? '⚠️' : 'ℹ️';
+    const color = t => t==='good' ? 'var(--up)' : t==='warn' ? 'var(--down)' : 'var(--text)';
+    return insights.map(i=>`<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>${icon(i.type)}</span><span style="color:${color(i.type)};">${i.text}</span></div>`).join('');
+  }
+  const keywordInsights = generateKeywordInsights();
   window.__currentClientData = data;
   const periodLabel = isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} 누적` : (months[0] ? months[0].label : '기간 없음');
   window.__pageAIContext = {
-    isDB,
+    isDB, mode, modeLabel: MODE_LABEL[mode],
     periodLabel,
-    hourly: hourlyEnriched.map(h=>({ hour:h.hour, cost:h.cost, conv:h.conv, cpa:h.cpa, revenue:h.revenue, roas:h.roas, ctr:h.ctr })),
-    bestHour: bestHour ? { hour:bestHour.hour, cpa:bestHour.cpa, roas:bestHour.roas, conv:bestHour.conv } : null,
-    cutHours: cutCandidates.map(h=>({ hour:h.hour, cost:h.cost })),
-    boostHours: boostCandidates.map(h=>({ hour:h.hour, cpa:h.cpa, roas:h.roas })),
-    trendInsight: overallTrendInsight ? overallTrendInsight.text : null
+    topRows: rows.slice(0,15).map(r=>({ keyword:r.keyword, cost:r.cost, conv:r.conv, revenue:r.revenue, cpa:r.cpa, roas:r.roas })),
+    wasteCount: waste.length,
+    wasteCost: waste.reduce((a,b)=>a+b.cost,0),
+    expandTop: expand.slice(0,5).map(r=>({ keyword:r.keyword, cpa:r.cpa, roas:r.roas })),
+    insights: keywordInsights.map(i=>i.text)
   };
-
-  // 요일×시간대 히트맵 데이터 (시간대별 리포트에 일별 컬럼이 포함된 경우에만 존재).
-  // 캠페인별 세부 데이터(hourlyByDowByCampaign)가 있는 달은 캠페인 필터를 반영하고,
-  // 옛날에 저장돼서 이 세부 데이터가 없는 달은 어쩔 수 없이 전체 캠페인 기준으로 합산함.
-  let hasDowData = false, hasDowByCampaignData = false;
-  months.forEach(m=>{
-    if(m.hourlyByDow && m.hourlyByDow.length) hasDowData = true;
-    if(m.hourlyByDowByCampaign && m.hourlyByDowByCampaign.length) hasDowByCampaignData = true;
-  });
-  let dowGrid = null;
-  let dowHeatmapIsFiltered = false; // true면 현재 캠페인 필터가 히트맵에도 실제로 반영된 상태
-  let dowHeatmapPartiallyUnfiltered = false; // true면 필터 적용 중인데 일부(예전 형식) 달은 캠페인별 세부 정보가 없어서 필터 없이 전체 기준으로 섞여 들어감
-  if(hasDowData){
-    dowGrid = Array.from({ length:7 }, ()=> Array.from({ length:24 }, ()=>({ impressions:0, clicks:0, cost:0, conv:0, revenue:0, rankSum:0, rankImp:0 })));
-    const addCell = (d,h,cell)=>{
-      dowGrid[d][h].impressions += cell.impressions||0;
-      dowGrid[d][h].clicks += cell.clicks||0;
-      dowGrid[d][h].cost += cell.cost||0;
-      dowGrid[d][h].conv += cell.conv||0;
-      dowGrid[d][h].revenue += cell.revenue||0;
-      if(cell.avgRank!==null && cell.avgRank!==undefined && cell.impressions>0){
-        dowGrid[d][h].rankSum += cell.avgRank*cell.impressions; dowGrid[d][h].rankImp += cell.impressions;
-      }
-    };
-    if(!isFullSelection && hasDowByCampaignData){
-      dowHeatmapIsFiltered = true;
-      // 달 단위로 분기: 캠페인별 세부 데이터(hourlyByDowByCampaign)가 있는 달만 필터를 적용할 수 있음.
-      // 이전에는 범위 안에 그런 달이 하나라도 있으면 세부 데이터가 없는(예전 형식) 달은 통째로
-      // 제외돼서 조용히 데이터가 누락됐음 — 완전히 빼는 대신, 필터를 적용할 수 없는 달은 전체
-      // 캠페인 기준으로라도 포함하고 캡션으로 안내함.
-      months.forEach(m=>{
-        if(m.hourlyByDowByCampaign && m.hourlyByDowByCampaign.length){
-          m.hourlyByDowByCampaign.forEach(cell=>{
-            const h = parseInt(cell.hour,10);
-            const d = cell.dow;
-            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
-            if(!fstate.campaigns.has(cell.campaign)) return;
-            addCell(d,h,cell);
-          });
-        } else if(m.hourlyByDow && m.hourlyByDow.length){
-          dowHeatmapPartiallyUnfiltered = true;
-          m.hourlyByDow.forEach(cell=>{
-            const h = parseInt(cell.hour,10);
-            const d = cell.dow;
-            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
-            addCell(d,h,cell);
-          });
-        }
-      });
-    } else {
-      months.forEach(m=>{
-        (m.hourlyByDow||[]).forEach(cell=>{
-          const h = parseInt(cell.hour,10);
-          const d = cell.dow;
-          if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
-          addCell(d,h,cell);
-        });
-      });
-    }
-  }
-  const DOW_LABELS = ['일','월','화','수','목','금','토'];
-
-  // 요일 단위 운영 추천 — 시간대(0~23시) 인사이트는 이미 있었지만, "주말 노출 끄기"처럼 실무 판단은
-  // 요일 단위로 이뤄지는 경우가 많아서 dowGrid(요일×시간대)를 요일별로 합산해 같은 패턴의 인사이트를 추가.
-  let dowInsight = null, dowWorstInsight = null, dowZeroConvInsight = null;
-  if(dowGrid){
-    const MIN_CONV_DOW = 5;
-    const dowAgg = dowGrid.map((row, d)=>{
-      const agg = row.reduce((s,c)=>({ impressions:s.impressions+c.impressions, clicks:s.clicks+c.clicks, cost:s.cost+c.cost, conv:s.conv+c.conv, revenue:s.revenue+c.revenue }), { impressions:0, clicks:0, cost:0, conv:0, revenue:0 });
-      return { dow:d, label:DOW_LABELS[d], ...agg,
-        cpa: agg.conv>0 ? Math.round(agg.cost*10000/agg.conv) : null,
-        roas: agg.cost>0 ? (agg.revenue/agg.cost*100) : 0 };
-    });
-    const dowWithConv = dowAgg.filter(d=>d.conv>=MIN_CONV_DOW && d.cost>0);
-    if(dowWithConv.length>=2){
-      const best = dowWithConv.reduce((a,b)=> isDB ? (a.cpa<b.cpa?a:b) : (a.roas>b.roas?a:b));
-      const worst = dowWithConv.reduce((a,b)=> isDB ? (a.cpa>b.cpa?a:b) : (a.roas<b.roas?a:b));
-      if(best.dow!==worst.dow){
-        dowInsight = isDB
-          ? { text:`가장 효율적인 요일은 '${best.label}요일'이에요 (CPA ${best.cpa.toLocaleString('ko-KR')}원, 전환 ${best.conv}건 기준).` }
-          : { text:`가장 효율적인 요일은 '${best.label}요일'이에요 (ROAS ${best.roas.toFixed(0)}%, 전환 ${best.conv}건 기준).` };
-        dowWorstInsight = isDB
-          ? { text:`'${worst.label}요일'은 상대적으로 CPA가 높아요 (${worst.cpa.toLocaleString('ko-KR')}원, 전환 ${worst.conv}건 기준) — 예산 비중을 낮추는 걸 검토해보세요.` }
-          : { text:`'${worst.label}요일'은 상대적으로 ROAS가 낮아요 (${worst.roas.toFixed(0)}%, 전환 ${worst.conv}건 기준) — 예산 비중을 낮추는 걸 검토해보세요.` };
-      }
-    }
-    // 전환 0건인데 비용만 쓴 요일(주말 노출 끄기 등 판단에 직접 쓰이는 정보)
-    const zeroConv = dowAgg.filter(d=>d.cost>=1 && d.conv===0).sort((a,b)=>b.cost-a.cost);
-    if(zeroConv.length){
-      dowZeroConvInsight = { text:`${zeroConv.map(d=>`'${d.label}요일'(${fmtWon(d.cost)}원)`).join(', ')}은 비용만 쓰고 전환이 0건이에요 — 이 요일 노출을 줄이거나 끄는 걸 검토해보세요.` };
-    }
-  }
-
-  if(!(key in hourHeatmapMetric)) hourHeatmapMetric[key] = 'cost';
-  let heatMetric = hourHeatmapMetric[key];
-  if(isDB && (heatMetric==='revenue' || heatMetric==='roas')) heatMetric = hourHeatmapMetric[key] = 'cost';
-  if(!isDB && heatMetric==='cpa') heatMetric = hourHeatmapMetric[key] = 'cost';
-
-  // 캠페인별 시간대 비교
-  if(!(key in hourCompareCampaigns)) hourCompareCampaigns[key] = [];
-  if(!(key in hourCompareMetric)) hourCompareMetric[key] = 'conv';
-  if(isDB && hourCompareMetric[key]==='roas') hourCompareMetric[key] = 'conv';
-  if(!isDB && hourCompareMetric[key]==='cpa') hourCompareMetric[key] = 'roas';
-  const compareCampaigns = hourCompareCampaigns[key];
-  const compareMetric = hourCompareMetric[key];
-  const compareData = {};
-  if(compareCampaigns.length){
-    compareCampaigns.forEach(camp=>{
-      const agg = blankAgg();
-      months.forEach(m=>{
-        (m.hourlyByCampaign||[]).forEach(h=>{
-          if(h.campaign!==camp) return;
-          const idx = hourIndexOf(h.hour);
-          agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0; agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
-        });
-      });
-      compareData[camp] = enrich(agg);
-    });
-  }
-
-  // 광고그룹별 시간대 분석 — 선택한 기간(months) 안에 있는 모든 캠페인의 광고그룹 목록을 모아서
-  // 드롭다운으로 하나 고르면 그 광고그룹만의 0~23시 패턴을 보여줌. hourlyByAdgroup에 데이터가
-  // 있는 (캠페인, 광고그룹) 조합만 골라낼 수 있음 — 광고그룹 컬럼 없이 시간대만 있는 옛날 리포트는 대상에서 빠짐.
-  const adgroupOptionsSet = new Set(); // "캠페인::광고그룹"
-  months.forEach(m=>{
-    (m.hourlyByAdgroup||[]).forEach(cell=>{
-      if(cell.campaign && cell.adgroup) adgroupOptionsSet.add(cell.campaign+'::'+cell.adgroup);
-    });
-  });
-  const adgroupOptions = [...adgroupOptionsSet].map(s=>{
-    const idx = s.indexOf('::');
-    return { campaign: s.slice(0,idx), adgroup: s.slice(idx+2) };
-  }).sort((a,b)=> a.campaign===b.campaign ? a.adgroup.localeCompare(b.adgroup,'ko') : a.campaign.localeCompare(b.campaign,'ko'));
-  const hasAdgroupHourlyData = adgroupOptions.length>0;
-  if(!(key in hourAdgroupSelectState) || (hourAdgroupSelectState[key] && !adgroupOptions.some(o=>o.campaign===hourAdgroupSelectState[key].campaign && o.adgroup===hourAdgroupSelectState[key].adgroup))){
-    hourAdgroupSelectState[key] = adgroupOptions.length ? { campaign:adgroupOptions[0].campaign, adgroup:adgroupOptions[0].adgroup } : null;
-  }
-  const selectedAdgroup = hourAdgroupSelectState[key];
-  let adgroupHourlyEnriched = null;
-  if(selectedAdgroup){
-    const agResult = aggAdgroupHourly(months, selectedAdgroup.campaign, selectedAdgroup.adgroup);
-    adgroupHourlyEnriched = enrich(agResult.agg);
-  }
 
   const initial = (data.name||'?').trim().charAt(0);
   const textColor = contrastText(data.color);
-  const CMP_COLORS = ['#8b7cff','#3fd4a3','#ff9d4d','#ff5d7a','#4dd0ff'];
+  const sortTh = (label, field, state, mode) => `<th data-sort="${mode}" data-field="${field}" style="cursor:pointer;user-select:none;">${label}${state.field===field?(state.dir==='desc'?' ▼':' ▲'):''}</th>`;
 
   const card = document.getElementById('card');
   card.innerHTML = `
@@ -1712,18 +1804,16 @@ function renderHourlyPage(data){
       <div class="idn">
         <div class="icon" style="background:${data.color};color:${textColor}">${initial}</div>
         <div>
-          <div class="idn-name">${data.name} <span class="badge">시간대별 전용 보기</span></div>
+          <div class="idn-name">${data.name} <span class="badge">쇼핑검색 전용 보기</span></div>
           <div class="period" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span>${hasHourlyDayFilter
-              ? `📆 ${dayRangeState[key].start||dayBoundsMinHr} ~ ${dayRangeState[key].end||dayBoundsMaxHr} 날짜 필터 적용 중`
-              : `${isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} (${months.length}개 기간) 누적` : (months[0] ? months[0].label : '-')} 기준`} · 캠페인 필터 적용됨</span>
+            <span>${isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} (${months.length}개 기간) 누적` : (months[0] ? months[0].label : '-')} 기준 · 캠페인 필터 적용됨${hasDayFilter ? ` · 📆 ${dayRangeState[key].start||dayBoundsMinKw} ~ ${dayRangeState[key].end||dayBoundsMaxKw} 날짜 필터 적용 중(${MODE_LABEL[mode]} TOP·확대추천·제외추천 표에 반영됨, 다른 모드는 지금 선택 중이 아니라 월 단위 그대로 · 검색 유형은 일별 데이터엔 없어서 표시 안 됨)` : ''}</span>
           </div>
-          ${dayBoundsMinHr && dayRangeCustomOpen[key] ? `
+          ${dayBoundsMinKw && dayRangeCustomOpen[key] ? `
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
-            <input type="date" id="dayRangeStartInput" min="${dayBoundsMinHr}" max="${dayBoundsMaxHr}" value="${dayRangeState[key].start || dayBoundsMinHr || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
+            <input type="date" id="kwDayRangeStartInput" min="${dayBoundsMinKw}" max="${dayBoundsMaxKw}" value="${dayRangeState[key].start || dayBoundsMinKw || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
             <span style="color:var(--muted);font-size:12px;">~</span>
-            <input type="date" id="dayRangeEndInput" min="${dayBoundsMinHr}" max="${dayBoundsMaxHr}" value="${dayRangeState[key].end || dayBoundsMaxHr || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-            ${hasHourlyDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
+            <input type="date" id="kwDayRangeEndInput" min="${dayBoundsMinKw}" max="${dayBoundsMaxKw}" value="${dayRangeState[key].end || dayBoundsMaxKw || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
+            ${hasKwTrendDayFilter ? `<button id="kwDayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
           </div>` : ''}
         </div>
       </div>
@@ -1744,16 +1834,16 @@ function renderHourlyPage(data){
             </div>
       </div>
       <div class="fb-g">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;${dayBoundsMinHr?'':'opacity:.5;'}" title="${dayBoundsMinHr?'':'이 기간엔 일별 데이터가 없어서 날짜를 좁혀도 결과가 바뀌지 않아요.'}">
-            <span title="" style="font-size:12px;color:var(--muted);cursor:help;">📆 날짜 선택:</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;${dayBoundsMinKw?'':'opacity:.5;'}" title="${dayBoundsMinKw?'':'이 기간엔 키워드 일별 데이터가 없어서 날짜를 좁혀도 결과가 바뀌지 않아요.'}">
+            <span title="지금 선택된 ${MODE_LABEL[mode]} TOP·확대추천·제외추천 표에 모두 적용 — 파일에 일별 컬럼이 없으면 버튼이 비활성화돼요" style="font-size:12px;color:var(--muted);cursor:help;">📆 날짜 선택 ⓘ:</span>
             ${['yesterday','last7','thisMonth','lastMonth','all'].map(pk=>{
               const pLabel = {yesterday:'어제',last7:'최근 7일',thisMonth:'이번달',lastMonth:'지난달',all:'전체 기간'}[pk];
-              const active = dayBoundsMinHr && !dayRangeCustomOpen[key] && (dayPresetChoice[key]
+              const active = dayBoundsMinKw && !dayRangeCustomOpen[key] && (dayPresetChoice[key]
                 ? dayPresetChoice[key]===pk
-                : isPresetActive(pk, dayRangeState[key], dayBoundsMinHr, dayBoundsMaxHr));
-              return `<button class="day-preset-pill-hr" data-preset="${pk}" ${dayBoundsMinHr?'':'disabled'} style="background:${active?'var(--accent)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinHr?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
+                : isPresetActive(pk, dayRangeState[key], dayBoundsMinKw, dayBoundsMaxKw));
+              return `<button class="day-preset-pill-kw" data-preset="${pk}" ${dayBoundsMinKw?'':'disabled'} style="background:${active?'var(--accent)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
             }).join('')}
-            <button id="dayRangeCustomToggle" ${dayBoundsMinHr?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinHr?'pointer':'not-allowed'};">📆 직접 선택</button>
+            <button id="kwDayRangeCustomToggle" ${dayBoundsMinKw?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};">📆 직접 선택</button>
           </div>
       </div>
       <div class="fb-g">
@@ -1764,255 +1854,140 @@ function renderHourlyPage(data){
             </select>
       </div>
     </div>
-    ${!hasHourlyData ? `<div class="empty-state"><div style="font-size:28px;">⏰</div><div>표시할 시간대별 데이터가 없어요.<br>input.html에서 시간대별 리포트를 업로드해주세요.</div></div>` : `
 
-    ${(() => {
-      // 목업 구조: '더 붙일 시간 / 줄일 시간 / 표본이 부족한 시간' 세 덩어리로 한눈에.
-      // 예전엔 문장이 줄줄이 나열돼서 뭘 먼저 봐야 하는지 안 보였음.
-      const lowSample = realHours(hourlyEnriched).filter(h=>h.cost>0 && h.conv>0 && h.conv<MIN_CONV_HOUR)
-                          .sort((a,b)=>b.cost-a.cost).slice(0,5);
-      const hh = arr => arr.map(h=>h.hour+'시').join(' · ');
-      const won = v => Math.round(v*10000).toLocaleString('ko-KR')+'원';
-      const block = (color, title, hours, detail) => hours ? `
-        <div style="display:flex;flex-direction:column;gap:6px;padding:13px 15px;background:#161823;min-width:0">
-          <div style="display:flex;align-items:center;gap:7px">
-            <span style="width:6px;height:6px;border-radius:2px;background:${color}"></span>
-            <span style="font-size:12px;color:#7b7f96">${title}</span></div>
-          <div class="m" style="font-size:17px;font-weight:600;color:#e8e9f2;letter-spacing:-.02em">${hours}</div>
-          <div style="font-size:11.5px;color:#7b7f96;line-height:1.55">${detail}</div>
-        </div>` : '';
-      const boostDetail = isDB
-        ? `전환당 비용이 평균(${avgCpaHour?Math.round(avgCpaHour).toLocaleString('ko-KR')+'원':'-'})보다 훨씬 쌈`
-        : `ROAS가 평균(${avgRoasHour?Math.round(avgRoasHour)+'%':'-'})보다 훨씬 높음`;
-      const cutCost = cutCandidates.reduce((a,h)=>a+h.cost,0);
-      const blocks = block('#3ddc97','더 붙일 시간', hh(boostCandidates), boostDetail)
-                   + block('#ff6b85','줄일 시간', hh(cutCandidates), cutCandidates.length?`이 시간에 ${won(cutCost)} 쓰고 전환 0건`:'')
-                   + block('#7b7f96','표본이 부족한 시간', hh(lowSample), `전환 ${MIN_CONV_HOUR}건 미만 — 판단 보류`);
-      if(!blocks) return `<div class="panel"><div class="panel-title">💡 시간대 운영 추천</div>
-        <div style="color:var(--muted);font-size:12px;">아직 추천할 만큼 뚜렷한 시간대 차이가 없어요.</div></div>`;
-      const lines = [
-        bestHour ? `가장 효율적인 시간대는 <b style="color:#e8e9f2">${bestHour.hour}시</b>예요 (${isDB ? `CPA ${bestHour.cpa.toLocaleString('ko-KR')}원` : `ROAS ${bestHour.roas.toFixed(0)}%`}, 전환 ${bestHour.conv}건 기준).` : null,
-        dowInsight ? dowInsight.text : null,
-        dowWorstInsight ? dowWorstInsight.text : null,
-        dowZeroConvInsight ? dowZeroConvInsight.text : null,
-        overallTrendInsight ? overallTrendInsight.text : null
-      ].filter(Boolean);
-      return `
-      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:18px">
-        ${dcSecHead('시간대 운영 추천', isDB?'CPA 기준':'ROAS 기준')}
-        <div class="hr-reco">${blocks}</div>
-        ${lines.length ? `<div style="border:1px solid #262a3b;border-radius:9px;background:#161823;padding:13px 16px;display:flex;flex-direction:column;gap:7px">
-          ${lines.map(t=>`<div style="font-size:12.5px;color:#a9adc2;line-height:1.6">${t}</div>`).join('')}
-        </div>` : ''}
-      </div>`;
-    })()}
-    ${buildAISummaryBoxHTML(key, periodLabel)}
-
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">⏰ 시간대별 성과 (0~23시)</div>
-      ${hourlyFilterLimited ? '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">⚠️ 이 기간은 캠페인별 시간대 정보가 없어 필터가 적용되지 않았어요 (전체 기준).</div>' : ''}
-      <div id="hourToggle" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        ${[
-          {k:'imp', label:'노출수', on:false},
-          {k:'click', label:'클릭수', on:false},
-          {k:'ctr', label:'클릭률', on:true},
-          {k:'cvr', label:'전환율', on:true},
-          {k:'conv', label:'전환수', on:false},
-          {k:'cost', label:'비용', on:false},
-          ...(isDB ? [{k:'cpa', label:'CPA', on:false}] : [{k:'revenue', label:'매출', on:false}, {k:'roas', label:'ROAS', on:true}]),
-        ].map(m=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);"><input type="checkbox" class="hour-metric" value="${m.k}" ${m.on?'checked':''} style="accent-color:var(--accent);width:12px;height:12px;">${m.label}</label>`).join('')}
-      </div>
-      <div class="chart-box" style="height:380px;"><canvas id="chartHour"></canvas></div>
+    <div class="panel" style="margin-bottom:18px;border-left:3px solid var(--accent);">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">💡 성과 인사이트</div>
+      ${buildKeywordInsightsHTML(keywordInsights)}
+      ${buildAISummaryBoxHTML(key, periodLabel)}
     </div>
 
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <span>📊 캠페인별 시간대 비교 (최대 3개)</span>
-        <span style="font-size:12px;font-weight:400;color:var(--muted);">${compareCampaigns.length}/3 선택됨${campaignList.length>12?` · 전체 ${campaignList.length}개`:''}</span>
-      </div>
-      ${campaignList.length>12 ? `<input type="text" id="hourCmpSearch" placeholder="캠페인 이름으로 걸러보기…" value="${esc(hourCompareSearch[key]||'')}" style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12px;margin-bottom:8px;">` : ''}
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:${campaignList.length>12?'132px':'none'};overflow-y:auto;padding-right:2px;">
-        ${(()=>{
-          const q = String(hourCompareSearch[key]||'').trim().toLowerCase();
-          // 검색어가 있으면 걸러내되, 이미 선택한 캠페인은 사라지면 해제할 방법이 없으니 항상 남겨둠
-          const shown = campaignList.filter(c=> !q || compareCampaigns.includes(c.campaign) || displayCampaignName(c.campaign).toLowerCase().includes(q));
-          if(!shown.length) return `<span style="font-size:12px;color:var(--muted);padding:4px 2px;">'${esc(hourCompareSearch[key]||'')}'와 맞는 캠페인이 없어요.</span>`;
-          return shown.map(c=>{
-            const on = compareCampaigns.includes(c.campaign);
-            const off = !on && compareCampaigns.length>=3;
-            const label = displayCampaignName(c.campaign);
-            return `<label title="${esc(label)}" style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);background:${on?'var(--accent)':'var(--panel-2)'};padding:4px 9px;border-radius:12px;border:1px solid ${on?'var(--accent)':'var(--border)'};max-width:230px;opacity:${off?'.45':'1'};cursor:${off?'not-allowed':'pointer'};"><input type="checkbox" class="hour-cmp-camp" value="${esc(c.campaign)}" ${on?'checked':''} ${off?'disabled':''} style="accent-color:var(--accent);width:11px;height:11px;flex:none;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(label)}</span></label>`;
-          }).join('');
-        })()}
-      </div>
-      ${compareCampaigns.length ? `
-      <div style="margin-bottom:10px;display:flex;gap:6px;">
-        ${[{k:'conv',l:'전환수'},isDB?{k:'cpa',l:'CPA'}:{k:'roas',l:'ROAS'},{k:'cost',l:'비용'},{k:'ctr',l:'클릭률'},{k:'cvr',l:'전환율'}].map(m=>`<button class="hour-cmp-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${compareMetric===m.k?'var(--accent)':'var(--panel)'};color:${compareMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
-      </div>
-      <div class="chart-box" style="height:320px;"><canvas id="chartHourCompare"></canvas></div>
-      ` : `<div style="color:var(--muted);font-size:12px;">캠페인을 1개 이상 선택하면 시간대별로 겹쳐서 비교할 수 있어요.</div>`}
-    </div>
-
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">🖼️ 광고그룹별 시간대 분석</div>
-      ${!hasAdgroupHourlyData ? `<div style="color:var(--muted);font-size:12px;">이 기간엔 광고그룹 단위 시간대 데이터가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 컬럼이 포함돼야 이 분석이 채워져요 (다시 업로드하면 반영돼요).</div>` : `
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <span style="font-size:12px;color:var(--muted);">캠페인 · 광고그룹:</span>
-        <select id="adgroupHourSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;max-width:360px;">
-          ${adgroupOptions.map(o=>`<option value="${o.campaign}::${o.adgroup}" ${(selectedAdgroup && selectedAdgroup.campaign===o.campaign && selectedAdgroup.adgroup===o.adgroup)?'selected':''}>${o.campaign} · ${o.adgroup}</option>`).join('')}
-        </select>
-      </div>
-      ${(()=>{
-        if(!adgroupHourlyEnriched) return '';
-        const agWithConv = realHours(adgroupHourlyEnriched).filter(h=>h.conv>0 && h.cost>0);
-        const AG_MIN_CONV_HOUR = 3; // 광고그룹 단위는 표본이 더 적을 수 있어서 전체 시간대 추천(5건)보다 기준을 낮춤
-        const agBestCandidates = agWithConv.filter(h=>h.conv>=AG_MIN_CONV_HOUR);
-        const agBest = agBestCandidates.length ? agBestCandidates.reduce((a,b)=> isDB ? (a.cpa<b.cpa?a:b) : (a.roas>b.roas?a:b)) : null;
-        const agHasAnyData = adgroupHourlyEnriched.some(h=>h.impressions>0 || h.cost>0);
-        if(!agHasAnyData) return `<div style="color:var(--muted);font-size:12px;">선택한 광고그룹은 현재 선택된 기간(${periodLabel})엔 시간대별 데이터가 없어요.</div>`;
-        // 광고그룹별 차트도 위쪽 "시간대별 성과" 차트처럼 지표를 체크박스로 골라 볼 수 있게 함 — 기본값은
-        // 예전에 고정으로 보여주던 비용·CPA(또는 ROAS)를 그대로 유지해서 기존 화면과 첫인상이 같도록 함.
-        if(!hourAdgroupMetricState[key]) hourAdgroupMetricState[key] = new Set(['cost', isDB ? 'cpa' : 'roas']);
-        const agSelectedMetrics = hourAdgroupMetricState[key];
-        return `
-        ${agBest ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;margin-bottom:8px;"><span>📈</span><span style="color:var(--up);">이 광고그룹은 '${agBest.hour}시'에 가장 효율이 좋아요 (${isDB ? `CPA ${agBest.cpa.toLocaleString('ko-KR')}원` : `ROAS ${agBest.roas.toFixed(0)}%`}, 전환 ${agBest.conv}건 기준).</span></div>` : ''}
-        <div id="adgroupHourToggle" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          ${[
-            {k:'imp', label:'노출수'},
-            {k:'click', label:'클릭수'},
-            {k:'ctr', label:'클릭률'},
-            {k:'cvr', label:'전환율'},
-            {k:'conv', label:'전환수'},
-            {k:'cost', label:'비용'},
-            ...(isDB ? [{k:'cpa', label:'CPA'}] : [{k:'revenue', label:'매출'}, {k:'roas', label:'ROAS'}]),
-          ].map(m=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);"><input type="checkbox" class="adgroup-hour-metric" value="${m.k}" ${agSelectedMetrics.has(m.k)?'checked':''} style="accent-color:var(--accent);width:12px;height:12px;">${m.label}</label>`).join('')}
-        </div>
-        <div class="chart-box" style="height:280px;"><canvas id="chartAdgroupHour"></canvas></div>
-        `;
-      })()}
-      `}
-    </div>
-
-    <div class="panel" style="margin-top:18px;">
-      ${(() => {
-        const missing = months.filter(m=>!(m.hourly&&m.hourly.length) && !(m.hourlyByCampaign&&m.hourlyByCampaign.length));
-        if(!missing.length) return '';
-        // 시간대 리포트를 안 올린 달이 섞여 있으면 이 페이지 합계가 대시보드보다 작다 — 오해하지 않도록 먼저 알림
-        return `<div style="margin-bottom:10px;padding:9px 12px;border:1px solid #3a3350;border-radius:8px;background:#1e1a2b;font-size:12px;color:#c9c3e0;line-height:1.6">
-          ⚠️ 선택한 기간 ${months.length}개 달 중 <b>${missing.length}개 달(${missing.map(m=>m.label).join(', ')})</b>은 시간대별 리포트가 없어요.
-          그래서 이 페이지 합계는 대시보드 합계보다 그만큼 적습니다.</div>`;
-      })()}
-      <div class="panel-title">📋 시간대별 정확한 수치 <span style="font-weight:400;color:var(--muted);font-size:12px;">${(()=>{ const u = hourlyWithTrend.find(h=>h.unknown && (h.impressions>0||h.cost>0||h.conv>0));
-        return u ? `0~23시 + 시간 미상 1줄` : '0~23시'; })()}</span></div>
-      <div class="hr-scroll"><table>
-        <thead><tr><th>시간대</th><th style="text-align:right">비용 비중</th><th style="text-align:right">노출수</th><th style="text-align:right">클릭수</th><th style="text-align:right">클릭률</th><th style="text-align:right">비용</th><th style="text-align:right">전환수</th><th style="text-align:right">${isDB?'CPA':'매출'}</th>${isDB?'':'<th style="text-align:right">ROAS</th>'}<th style="text-align:right">전환율</th><th style="text-align:right">평균노출순위</th></tr></thead>
-        <tbody>
-          ${(() => {
-            const rowsAll = hourlyWithTrend.filter(h=>!h.unknown || h.impressions>0 || h.cost>0 || h.conv>0);
-            // 24줄을 전부 펼치면 화면이 너무 길어져서, 기본은 비용이 큰 5개만 보여주고 버튼으로 전체를 편다.
-            const maxCost = rowsAll.reduce((a,h)=>Math.max(a,h.cost||0),0) || 1;
-            const totCost = rowsAll.reduce((a,h)=>a+(h.cost||0),0) || 1;
-            const shown = rowsAll;
-            const R = 'text-align:right';
-            return shown.map(h=>{
-              const t = h.trends || {};
-              const share = Math.round((h.cost||0)/totCost*100);
-              return `<tr${h.unknown?' class="hr-unknown" title="네이버가 시간을 특정하지 못한 실적이에요. 몇 시인지 알 수 없어서 그래프와 시간대 추천에서는 빠지지만, 합계에는 들어갑니다."':''}>
-              <td class="kw-name">${hourLabel(h)}${h.unknown?'<span style="margin-left:5px;font-size:10.5px;padding:1px 6px;border-radius:4px;background:#2a2130;color:#a9adc2;font-weight:400">시각 불명</span>':''}</td>
-              <td style="${R}"><span style="display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;width:100%">
-                <span style="flex:0 1 54px;height:4px;border-radius:2px;background:#242840;overflow:hidden"><span style="display:block;height:100%;background:#8b7cff;opacity:.9;width:${Math.max(3,Math.round((h.cost||0)/maxCost*100))}%"></span></span>
-                <span class="m" style="font-size:11.5px;color:var(--muted);min-width:26px;text-align:right">${share}%</span></span></td>
-              <td style="${R}">${h.impressions.toLocaleString('ko-KR')}</td>
-              <td style="${R}">${h.clicks.toLocaleString('ko-KR')}</td>
-              <td style="${R}">${h.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td>
-              <td style="${R}">${fmtWon(h.cost)}원${cellTrend(t.cost,'down')}</td>
-              <td style="${R}">${h.conv}건${cellTrend(t.conv,'up')}</td>
-              ${isDB
-                ? `<td style="${R}">${h.cpa!==null?h.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>`
-                : `<td style="${R}">${fmtWon(h.revenue)}원${cellTrend(t.revenue,'up')}</td><td style="${R}">${h.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>`}
-              <td style="${R}">${h.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>
-              <td style="${R}">${h.avgRank!==null?h.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>
-            </tr>`;
-            }).join('');
-          })()}
-        </tbody>
-      </table></div>
-      <div style="margin-top:8px;font-size:12px;color:var(--muted);">평균노출순위는 네이버 보고서의 실제 값이며, 시간대별 리포트에 이 컬럼이 포함된 경우에만(전체 캠페인 기준일 때) 표시돼요.</div>
-      ${prevRangeLabel && prevHourlyHasData ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">▲▼는 직전 기간(${prevRangeLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요.</div>` : prevRangeLabel ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">직전 기간(${prevRangeLabel})엔 시간대별 데이터가 없어서 변동률은 표시하지 않아요.</div>` : ''}
-    </div>
-
-    ${hasDowData ? `
-    <div class="panel" style="margin-top:18px;">
+    <div class="panel">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>🗓️ 요일 × 시간대 히트맵</span>
+        <span>🛍️ 상품별 성과 (${MODE_LABEL[mode]}) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></span>
         <div style="display:flex;gap:6px;">
-          ${(isDB ? [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'cpa',l:'CPA'},{k:'rank',l:'평균노출순위'}] : [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'revenue',l:'매출'},{k:'roas',l:'ROAS'},{k:'rank',l:'평균노출순위'}]).map(m=>`<button class="hour-heat-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${heatMetric===m.k?'var(--accent)':'var(--panel)'};color:${heatMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
+          <span style="font-size:12px;color:var(--muted);">쇼핑상품 ID 기준</span>
         </div>
       </div>
-      <div style="overflow-x:auto;">
-        <table style="min-width:820px;">
-          <thead><tr><th></th>${Array.from({length:24},(_,h)=>`<th style="text-align:center;font-size:12px;padding:4px 2px;">${h}시</th>`).join('')}</tr></thead>
-          <tbody>
-            ${(()=>{
-              let maxVal = 0;
-              const heatColor = (getComputedStyle(document.documentElement).getPropertyValue('--accent')||'').trim() || '#8b7cff';
-              const cellVal = (cell)=>{
-                if(heatMetric==='cost') return cell.cost;
-                if(heatMetric==='conv') return cell.conv;
-                if(heatMetric==='revenue') return cell.revenue;
-                if(heatMetric==='roas') return cell.cost>0 ? cell.revenue/cell.cost*100 : 0;
-                if(heatMetric==='rank') return cell.rankImp>0 ? (cell.rankSum/cell.rankImp) : null;
-                return cell.conv>0 ? cell.cost*10000/cell.conv : 0;
-              };
-              dowGrid.forEach(row=>row.forEach(c=>{ const v=cellVal(c); if(heatMetric!=='cpa' && heatMetric!=='rank' && heatMetric!=='roas' && v>maxVal) maxVal=v; }));
-              if(heatMetric==='cpa'){
-                let cpas = [];
-                dowGrid.forEach(row=>row.forEach(c=>{ if(c.conv>0) cpas.push(c.cost*10000/c.conv); }));
-                maxVal = cpas.length ? Math.max(...cpas) : 1;
-              }
-              if(heatMetric==='roas'){
-                let roases = [];
-                dowGrid.forEach(row=>row.forEach(c=>{ if(c.cost>0) roases.push(c.revenue/c.cost*100); }));
-                maxVal = roases.length ? Math.max(...roases) : 1;
-              }
-              if(heatMetric==='rank'){
-                let ranks = [];
-                dowGrid.forEach(row=>row.forEach(c=>{ if(c.rankImp>0) ranks.push(c.rankSum/c.rankImp); }));
-                maxVal = ranks.length ? Math.max(...ranks) : 1;
-              }
-              const metricLabel = heatMetric==='cost'?'비용':heatMetric==='conv'?'전환수':heatMetric==='rank'?'평균노출순위':heatMetric==='revenue'?'매출':heatMetric==='roas'?'ROAS':'CPA';
-              return dowGrid.map((row,d)=>`<tr>
-                <td style="font-weight:700;font-size:12px;">${DOW_LABELS[d]}</td>
-                ${row.map((c,h)=>{
-                  const v = cellVal(c);
-                  let intensity = 0;
-                  if(heatMetric==='cpa'){ intensity = (c.conv>0 && maxVal>0) ? Math.max(0, 1-(v/maxVal)) : 0; }
-                  else if(heatMetric==='rank'){ intensity = (v!==null && maxVal>0) ? Math.max(0, 1-(v/maxVal)) : 0; }
-                  else if(heatMetric==='roas'){ intensity = (c.cost>0 && maxVal>0) ? Math.max(0, v/maxVal) : 0; }
-                  else { intensity = maxVal>0 ? v/maxVal : 0; }
-                  const alpha = (c.impressions>0 || c.cost>0) ? (0.08 + intensity*0.75) : 0.03;
-                  const disp = heatMetric==='cost' ? (v>0?fmtWon(v):'') : heatMetric==='conv' ? (v>0?v:'') : heatMetric==='revenue' ? (v>0?fmtWon(v):'') : heatMetric==='roas' ? (c.cost>0?v.toFixed(0)+'%':'') : heatMetric==='rank' ? (v!==null?v.toFixed(1):'') : (c.conv>0?Math.round(v).toLocaleString('ko-KR'):'');
-                  const dispFull = heatMetric==='cost' ? (v>0?fmtWon(v)+'원':'데이터 없음') : heatMetric==='conv' ? (v>0?v+'건':'데이터 없음') : heatMetric==='revenue' ? (v>0?fmtWon(v)+'원':'데이터 없음') : heatMetric==='roas' ? (c.cost>0?v.toFixed(0)+'%':'데이터 없음') : heatMetric==='rank' ? (v!==null?v.toFixed(1)+'위':'데이터 없음') : (c.conv>0?Math.round(v).toLocaleString('ko-KR')+'원':'데이터 없음');
-                  return `<td style="text-align:center;font-size:11px;padding:6px 2px;background:${hexToRgba(heatColor, alpha)};color:${alpha>0.45?'#fff':'var(--muted)'};border-radius:5px;transition:transform .1s;cursor:default;" title="${DOW_LABELS[d]}요일 ${h}시 · ${metricLabel} ${dispFull}" onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 0 0 1px '+'${heatColor}';" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='none';">${disp}</td>`;
-                }).join('')}
-              </tr>`).join('');
-            })()}
-          </tbody>
-        </table>
-      </div>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:12px;color:var(--muted);">색이 진할수록 ${heatMetric==='cpa'?'CPA가 낮음(효율 좋음)':heatMetric==='rank'?'평균노출순위가 낮음(상위 노출)':heatMetric==='cost'?'비용이 많음':heatMetric==='revenue'?'매출이 많음':heatMetric==='roas'?'ROAS가 높음(효율 좋음)':'전환수가 많음'}</span>
-        <div style="height:10px;width:110px;border-radius:5px;background:linear-gradient(90deg, ${hexToRgba((getComputedStyle(document.documentElement).getPropertyValue('--accent')||'').trim() || '#8b7cff', 0.05)}, ${(getComputedStyle(document.documentElement).getPropertyValue('--accent')||'').trim() || '#8b7cff'});"></div>
-      </div>
-      <div style="margin-top:4px;font-size:12px;color:var(--muted);">${dowHeatmapIsFiltered ? (dowHeatmapPartiallyUnfiltered ? '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요 (단, 선택한 기간 중 일부는 예전에 저장된 데이터라 캠페인별 세부 정보가 없어서 그 기간만 전체 캠페인 기준으로 함께 집계됐어요 — 다시 업로드하면 그 기간도 필터가 반영돼요).' : '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요.') : (hasDowByCampaignData ? '이 히트맵은 전체 캠페인 기준이에요(필터에서 "전체 선택" 상태).' : '이 히트맵은 캠페인 필터와 무관하게 전체 기준이에요 — 이 기간은 예전에 저장된 데이터라 캠페인별 세부 정보가 없어요. 다시 업로드하면 필터가 반영돼요.')}${heatMetric==='rank'?' 평균노출순위는 네이버 보고서의 실제 값이에요.':''}</div>
+      <table>
+        <thead><tr>
+          <th style="min-width:270px">상품</th><th>캠페인</th>
+          ${sortTh('비용','cost',sort,'top')}
+          ${noConv ? '' : (isDB ? sortTh('전환수','conv',sort,'top') : sortTh('전환매출','revenue',sort,'top'))}
+          ${noConv ? '' : sortTh('CPA','cpa',sort,'top')}
+          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',sort,'top')}
+          ${noConv ? sortTh('노출수','impressions',sort,'top') : ''}
+          ${noConv ? sortTh('클릭수','clicks',sort,'top') : ''}
+          ${sortTh('클릭률','ctr',sort,'top')}
+          ${noConv ? sortTh('평균CPC','avgCpc',sort,'top') : sortTh('전환율','cvr',sort,'top')}
+          ${sortTh('평균노출순위','avgRank',sort,'top')}
+        </tr></thead>
+        <tbody>
+          ${rows.length ? rows.slice(0, topVisibleCount[key]).map(k=>{
+            const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;">NEW</span>' : '';
+            const typeBadge = searchTypeBadgeHTML(k.searchType);
+            // 수집기가 쇼핑상품 ID를 채워주면 상품명 아래에 작게 표시됨(없으면 아무것도 안 나옴)
+            const pidLine = k.pid ? `<span style="display:block;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;">쇼핑상품 ${esc(String(k.pid))}${k.mallId?' · 몰상품 '+esc(String(k.mallId)):''}</span>` : '';
+            const t = k.trends || {};
+            const ctrCvr = `<td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>`;
+            const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
+            // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
+            // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
+            const restCamps = (k.campaigns||[]).slice(1);
+            const campCell = `<td style="color:var(--muted);font-size:12px;white-space:nowrap;min-width:104px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
+            if(noConv){
+              // 전환 데이터가 없는 검색어 모드 — 비용을 얼마나 쓰는지와 노출 위치만 본다.
+              return `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${(k.impressions||0).toLocaleString('ko-KR')}</td><td>${(k.clicks||0).toLocaleString('ko-KR')}</td><td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.avgCpc!==null&&k.avgCpc!==undefined?k.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>${rankCell}</tr>
+          `;}
+            return isDB ? `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td>${ctrCvr}${rankCell}</tr>
+          ` : `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td><td>${k.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>${ctrCvr}${rankCell}</tr>
+          `;}).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 8 : 9)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
+        </tbody>
+      </table>
+      ${rows.length > topVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="top" style="margin-top:10px;width:100%;">더보기 (${rows.length - topVisibleCount[key]}개 더 있음)</button>` : ''}
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);">${noConv
+        ? '💡 네이버 <b>검색어</b> 보고서에는 전환·매출 항목이 아예 없어요. 그래서 이 화면은 성과를 보는 곳이 아니라, <b>돈은 쓰는데 우리 상품과 상관없는 검색어를 찾아 제외어로 거르는 용도</b>예요. 비용이 큰데 클릭률이 낮은 검색어부터 확인해 보세요. 전환·매출·ROAS가 궁금하면 위의 <b>파워링크 키워드</b> 버튼으로 보시면 돼요.'
+        : '💡 클릭률은 낮은데 전환율은 정상 → 광고(소재·타겟팅) 점검. 클릭률은 정상인데 전환율만 낮음 → 랜딩페이지 점검. 평균노출순위는 네이버 보고서의 실제 값이며, 파워링크 키워드 리포트에 이 컬럼이 포함된 경우에만 표시돼요.'}</div>
+      ${hasPrevForTrend
+        ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 키워드는 NEW로 표시돼요.</div>`
+        : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
     </div>
-    ` : `
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">🗓️ 요일 × 시간대 히트맵</div>
-      <div style="color:var(--muted);font-size:12px;">시간대별 리포트 파일에 <b>일별(날짜)</b> 컬럼이 포함되면 요일별 패턴까지 자동으로 보여드려요. input.html의 컬럼 안내를 참고해서 파일을 추출해보세요.</div>
+
+    <div class="panel" style="margin-top:18px;border-left:3px solid var(--up);">
+      <div class="panel-title">📈 확대 추천 전체 목록 (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${noConv ? '클릭은 잘 나오는데 아직 비용을 적게 쓰고 있는 검색어 (해당 키워드 입찰가·예산 확대 검토)' : '효율은 좋은데 평균보다 비용을 적게 쓰고 있는 키워드 (입찰가·예산 확대 검토)'} · 열 제목을 클릭하면 정렬돼요</span></div>
+      <table>
+        <thead><tr>
+          <th style="min-width:270px">상품</th><th>캠페인</th>
+          ${sortTh('비용','cost',esort,'expand')}
+          ${noConv ? '' : (isDB ? sortTh('전환수','conv',esort,'expand') : sortTh('전환매출','revenue',esort,'expand'))}
+          ${noConv ? '' : sortTh('CPA','cpa',esort,'expand')}
+          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',esort,'expand')}
+          ${noConv ? sortTh('노출수','impressions',esort,'expand') : ''}
+          ${noConv ? sortTh('클릭수','clicks',esort,'expand') : ''}
+          ${sortTh('클릭률','ctr',esort,'expand')}
+          ${noConv ? '' : sortTh('전환율','cvr',esort,'expand')}
+          ${sortTh('평균CPC','avgCpc',esort,'expand')}
+          ${sortTh('평균노출순위','avgRank',esort,'expand')}
+        </tr></thead>
+        <tbody>
+          ${expand.length ? expand.slice(0, expandVisibleCount[key]).map(e=>`
+            <tr>
+              <td class="kw-name">${esc(e.keyword)}${searchTypeBadgeHTML(e.searchType)}</td>
+              <td style="color:var(--muted);font-size:12px;">${e.campaign} ${sourceBadgeHTML(e.sourceMode)}</td>
+              <td>${fmtWon(e.cost)}원</td>
+              ${noConv ? '' : `<td>${isDB ? e.conv+'건' : fmtWon(e.revenue)+'원'}</td>`}
+              ${noConv ? '' : `<td style="color:${isDB?'var(--up)':'inherit'};font-weight:${isDB?700:400};">${e.cpa!==null?e.cpa.toLocaleString('ko-KR')+'원':'-'}</td>`}
+              ${(noConv || isDB) ? '' : `<td style="color:var(--up);font-weight:700;">${e.roas.toFixed(0)}%</td>`}
+              ${noConv ? `<td>${(e.impressions||0).toLocaleString('ko-KR')}</td><td>${(e.clicks||0).toLocaleString('ko-KR')}</td>` : ''}
+              <td>${e.ctr.toFixed(2)}%</td>
+              ${noConv ? '' : `<td>${e.cvr.toFixed(2)}%</td>`}
+              <td>${e.avgCpc!==null?e.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>
+              <td>${e.avgRank!==null?e.avgRank.toFixed(1)+'위':'-'}</td>
+            </tr>
+          `).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 9 : 10)}" style="color:var(--muted);">확대 추천 후보가 없어요.</td></tr>`}
+        </tbody>
+      </table>
+      ${expand.length > expandVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="expand" style="margin-top:10px;width:100%;">더보기 (${expand.length - expandVisibleCount[key]}개 더 있음)</button>` : ''}
     </div>
-    `}
-    `}
+
+    <div class="panel" style="margin-top:18px;border-left:3px solid var(--down);">
+      <div class="panel-title">🚫 제외 추천 전체 목록 (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${noConv ? '<b>제외어 후보</b> — 비용은 쓰는데 클릭률이 낮은 검색어. 우리 상품과 상관없는 말이 섞여 있으면 제외어로 등록하세요' : '비용만 쓰고 전환 0건, 또는 ROAS가 낮거나(B2C) CPA가 평균의 2배 이상인(DB) 저효율 키워드'} · 열 제목을 클릭하면 정렬돼요</span></div>
+      <table>
+        <thead><tr>
+          <th style="min-width:270px">상품</th><th>캠페인</th>
+          ${sortTh('비용','cost',wsort,'waste')}
+          ${noConv ? '' : (isDB ? sortTh('전환수','conv',wsort,'waste') : sortTh('전환매출','revenue',wsort,'waste'))}
+          ${noConv ? '' : sortTh('CPA','cpa',wsort,'waste')}
+          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',wsort,'waste')}
+          ${noConv ? sortTh('노출수','impressions',wsort,'waste') : ''}
+          ${noConv ? sortTh('클릭수','clicks',wsort,'waste') : ''}
+          ${sortTh('클릭률','ctr',wsort,'waste')}
+          ${noConv ? '' : sortTh('전환율','cvr',wsort,'waste')}
+          ${sortTh('평균CPC','avgCpc',wsort,'waste')}
+          ${sortTh('평균노출순위','avgRank',wsort,'waste')}
+        </tr></thead>
+        <tbody>
+          ${waste.length ? waste.slice(0, wasteVisibleCount[key]).map(w=>`
+            <tr>
+              <td class="kw-name">${esc(w.keyword)}${searchTypeBadgeHTML(w.searchType)}</td>
+              <td style="color:var(--muted);font-size:12px;">${w.campaign} ${sourceBadgeHTML(w.sourceMode)}</td>
+              <td style="color:var(--down);font-weight:700;">${fmtWon(w.cost)}원</td>
+              ${noConv ? '' : `<td>${isDB ? w.conv+'건' : fmtWon(w.revenue)+'원'}</td>`}
+              ${noConv ? '' : `<td>${w.cpa!==null?w.cpa.toLocaleString('ko-KR')+'원':'-'}</td>`}
+              ${(noConv || isDB) ? '' : `<td>${w.roas.toFixed(0)}%</td>`}
+              ${noConv ? `<td>${(w.impressions||0).toLocaleString('ko-KR')}</td><td>${(w.clicks||0).toLocaleString('ko-KR')}</td>` : ''}
+              <td>${w.ctr.toFixed(2)}%</td>
+              ${noConv ? '' : `<td>${w.cvr.toFixed(2)}%</td>`}
+              <td>${w.avgCpc!==null?w.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>
+              <td>${w.avgRank!==null?w.avgRank.toFixed(1)+'위':'-'}</td>
+            </tr>
+          `).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 9 : 10)}" style="color:var(--muted);">제외 추천 후보가 없어요.</td></tr>`}
+        </tbody>
+      </table>
+      ${waste.length > wasteVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="waste" style="margin-top:10px;width:100%;">더보기 (${waste.length - wasteVisibleCount[key]}개 더 있음)</button>` : ''}
+    </div>
   `;
   document.getElementById('monthRangeStartSelect').onchange = (e)=>{
     const r = monthRangeState[key];
@@ -2020,8 +1995,8 @@ function renderHourlyPage(data){
     const allLabels = allMonths.map(m=>m.label);
     if(allLabels.indexOf(r.start) > allLabels.indexOf(r.end)) r.end = r.start;
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
-    renderHourlyPage(data);
+    topVisibleCount[key] = 10; expandVisibleCount[key] = 10; wasteVisibleCount[key] = 10;
+    renderKeywordsPage(data);
   };
   document.getElementById('monthRangeEndSelect').onchange = (e)=>{
     const r = monthRangeState[key];
@@ -2029,60 +2004,15 @@ function renderHourlyPage(data){
     const allLabels = allMonths.map(m=>m.label);
     if(allLabels.indexOf(r.end) < allLabels.indexOf(r.start)) r.start = r.end;
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
-    renderHourlyPage(data);
+    topVisibleCount[key] = 10; expandVisibleCount[key] = 10; wasteVisibleCount[key] = 10;
+    renderKeywordsPage(data);
   };
   document.getElementById('monthRangeAllBtn').onclick = ()=>{
     monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
-    renderHourlyPage(data);
+    topVisibleCount[key] = 10; expandVisibleCount[key] = 10; wasteVisibleCount[key] = 10;
+    renderKeywordsPage(data);
   };
-document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
-    btn.onclick = ()=>{
-      const pk = btn.dataset.preset;
-      dayPresetChoice[key] = pk;
-      if(pk === 'all'){
-        monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
-        if(typeof compareMonthState !== 'undefined') compareMonthState[key] = 'AUTO';
-        dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
-        dayRangeCustomOpen[key] = false;
-        renderHourlyPage(data);
-        return;
-      }
-      const fullMin = allMonths.length ? monthFirstDay(allMonths[0].label) : dayBoundsMinHr;
-      const fullMax = allMonths.length ? monthLastDay(allMonths[allMonths.length-1].label) : dayBoundsMaxHr;
-      const p = presetDayRange(pk, fullMin, fullMax) || presetDayRange(pk, dayBoundsMinHr, dayBoundsMaxHr);
-      if(!p) return;
-      dayRangeState[key] = p;
-      syncMonthRangeToDays(key, allMonths, p);
-      dayRangeCustomOpen[key] = false;
-      renderHourlyPage(data);
-    };
-  });
-  const hrDayCustomToggle = document.getElementById('dayRangeCustomToggle');
-  if(hrDayCustomToggle) hrDayCustomToggle.onclick = ()=>{
-    dayRangeCustomOpen[key] = !dayRangeCustomOpen[key];
-    renderHourlyPage(data);
-  };
-  const hrDayStartInput = document.getElementById('dayRangeStartInput');
-  if(hrDayStartInput) hrDayStartInput.onchange = (e)=>{
-    const dr = dayRangeState[key];
-    dayPresetChoice[key] = null;
-    dr.start = e.target.value || null;
-    if(dr.start && dr.end && dr.start > dr.end) dr.end = dr.start;
-    renderHourlyPage(data);
-  };
-  const hrDayEndInput = document.getElementById('dayRangeEndInput');
-  if(hrDayEndInput) hrDayEndInput.onchange = (e)=>{
-    const dr = dayRangeState[key];
-    dayPresetChoice[key] = null;
-    dr.end = e.target.value || null;
-    if(dr.start && dr.end && dr.end < dr.start) dr.start = dr.end;
-    renderHourlyPage(data);
-  };
-  const hrDayResetBtn = document.getElementById('dayRangeResetBtn');
-  if(hrDayResetBtn) hrDayResetBtn.onclick = ()=>{ dayRangeState[key] = { start:null, end:null }; dayPresetChoice[key] = null; dayRangeCustomOpen[key] = false; renderHourlyPage(data); };
   document.getElementById('monthPrevBtn').onclick = ()=>{
     const allLabels = allMonths.map(m=>m.label);
     const r = monthRangeState[key];
@@ -2092,7 +2022,8 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     const newSi = si - 1, newEi = newSi + len;
     monthRangeState[key] = { start: allLabels[newSi], end: allLabels[newEi] };
     compareMonthState[key] = 'AUTO';
-    renderHourlyPage(data);
+    topVisibleCount[key] = 10; expandVisibleCount[key] = 10; wasteVisibleCount[key] = 10;
+    renderKeywordsPage(data);
   };
   document.getElementById('monthNextBtn').onclick = ()=>{
     const allLabels = allMonths.map(m=>m.label);
@@ -2103,141 +2034,97 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     const newEi = ei + 1, newSi = newEi - len;
     monthRangeState[key] = { start: allLabels[newSi], end: allLabels[newEi] };
     compareMonthState[key] = 'AUTO';
-    renderHourlyPage(data);
+    topVisibleCount[key] = 10; expandVisibleCount[key] = 10; wasteVisibleCount[key] = 10;
+    renderKeywordsPage(data);
   };
   document.getElementById('compareFilterSelect').onchange = (e)=>{
     compareMonthState[key] = e.target.value;
-    renderHourlyPage(data);
+    renderKeywordsPage(data);
   };
-  if(hasHourlyData){
-    const hourlyChartRows = realHours(hourlyAgg); // 그래프는 0~23시만 — '시간 미상'은 x축에 놓을 자리가 없음
-    const HOUR_METRICS = {
-      imp:   { label:'노출수', data:hourlyChartRows.map(h=>h.impressions), color:'#6e6bff', axis:'count' },
-      click: { label:'클릭수', data:hourlyChartRows.map(h=>h.clicks), color:'#3fd4c4', axis:'count' },
-      ctr:   { label:'클릭률(%)', data:hourlyChartRows.map(h=> h.impressions>0 ? Number((h.clicks/h.impressions*100).toFixed(2)) : 0), color:data.color, axis:'pct' },
-      cvr:   { label:'전환율(%)', data:hourlyChartRows.map(h=> h.clicks>0 ? Number((h.conv/h.clicks*100).toFixed(2)) : 0), color:'#ff5d7a', axis:'pct' },
-      conv:  { label:'전환수', data:hourlyChartRows.map(h=>h.conv), color:'#ffb84d', axis:'count' },
-      cost:  { label:'비용(만원)', data:hourlyChartRows.map(h=>Number(h.cost.toFixed(1))), color:'#3fd4a3', axis:'count' },
-      revenue: { label:'매출(만원)', data:hourlyChartRows.map(h=>Number(h.revenue.toFixed(1))), color:'#4dd0ff', axis:'count' },
-      roas:  { label:'ROAS(%)', data:hourlyChartRows.map(h=> h.cost>0 ? Number((h.revenue/h.cost*100).toFixed(1)) : 0), color:'#ff9d4d', axis:'pct' },
-      // CPA는 원화 단위라 노출수·클릭수·비용(count 축)과 스케일이 완전히 달라 같은 축에 두면 다른 지표가
-      // 시각적으로 눌려 보임. pct 축(y1, 오른쪽)에 얹어서 분리 — 값 범위 자체는 Chart.js가 축마다 알아서 잡아줌.
-      cpa:   { label:'CPA(원)', data:hourlyChartRows.map(h=> h.conv>0 ? Math.round(h.cost*10000/h.conv) : 0), color:'#ff9d4d', axis:'pct' },
+  document.querySelectorAll('.kw-mode-btn').forEach(btn=>{
+    btn.onclick = ()=>{ keywordPageState[key] = btn.dataset.mode; topVisibleCount[key] = 10; renderKeywordsPage(data); };
+  });
+  document.querySelectorAll('th[data-sort]').forEach(th=>{
+    th.onclick = ()=>{
+      const field = th.dataset.field;
+      const sortGroup = th.dataset.sort;
+      const stateObj = sortGroup==='top' ? kwSortState[key] : sortGroup==='expand' ? expandSortState[key] : wasteSortState[key];
+      if(stateObj.field===field){ stateObj.dir = stateObj.dir==='desc' ? 'asc' : 'desc'; }
+      else { stateObj.field = field; stateObj.dir = 'desc'; }
+      if(sortGroup==='top') topVisibleCount[key] = 10;
+      else if(sortGroup==='expand') expandVisibleCount[key] = 10;
+      else wasteVisibleCount[key] = 10;
+      renderKeywordsPage(data);
     };
-    const hourLabels = hourlyChartRows.map(h=>h.hour+'시');
-    let hourChart = null;
-    function buildChartHour(){
-      const selected = [...document.querySelectorAll('.hour-metric:checked')].map(cb=>cb.value);
-      const datasets = selected.map(k=>{
-        const m = HOUR_METRICS[k];
-        return { type:'line', label:m.label, data:m.data, borderColor:m.color, backgroundColor:m.color, tension:.3, pointRadius:2, yAxisID: m.axis==='pct' ? 'y1' : 'y' };
-      });
-      if(hourChart) hourChart.destroy();
-      const hourEl = document.getElementById('chartHour');
-      if(!hourEl) return;
-      hourChart = new Chart(hourEl, {
-        data:{ labels:hourLabels, datasets },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
-          scales:{ y:{position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
-      });
-    }
-    document.querySelectorAll('.hour-metric').forEach(cb=>{ cb.onchange = buildChartHour; });
-    buildChartHour();
-
-    const cmpSearchEl = document.getElementById('hourCmpSearch');
-    if(cmpSearchEl){
-      cmpSearchEl.oninput = ()=>{
-        hourCompareSearch[key] = cmpSearchEl.value;
-        const pos = cmpSearchEl.selectionStart;
-        renderHourlyPage(data);
-        // 다시 그리면 입력창이 새로 만들어져 포커스가 날아감 — 커서 위치까지 복원해줘야 계속 타이핑이 됨
-        const again = document.getElementById('hourCmpSearch');
-        if(again){ again.focus(); try{ again.setSelectionRange(pos,pos); }catch(e){} }
-      };
-    }
-    document.querySelectorAll('.hour-cmp-camp').forEach(cb=>{
-      cb.onchange = ()=>{
-        const set = new Set(hourCompareCampaigns[key]);
-        if(cb.checked) set.add(cb.value); else set.delete(cb.value);
-        hourCompareCampaigns[key] = [...set].slice(0,3);
-        renderHourlyPage(data);
-      };
-    });
-    document.querySelectorAll('.hour-cmp-metric-btn').forEach(btn=>{
-      btn.onclick = ()=>{ hourCompareMetric[key] = btn.dataset.metric; renderHourlyPage(data); };
-    });
-    if(compareCampaigns.length){
-      const cmpEl = document.getElementById('chartHourCompare');
-      if(cmpEl){
-        const cmpDatasets = compareCampaigns.map((camp, i)=>{
-          const arr = compareData[camp];
-          const vals = realHours(arr).map(h=> compareMetric==='cost' ? Number(h.cost.toFixed(1)) : compareMetric==='ctr' ? Number(h.ctr.toFixed(2)) : compareMetric==='cvr' ? Number(h.cvr.toFixed(2)) : compareMetric==='cpa' ? (h.cpa||0) : compareMetric==='roas' ? Number(h.roas.toFixed(1)) : h.conv);
-          return { type:'line', label:camp, data:vals, borderColor:CMP_COLORS[i%CMP_COLORS.length], backgroundColor:CMP_COLORS[i%CMP_COLORS.length], tension:.3, pointRadius:2 };
-        });
-        new Chart(cmpEl, {
-          data:{ labels:hourLabels, datasets:cmpDatasets },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
-            scales:{ y:{grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
-        });
+  });
+  document.querySelectorAll('.kw-more-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      if(btn.dataset.target==='top') topVisibleCount[key] += 10;
+      else if(btn.dataset.target==='expand') expandVisibleCount[key] += 10;
+      else wasteVisibleCount[key] += 10;
+      renderKeywordsPage(data);
+    };
+  });
+  // '외 N개' 클릭 → 나머지 캠페인 이름을 그 칸에서 바로 펼침/접음.
+  // 다시 그리면 스크롤 위치가 튀므로 화면만 토글한다.
+  document.querySelectorAll('.kw-camp-toggle').forEach(btn=>{
+    btn.onclick = ()=>{
+      const box = btn.parentElement && btn.parentElement.querySelector('.kw-camp-rest');
+      if(!box) return;
+      const opened = !box.hidden;
+      box.hidden = opened;
+      btn.textContent = btn.textContent.replace(opened ? '▴' : '▾', opened ? '▾' : '▴');
+    };
+  });
+  document.querySelectorAll('.ai-summary-btn').forEach(btn=>{
+    btn.onclick = ()=> generateAISummary(data, key, periodLabel);
+  });
+  document.querySelectorAll('.day-preset-pill-kw').forEach(btn=>{
+    btn.onclick = ()=>{
+      const pk = btn.dataset.preset;
+      dayPresetChoice[key] = pk;
+      if(pk === 'all'){
+        monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
+        if(typeof compareMonthState !== 'undefined') compareMonthState[key] = 'AUTO';
+        dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
+        dayRangeCustomOpen[key] = false;
+        renderKeywordsPage(data);
+        return;
       }
-    }
-    document.querySelectorAll('.hour-heat-metric-btn').forEach(btn=>{
-      btn.onclick = ()=>{ hourHeatmapMetric[key] = btn.dataset.metric; renderHourlyPage(data); };
-    });
-    document.querySelectorAll('.ai-summary-btn').forEach(btn=>{
-      btn.onclick = ()=> generateAISummary(data, key, periodLabel);
-    });
-    const adgroupHourSelectEl = document.getElementById('adgroupHourSelect');
-    if(adgroupHourSelectEl){
-      adgroupHourSelectEl.onchange = (e)=>{
-        const idx = e.target.value.indexOf('::');
-        hourAdgroupSelectState[key] = { campaign: e.target.value.slice(0,idx), adgroup: e.target.value.slice(idx+2) };
-        renderHourlyPage(data);
-      };
-    }
-    document.querySelectorAll('.adgroup-hour-metric').forEach(cb=>{
-      cb.onchange = ()=>{
-        const set = new Set([...document.querySelectorAll('.adgroup-hour-metric:checked')].map(c=>c.value));
-        hourAdgroupMetricState[key] = set;
-        buildChartAdgroupHour();
-      };
-    });
-    let adgroupHourChart = null;
-    function buildChartAdgroupHour(){
-      const adgroupHourEl = document.getElementById('chartAdgroupHour');
-      if(!adgroupHourEl || !adgroupHourlyEnriched) return;
-      // 위쪽 "시간대별 성과" 차트의 HOUR_METRICS와 같은 지표 정의를 광고그룹 단위 데이터(adgroupHourlyEnriched)에 맞춰 재사용.
-      const agChartRows = realHours(adgroupHourlyEnriched); // 그래프는 0~23시만
-      const AG_HOUR_METRICS = {
-        imp:   { label:'노출수', data:agChartRows.map(h=>h.impressions), color:'#6e6bff', axis:'count', type:'bar' },
-        click: { label:'클릭수', data:agChartRows.map(h=>h.clicks), color:'#3fd4c4', axis:'count', type:'bar' },
-        ctr:   { label:'클릭률(%)', data:agChartRows.map(h=>Number(h.ctr.toFixed(2))), color:data.color, axis:'pct', type:'line' },
-        cvr:   { label:'전환율(%)', data:agChartRows.map(h=>Number(h.cvr.toFixed(2))), color:'#ff5d7a', axis:'pct', type:'line' },
-        conv:  { label:'전환수', data:agChartRows.map(h=>h.conv), color:'#ffb84d', axis:'count', type:'bar' },
-        cost:  { label:'비용(만원)', data:agChartRows.map(h=>Number(h.cost.toFixed(1))), color:hexToRgba(data.color,0.35), axis:'count', type:'bar' },
-        revenue: { label:'매출(만원)', data:agChartRows.map(h=>Number(h.revenue.toFixed(1))), color:'#4dd0ff', axis:'count', type:'bar' },
-        roas:  { label:'ROAS(%)', data:agChartRows.map(h=>Number(h.roas.toFixed(1))), color:'#ff9d4d', axis:'pct', type:'line' },
-        cpa:   { label:'CPA(원)', data:agChartRows.map(h=>h.cpa||0), color:'#ff9d4d', axis:'pct', type:'line' },
-      };
-      const selected = [...(hourAdgroupMetricState[key] || [])];
-      const datasets = selected.map(k=>{
-        const m = AG_HOUR_METRICS[k];
-        if(!m) return null;
-        return { type:m.type, label:m.label, data:m.data, borderColor:m.color, backgroundColor:m.color, tension:.3, pointRadius:2, yAxisID: m.axis==='pct' ? 'y1' : 'y' };
-      }).filter(Boolean);
-      if(adgroupHourChart) adgroupHourChart.destroy();
-      adgroupHourChart = new Chart(adgroupHourEl, {
-        data:{
-          labels: agChartRows.map(h=>h.hour+'시'),
-          datasets
-        },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
-          scales:{ y:{position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
-      });
-    }
-    buildChartAdgroupHour();
-  }
-  renderFilterPanel(key, data, campaignList, allTypes, renderHourlyPage);
+      const fullMin = allMonths.length ? monthFirstDay(allMonths[0].label) : dayBoundsMinKw;
+      const fullMax = allMonths.length ? monthLastDay(allMonths[allMonths.length-1].label) : dayBoundsMaxKw;
+      const p = presetDayRange(pk, fullMin, fullMax) || presetDayRange(pk, dayBoundsMinKw, dayBoundsMaxKw);
+      if(!p) return;
+      dayRangeState[key] = p;
+      syncMonthRangeToDays(key, allMonths, p);
+      dayRangeCustomOpen[key] = false;
+      renderKeywordsPage(data);
+    };
+  });
+  const kwDayCustomToggle = document.getElementById('kwDayRangeCustomToggle');
+  if(kwDayCustomToggle) kwDayCustomToggle.onclick = ()=>{
+    dayRangeCustomOpen[key] = !dayRangeCustomOpen[key];
+    renderKeywordsPage(data);
+  };
+  const kwDayStartInput = document.getElementById('kwDayRangeStartInput');
+  if(kwDayStartInput) kwDayStartInput.onchange = (e)=>{
+    const dr = dayRangeState[key];
+    dayPresetChoice[key] = null;
+    dr.start = e.target.value || null;
+    if(dr.start && dr.end && dr.start > dr.end) dr.end = dr.start;
+    renderKeywordsPage(data);
+  };
+  const kwDayEndInput = document.getElementById('kwDayRangeEndInput');
+  if(kwDayEndInput) kwDayEndInput.onchange = (e)=>{
+    const dr = dayRangeState[key];
+    dayPresetChoice[key] = null;
+    dr.end = e.target.value || null;
+    if(dr.start && dr.end && dr.end < dr.start) dr.start = dr.end;
+    renderKeywordsPage(data);
+  };
+  const kwDayResetBtn = document.getElementById('kwDayRangeResetBtn');
+  if(kwDayResetBtn) kwDayResetBtn.onclick = ()=>{ dayRangeState[key] = { start:null, end:null }; dayPresetChoice[key] = null; dayRangeCustomOpen[key] = false; renderKeywordsPage(data); };
+  renderFilterPanel(key, data, campaignList, allTypes, renderKeywordsPage);
 }
 
 
@@ -2263,11 +2150,6 @@ function displayCampaignName(name){
   const idPart = s.replace(/^\d+\s*·\s*/,'');
   return `${m?m[1]+' · ':''}삭제된 캠페인 (…${idPart.slice(-6)})`;
 }
-/* 네이버는 시간을 특정할 수 없는 행에 hour='99'를 넣어 보냄.
-   00~23이 아닌 값을 그냥 버리면 그 비용이 표에서 사라져 다른 페이지와 합계가 안 맞는다.
-   (SN라이프 실측: 30건 약 2.5만원) — 24번째 칸 '시간 미상'으로 모아 합계를 보존한다. */
-function isRealHour(h){ return /^([01]?\d|2[0-3])$/.test(String(h).trim()); }
-function hourIndexOf(h){ return isRealHour(h) ? parseInt(h,10) : 24; }
 function renderFilterPanel(key, data, campaignList, allTypes, renderFn){
   renderFn = renderFn || renderCard;
   const fstate = filterState[key];

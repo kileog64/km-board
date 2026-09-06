@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>광고 성과 대시보드</title>
+<title>파워링크 키워드 · 광고 성과 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -380,7 +380,7 @@ table tbody tr:hover td{background:#1b1e2c}
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
   <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
-    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><span class="nv nv-on">키워드</span><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
+    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><span class="nv nv-on">파워링크 키워드</span><a class="nv" href="shopping.html">쇼핑검색 상품</a><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
       <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
@@ -1538,7 +1538,7 @@ function renderKeywordsPage(data){
   if(!(key in keywordPageState)) keywordPageState[key] = 'powerlink';
   // 데이터가 없는 모드가 선택돼 있으면(업체를 바꿨거나 예전 선택이 남은 경우) 파워링크로 되돌림 —
   // 빈 표에 날짜 버튼까지 비활성인 화면이 뜨면 "왜 아무것도 안 되지"로 보이기 때문.
-  if((keywordPageState[key]==='shopping' && !hasShoppingData) || (keywordPageState[key]==='brand' && !hasBrandData) || (keywordPageState[key]==='plterm' && !hasPlTermData)){
+  if((keywordPageState[key]==='shopping') || (keywordPageState[key]==='brand' && !hasBrandData) || (keywordPageState[key]==='plterm' && !hasPlTermData)){
     keywordPageState[key] = 'powerlink';
   }
   const mode = keywordPageState[key];
@@ -1861,7 +1861,7 @@ function renderKeywordsPage(data){
         <div style="display:flex;gap:6px;">
           <button class="kw-mode-btn" data-mode="powerlink" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='powerlink'?'var(--accent)':'var(--panel)'};color:${mode==='powerlink'?'#fff':'var(--muted)'};cursor:pointer;">파워링크</button>
           <button class="kw-mode-btn" data-mode="plterm" ${hasPlTermData?'':'disabled title="이 업체는 파워링크 검색어 데이터가 없어요 (쇼핑검색 위주 계정이면 안 나올 수 있어요)"'} style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='plterm'?'var(--accent)':'var(--panel)'};color:${mode==='plterm'?'#fff':'var(--muted)'};cursor:${hasPlTermData?'pointer':'not-allowed'};${hasPlTermData?'':'opacity:.4;'}">파워링크 검색어${hasPlTermData?'':' (없음)'}</button>
-          <button class="kw-mode-btn" data-mode="shopping" ${hasShoppingData?'':'disabled title="이 업체는 쇼핑검색 검색어 데이터가 없어요"'} style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='shopping'?'var(--accent)':'var(--panel)'};color:${mode==='shopping'?'#fff':'var(--muted)'};cursor:${hasShoppingData?'pointer':'not-allowed'};${hasShoppingData?'':'opacity:.4;'}">쇼핑검색${hasShoppingData?'':' (없음)'}</button>
+          
           <button class="kw-mode-btn" data-mode="brand" ${hasBrandData?'':'disabled title="이 업체는 브랜드검색 키워드 데이터가 없어요"'} style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='brand'?'var(--accent)':'var(--panel)'};color:${mode==='brand'?'#fff':'var(--muted)'};cursor:${hasBrandData?'pointer':'not-allowed'};${hasBrandData?'':'opacity:.4;'}">브랜드검색${hasBrandData?'':' (없음)'}</button>
         </div>
       </div>
