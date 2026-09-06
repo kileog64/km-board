@@ -195,6 +195,14 @@
 /* 쇼핑검색 상품 표: 숫자 칸은 줄바꿈 금지, 상품명만 두 줄 허용. 표가 넓어지면 카드 안에서 가로 스크롤됨 */
 .card table td, .card table th { white-space: nowrap; }
 .card table td.kw-name { white-space: normal; word-break: keep-all; min-width: 250px; }
+
+/* 쇼핑검색 상품 표는 열이 많아 폭이 필요함 — '필터 접기'로 오른쪽 패널을 숨겨 표를 넓게 볼 수 있게 함 */
+body.shop-wide .main-layout{grid-template-columns:1fr;}
+body.shop-wide .filter-panel{display:none;}
+#shopPanelToggle{font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);
+  background:var(--panel);color:var(--muted);cursor:pointer;margin-left:6px;}
+.shop-note{display:flex;gap:8px;align-items:flex-start;margin:10px 0 4px;padding:9px 12px;border-radius:9px;
+  background:#241d10;border:1px solid #4a3a17;color:#f0c37a;font-size:12.5px;line-height:1.55;}
 </style>
 <style id="km-redesign-skin">
 /* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
@@ -1132,12 +1140,14 @@ function buildAISummaryBoxHTML(key, periodLabel){
 }
 
 
+// 이 페이지는 쇼핑검색 전용 — 파워링크/브랜드 캠페인은 필터 목록에서 아예 제외한다.
+const IS_SHOPPING_TYPE = (t) => String(t||'').indexOf('\uc1fc\ud551') >= 0; // '쇼핑'
 function ensureFilterState(key, data){
   if(filterState[key]) return filterState[key];
   const campSet = new Set();
   const typeSet = new Set();
   (data.months||[]).forEach(m=>{
-    (m.campaigns||[]).forEach(c=>{ campSet.add(c.campaign); typeSet.add(c.type); });
+    (m.campaigns||[]).forEach(c=>{ if(!IS_SHOPPING_TYPE(c.type)) return; campSet.add(c.campaign); typeSet.add(c.type); });
   });
   filterState[key] = { types: new Set(typeSet), campaigns: new Set(campSet) };
   return filterState[key];
@@ -1148,6 +1158,7 @@ function mergedCampaignList(data){
   const map = {};
   (data.months||[]).forEach(m=>{
     (m.campaigns||[]).forEach(c=>{
+      if(!IS_SHOPPING_TYPE(c.type)) return;
       if(!map[c.campaign]) map[c.campaign] = { type:c.type, campaign:c.campaign };
     });
   });
@@ -1157,7 +1168,15 @@ function mergedCampaignList(data){
 /* ---------- 렌더링 ---------- */
 
 
-const keywordPageState = {}; // key -> 'keyword' or 'searchterm'
+const keywordPageState = {};
+// 지금 저장된 쇼핑검색 데이터엔 '상품명'과 '검색어'가 섞여 있다(수집기가 아직 상품 단위로 저장하지 않음).
+// 완벽한 구분은 불가능하지만, 상품명은 띄어쓰기가 있는 긴 제목이고 검색어는 대개 붙여쓴 한 덩어리라 그걸로 가른다.
+// 수집기가 상품 단위로 바뀌면 이 구분 자체가 필요 없어진다.
+function shopKindOf(name){
+  const t = String(name||'').trim();
+  return (t.indexOf(' ') >= 0 || t.length >= 14) ? 'prod' : 'term';
+}
+const shopTermVisible = {}; // 검색어 표 더보기 카운터(상품 표와 별도) // key -> 'keyword' or 'searchterm'
 const kwSortState = {}; // key -> { field, dir }
 const wasteSortState = {}; // key -> { field, dir }
 const expandSortState = {}; // key -> { field, dir }
@@ -1604,8 +1623,18 @@ function renderKeywordsPage(data){
       return (av-bv)*mult;
     });
   }
+  // ── 상품 / 검색어를 갈라서 각각 별도의 표로 보여준다
+  rows = rows.map(r=>({ ...r, shopKind: shopKindOf(r.keyword) }));
+  const shopCounts = { prod: rows.filter(r=>r.shopKind==='prod').length, term: rows.filter(r=>r.shopKind==='term').length };
+  const shopCosts  = { prod: rows.filter(r=>r.shopKind==='prod').reduce((a,r)=>a+(r.cost||0),0),
+                       term: rows.filter(r=>r.shopKind==='term').reduce((a,r)=>a+(r.cost||0),0) };
+  if(!(key in shopTermVisible)) shopTermVisible[key] = 10;
+
   // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
-  rows = applySort(rows, sort, noConv ? 'cost' : (isDB?'conv':'revenue')).slice(0,50);
+  const sortKey = noConv ? 'cost' : (isDB?'conv':'revenue');
+  const prodRows = applySort(rows.filter(r=>r.shopKind==='prod'), sort, sortKey).slice(0,50);
+  const termRows = applySort(rows.filter(r=>r.shopKind==='term'), sort, sortKey).slice(0,50);
+  rows = applySort(rows, sort, sortKey).slice(0,50); // 아래 인사이트/확대·제외 추천은 기존대로 전체 기준
 
   // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
   // refMonth = 현재 보고 있는 구간의 마지막 달(단일 월/전체 누적/임의 구간 모두 이 정의 하나로 처리)
@@ -1799,6 +1828,60 @@ function renderKeywordsPage(data){
   const sortTh = (label, field, state, mode) => `<th data-sort="${mode}" data-field="${field}" style="cursor:pointer;user-select:none;">${label}${state.field===field?(state.dir==='desc'?' ▼':' ▲'):''}</th>`;
 
   const card = document.getElementById('card');
+  // 상품 표와 검색어 표를 같은 모양으로 두 번 그리기 위한 공용 함수
+  const shopPanel = ({SR, VIS, MORE, TITLE, SUB, COL1, RIGHT, EMPTY, FOOT}) => `
+    <div class="panel">
+      <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>${TITLE} <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${SUB}</span></span>
+        <div style="display:flex;gap:6px;">${RIGHT}</div>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="min-width:270px">${COL1}</th><th>캠페인</th>
+          ${sortTh('비용','cost',sort,'top')}
+          ${noConv ? '' : (isDB ? sortTh('전환수','conv',sort,'top') : sortTh('전환매출','revenue',sort,'top'))}
+          ${noConv ? '' : sortTh('CPA','cpa',sort,'top')}
+          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',sort,'top')}
+          ${noConv ? sortTh('노출수','impressions',sort,'top') : ''}
+          ${noConv ? sortTh('클릭수','clicks',sort,'top') : ''}
+          ${sortTh('클릭률','ctr',sort,'top')}
+          ${noConv ? sortTh('평균CPC','avgCpc',sort,'top') : sortTh('전환율','cvr',sort,'top')}
+          ${sortTh('평균노출순위','avgRank',sort,'top')}
+        </tr></thead>
+        <tbody>
+          ${SR.length ? SR.slice(0, VIS).map(k=>{
+            const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;">NEW</span>' : '';
+            const typeBadge = searchTypeBadgeHTML(k.searchType);
+            // 수집기가 쇼핑상품 ID를 채워주면 상품명 아래에 작게 표시됨(없으면 아무것도 안 나옴)
+            const kindBadge = '';
+            const pidLine = k.pid ? `<span style="display:block;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;">쇼핑상품 ${esc(String(k.pid))}${k.mallId?' · 몰상품 '+esc(String(k.mallId)):''}</span>` : '';
+            const t = k.trends || {};
+            const ctrCvr = `<td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>`;
+            const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
+            // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
+            // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
+            const restCamps = (k.campaigns||[]).slice(1);
+            const campCell = `<td style="color:var(--muted);font-size:12px;white-space:nowrap;min-width:104px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
+            if(noConv){
+              // 전환 데이터가 없는 검색어 모드 — 비용을 얼마나 쓰는지와 노출 위치만 본다.
+              return `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${kindBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${(k.impressions||0).toLocaleString('ko-KR')}</td><td>${(k.clicks||0).toLocaleString('ko-KR')}</td><td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.avgCpc!==null&&k.avgCpc!==undefined?k.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>${rankCell}</tr>
+          `;}
+            return isDB ? `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${kindBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td>${ctrCvr}${rankCell}</tr>
+          ` : `
+            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${kindBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td><td>${k.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>${ctrCvr}${rankCell}</tr>
+          `;}).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 8 : 9)}" style="color:var(--muted);">${EMPTY}</td></tr>`}
+        </tbody>
+      </table>
+      ${SR.length > VIS ? `<button class="btn btn-ghost kw-more-btn" data-target="${MORE}" style="margin-top:10px;width:100%;">더보기 (${SR.length - VIS}개 더 있음)</button>` : ''}
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);">${FOOT}</div>
+      ${hasPrevForTrend
+        ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 키워드는 NEW로 표시돼요.</div>`
+        : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
+    </div>
+  `;
+
   card.innerHTML = `
     <header class="rep">
       <div class="idn">
@@ -1861,59 +1944,27 @@ function renderKeywordsPage(data){
       ${buildAISummaryBoxHTML(key, periodLabel)}
     </div>
 
-    <div class="panel">
-      <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>🛍️ 상품별 성과 (${MODE_LABEL[mode]}) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></span>
-        <div style="display:flex;gap:6px;">
-          <span style="font-size:12px;color:var(--muted);">쇼핑상품 ID 기준</span>
-        </div>
-      </div>
-      <table>
-        <thead><tr>
-          <th style="min-width:270px">상품</th><th>캠페인</th>
-          ${sortTh('비용','cost',sort,'top')}
-          ${noConv ? '' : (isDB ? sortTh('전환수','conv',sort,'top') : sortTh('전환매출','revenue',sort,'top'))}
-          ${noConv ? '' : sortTh('CPA','cpa',sort,'top')}
-          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',sort,'top')}
-          ${noConv ? sortTh('노출수','impressions',sort,'top') : ''}
-          ${noConv ? sortTh('클릭수','clicks',sort,'top') : ''}
-          ${sortTh('클릭률','ctr',sort,'top')}
-          ${noConv ? sortTh('평균CPC','avgCpc',sort,'top') : sortTh('전환율','cvr',sort,'top')}
-          ${sortTh('평균노출순위','avgRank',sort,'top')}
-        </tr></thead>
-        <tbody>
-          ${rows.length ? rows.slice(0, topVisibleCount[key]).map(k=>{
-            const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;">NEW</span>' : '';
-            const typeBadge = searchTypeBadgeHTML(k.searchType);
-            // 수집기가 쇼핑상품 ID를 채워주면 상품명 아래에 작게 표시됨(없으면 아무것도 안 나옴)
-            const pidLine = k.pid ? `<span style="display:block;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;">쇼핑상품 ${esc(String(k.pid))}${k.mallId?' · 몰상품 '+esc(String(k.mallId)):''}</span>` : '';
-            const t = k.trends || {};
-            const ctrCvr = `<td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>`;
-            const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
-            // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
-            // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
-            const restCamps = (k.campaigns||[]).slice(1);
-            const campCell = `<td style="color:var(--muted);font-size:12px;white-space:nowrap;min-width:104px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
-            if(noConv){
-              // 전환 데이터가 없는 검색어 모드 — 비용을 얼마나 쓰는지와 노출 위치만 본다.
-              return `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${(k.impressions||0).toLocaleString('ko-KR')}</td><td>${(k.clicks||0).toLocaleString('ko-KR')}</td><td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.avgCpc!==null&&k.avgCpc!==undefined?k.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>${rankCell}</tr>
-          `;}
-            return isDB ? `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td>${ctrCvr}${rankCell}</tr>
-          ` : `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}${pidLine}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td><td>${k.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>${ctrCvr}${rankCell}</tr>
-          `;}).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 8 : 9)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
-        </tbody>
-      </table>
-      ${rows.length > topVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="top" style="margin-top:10px;width:100%;">더보기 (${rows.length - topVisibleCount[key]}개 더 있음)</button>` : ''}
-      <div style="margin-top:8px;font-size:12px;color:var(--muted);">${noConv
-        ? '💡 네이버 <b>검색어</b> 보고서에는 전환·매출 항목이 아예 없어요. 그래서 이 화면은 성과를 보는 곳이 아니라, <b>돈은 쓰는데 우리 상품과 상관없는 검색어를 찾아 제외어로 거르는 용도</b>예요. 비용이 큰데 클릭률이 낮은 검색어부터 확인해 보세요. 전환·매출·ROAS가 궁금하면 위의 <b>파워링크 키워드</b> 버튼으로 보시면 돼요.'
-        : '💡 클릭률은 낮은데 전환율은 정상 → 광고(소재·타겟팅) 점검. 클릭률은 정상인데 전환율만 낮음 → 랜딩페이지 점검. 평균노출순위는 네이버 보고서의 실제 값이며, 파워링크 키워드 리포트에 이 컬럼이 포함된 경우에만 표시돼요.'}</div>
-      ${hasPrevForTrend
-        ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 키워드는 NEW로 표시돼요.</div>`
-        : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
-    </div>
+
+    ${shopPanel({
+      SR: prodRows, VIS: topVisibleCount[key], MORE: 'top',
+      TITLE: '🛍️ 상품별 성과',
+      SUB: `쇼핑상품 ${shopCounts.prod}개 · 비용 ${fmtWon(shopCosts.prod)}원 — 열 제목을 클릭하면 정렬돼요`,
+      COL1: '상품',
+      RIGHT: '<button id="shopPanelToggle" type="button">필터 접기 ›</button>',
+      EMPTY: '아직 상품 단위로 저장된 데이터가 없어요. 수집기가 상품 기준으로 바뀌면 여기가 채워집니다.',
+      FOOT: '💡 같은 상품이 여러 광고그룹에 걸려 있으면 합쳐서 한 줄로 보여줘요. 쇼핑상품 ID·광고그룹·ON/OFF는 수집기 작업 후에 붙습니다.'
+    })}
+
+    ${shopPanel({
+      SR: termRows, VIS: shopTermVisible[key], MORE: 'shopterm',
+      TITLE: '🔍 검색어별 성과',
+      SUB: `검색어 ${shopCounts.term}개 · 비용 ${fmtWon(shopCosts.term)}원 — 열 제목을 클릭하면 정렬돼요`,
+      COL1: '검색어',
+      RIGHT: '',
+      EMPTY: '검색어로 잡힌 데이터가 없어요.',
+      FOOT: '💡 손님이 실제로 검색창에 친 말이에요. 쇼핑 홈·카테고리처럼 검색어가 없는 지면은 여기 안 잡히니, 총액은 위 상품 표를 기준으로 보세요.'
+    })}
+
 
     <div class="panel" style="margin-top:18px;border-left:3px solid var(--up);">
       <div class="panel-title">📈 확대 추천 전체 목록 (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${noConv ? '클릭은 잘 나오는데 아직 비용을 적게 쓰고 있는 검색어 (해당 키워드 입찰가·예산 확대 검토)' : '효율은 좋은데 평균보다 비용을 적게 쓰고 있는 키워드 (입찰가·예산 확대 검토)'} · 열 제목을 클릭하면 정렬돼요</span></div>
@@ -2044,6 +2095,11 @@ function renderKeywordsPage(data){
   document.querySelectorAll('.kw-mode-btn').forEach(btn=>{
     btn.onclick = ()=>{ keywordPageState[key] = btn.dataset.mode; topVisibleCount[key] = 10; renderKeywordsPage(data); };
   });
+  document.querySelectorAll('.kw-more-btn[data-target="shopterm"]').forEach(btn=>{
+    btn.onclick = ()=>{ shopTermVisible[key] += 20; renderKeywordsPage(data); };
+  });
+  const shopPanelBtn = document.getElementById('shopPanelToggle');
+  if(shopPanelBtn) shopPanelBtn.onclick = ()=>{ document.body.classList.toggle('shop-wide'); shopPanelBtn.textContent = document.body.classList.contains('shop-wide') ? '\u2039 \ud544\ud130 \ubcf4\uae30' : '\ud544\ud130 \uc811\uae30 \u203a'; };
   document.querySelectorAll('th[data-sort]').forEach(th=>{
     th.onclick = ()=>{
       const field = th.dataset.field;
