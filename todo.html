@@ -1,194 +1,406 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>km-board · 할 일</title>
-<!--
-  km-board 화면 초안 — 할 일
-  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결이 되어 있지 않습니다.
-  · Pretendard는 jsDelivr CDN에서 불러옵니다.
-  · 실제 연결 시: 이 파일의 마크업 구조를 유지한 채 값만 채우면 됩니다.
--->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
-  <style>
-    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
-    a{color:#b8aeff;text-decoration:none}a:hover{color:#d3ccff}
-    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
-    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
-    .th{font-family:inherit;font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>할 일 목록</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+</script>
 <style>
-  html,body{margin:0;padding:0}
-  body{min-width:1280px}
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
+  .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
+  .status-msg.show{display:block;}
+  .status-msg.err{color:var(--down);}
+  .status-msg.ok{color:var(--up);}
+  .export-btn{background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;}
+  .panel{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:20px;}
+  .panel-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:14px;text-align:center;gap:10px;line-height:1.6;}
+  .sel, .txt{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'Pretendard',sans-serif;}
+  .sel:focus, .txt:focus{outline:none;border-color:var(--accent);}
+
+  /* ---- 새 항목 추가 폼 ---- */
+  .add-form{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;}
+  .add-form input[type=text]{width:100%;}
+  .add-form-row2{display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px;margin-top:8px;}
+
+  /* ---- 필터바 ---- */
+  .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+
+  /* ---- 목록 ---- */
+  .todo-row{display:grid;grid-template-columns:auto 1fr auto auto auto auto auto;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--border);}
+  .todo-row:last-child{border-bottom:none;}
+  .todo-row.done .todo-title{color:var(--muted);text-decoration:line-through;}
+  .todo-check{width:18px;height:18px;cursor:pointer;accent-color:var(--accent);flex-shrink:0;}
+  .todo-main{min-width:0;}
+  .todo-title{font-size:14px;font-weight:600;color:var(--text);word-break:break-word;}
+  .todo-memo{font-size:12px;color:var(--muted);margin-top:3px;word-break:break-word;}
+  .todo-tag{font-size:12px;padding:3px 9px;border-radius:10px;white-space:nowrap;font-weight:600;}
+  .todo-tag-client{background:rgba(139,124,255,.15);color:var(--accent);}
+  .todo-tag-owner{background:rgba(255,255,255,.08);color:var(--muted);}
+  .todo-due{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .todo-due.overdue{color:var(--down);font-weight:700;}
+  .status-sel{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;}
+  .status-sel[data-status="todo"]{background:rgba(255,255,255,.06);color:var(--muted);}
+  .status-sel[data-status="doing"]{background:rgba(245,197,66,.15);color:#f5c542;}
+  .status-sel[data-status="done"]{background:rgba(74,222,154,.15);color:var(--up);}
+  .prio-sel{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;}
+  .prio-sel[data-prio="high"]{background:rgba(255,107,133,.15);color:var(--down);}
+  .prio-sel[data-prio="mid"]{background:rgba(255,255,255,.06);color:var(--muted);}
+  .prio-sel[data-prio="low"]{background:rgba(255,255,255,.04);color:var(--muted);}
+  .todo-delete-btn{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px;line-height:1;}
+  .todo-delete-btn:hover{color:var(--down);}
+  .group-title{font-size:14px;font-weight:700;color:var(--muted);margin:20px 0 6px;padding-top:4px;}
+  .group-title:first-child{margin-top:0;}
 </style>
 </head>
 <body>
-<div style="min-height:940px;display:flex;flex-direction:column;background:#0e0f16">
 
-  <div style="display:flex;align-items:center;gap:20px;padding:0 26px;height:56px;border-bottom:1px solid #2b3044;background:#111219">
-    <div style="display:flex;align-items:center;gap:9px">
-      <div style="width:22px;height:22px;border-radius:6px;background:#8b7cff;display:flex;align-items:center;justify-content:center">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0e0f16" stroke-width="2.4" stroke-linecap="round"><path d="M4 19V11M10 19V5M16 19v-6M22 19H2"/></svg>
-      </div>
-      <span style="font-weight:600;font-size:15px;letter-spacing:-.01em">km-board</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:3px">
-      <span class="nav">전체 업체</span><span class="nav">대시보드</span><span class="nav">캠페인</span><span class="nav">키워드</span><span class="nav">시간대</span><span style="padding:6px 12px;border-radius:7px;background:#252846;color:#e8e9f2;font-size:13.5px;font-weight:500">할 일<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;margin-left:5px;border-radius:8px;background:#f5a524;color:#111219;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;vertical-align:1px">6</span></span>
-    </div>
-    <div style="flex-grow:1"></div>
-    <span style="color:#8f94ab;font-size:12.5px">kileog64</span>
-  </div>
-
-  <div style="display:flex;flex-direction:column;gap:16px;padding:20px 22px 30px">
-
-    <div style="display:flex;align-items:flex-end;border-bottom:1px solid #2b3044">
-      <div style="padding:9px 16px;border-bottom:2px solid #8b7cff;display:flex;align-items:baseline;gap:8px">
-        <span style="font-size:15px;font-weight:600">할 일</span>
-        <span class="m" style="font-size:11px;padding:1px 6px;border-radius:4px;background:#301620;color:#ff6b85">5</span>
-      </div>
-      <div style="padding:9px 16px;border-bottom:2px solid transparent">
-        <span style="font-size:15px;color:#b5b9cd">비교</span>
-      </div>
-      <div style="flex-grow:1"></div>
-      <div style="display:flex;gap:8px;padding-bottom:7px">
-        <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">완료 숨기기</span>
-        <span style="padding:5px 12px;border-radius:7px;background:#8b7cff;color:#0e0f16;font-size:12.5px;font-weight:600">직접 추가</span>
-      </div>
-    </div>
-
-    <!-- 상태 요약 -->
-    <div style="display:flex;gap:8px;align-items:center">
-      <span style="padding:5px 12px;border-radius:7px;background:#232640;color:#e8e9f2;font-size:12.5px;font-weight:500">전체 <span class="m">9</span></span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">자동 감지 <span class="m" style="color:#ff6b85">5</span></span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">진행 중 <span class="m">2</span></span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">완료 <span class="m">2</span></span>
-      <div style="flex-grow:1"></div>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">전체 업체 ▾</span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">마감 빠른 순 ▾</span>
-    </div>
-
-    <!-- 할 일 목록 -->
-    <div style="border:1px solid #2b3044;border-radius:9px;overflow:hidden;background:#171a27">
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;background:#202434;border-bottom:1px solid #2b3044">
-        <span class="th"></span><span class="th">할 일</span><span class="th">업체</span><span class="th">담당</span><span class="th">마감</span><span class="th">상태</span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;align-items:center;border-bottom:1px solid #2b3044;border-left:3px solid #ff6b85">
-        <span style="display:flex;justify-content:center"><span style="width:14px;height:14px;border:1.5px solid #4b4f66;border-radius:4px"></span></span>
-        <div style="padding:11px 14px 11px 11px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:15px;font-weight:500">집중관리키워드 CPA 두 배 — 입찰·소재 점검</span>
-            <span class="m" style="font-size:9.5px;padding:1px 6px;border-radius:4px;background:#221f3d;color:#b8aeff">자동 감지</span>
-          </div>
-          <div class="m" style="font-size:12.5px;color:#8f94ab;margin-top:1px">45,710 → 94,020원 · 전환 4 → 2건</div>
-        </div>
-        <span style="padding:0 14px;font-size:13.5px">담은</span>
-        <span style="padding:0 14px;font-size:13.5px;color:#b5b9cd">경민</span>
-        <span class="m" style="padding:0 14px;font-size:12.5px;color:#ff6b85">오늘</span>
-        <span style="padding:0 14px"><span style="font-size:12.5px;padding:3px 9px;border-radius:5px;background:#301620;color:#ff6b85">해야 함</span></span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;align-items:center;border-bottom:1px solid #2b3044;border-left:3px solid #ff6b85">
-        <span style="display:flex;justify-content:center"><span style="width:14px;height:14px;border:1.5px solid #4b4f66;border-radius:4px"></span></span>
-        <div style="padding:11px 14px 11px 11px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:15px;font-weight:500">모두트래블 ROAS 489p 하락 원인 확인</span>
-            <span class="m" style="font-size:9.5px;padding:1px 6px;border-radius:4px;background:#221f3d;color:#b8aeff">자동 감지</span>
-          </div>
-          <div class="m" style="font-size:12.5px;color:#8f94ab;margin-top:1px">719% → 230% · 비용 513만원</div>
-        </div>
-        <span style="padding:0 14px;font-size:13.5px">모두트래블</span>
-        <span style="padding:0 14px;font-size:13.5px;color:#b5b9cd">경민</span>
-        <span class="m" style="padding:0 14px;font-size:12.5px;color:#ff6b85">오늘</span>
-        <span style="padding:0 14px"><span style="font-size:12.5px;padding:3px 9px;border-radius:5px;background:#301620;color:#ff6b85">해야 함</span></span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;align-items:center;border-bottom:1px solid #2b3044;border-left:3px solid #f5a524">
-        <span style="display:flex;justify-content:center"><span style="width:14px;height:14px;border:1.5px solid #4b4f66;border-radius:4px"></span></span>
-        <div style="padding:11px 14px 11px 11px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:15px;font-weight:500">전환 0건 캠페인 37개 정리</span>
-            <span class="m" style="font-size:9.5px;padding:1px 6px;border-radius:4px;background:#221f3d;color:#b8aeff">자동 감지</span>
-          </div>
-          <div class="m" style="font-size:12.5px;color:#8f94ab;margin-top:1px">6개 업체 · 합계 5,685,368원</div>
-        </div>
-        <span style="padding:0 14px;font-size:13.5px;color:#b5b9cd">6개 업체</span>
-        <span style="padding:0 14px;font-size:13.5px;color:#b5b9cd">경민</span>
-        <span class="m" style="padding:0 14px;font-size:12.5px">09-09</span>
-        <span style="padding:0 14px"><span style="font-size:12.5px;padding:3px 9px;border-radius:5px;background:#2e2110;color:#f5a524">진행 중</span></span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;align-items:center;border-bottom:1px solid #2b3044;border-left:3px solid #343950">
-        <span style="display:flex;justify-content:center"><span style="width:14px;height:14px;border:1.5px solid #4b4f66;border-radius:4px"></span></span>
-        <div style="padding:11px 14px 11px 11px">
-          <div style="font-size:15px;font-weight:500">르하임 '지역 키워드' 노출순위 하락 — 입찰 재검토</div>
-          <div class="m" style="font-size:12.5px;color:#8f94ab;margin-top:1px">6.8 → 11.1위</div>
-        </div>
-        <span style="padding:0 14px;font-size:13.5px">르하임</span>
-        <span style="padding:0 14px;font-size:13.5px;color:#b5b9cd">경민</span>
-        <span class="m" style="padding:0 14px;font-size:12.5px">09-10</span>
-        <span style="padding:0 14px"><span style="font-size:12.5px;padding:3px 9px;border-radius:5px;background:#202434;color:#b5b9cd">해야 함</span></span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:34px 1fr 96px 92px 96px 108px;align-items:center;border-left:3px solid #2b3044">
-        <span style="display:flex;justify-content:center">
-          <span style="width:14px;height:14px;border-radius:4px;background:#3ddc97;display:flex;align-items:center;justify-content:center">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0e0f16" stroke-width="3.5" stroke-linecap="round"><path d="M4 12l6 6L20 6"/></svg>
-          </span>
-        </span>
-        <div style="padding:11px 14px 11px 11px">
-          <div style="font-size:15px;color:#8f94ab;text-decoration:line-through">담은 쇼핑검색 상품명 데이터 복구</div>
-        </div>
-        <span style="padding:0 14px;font-size:13.5px;color:#8f94ab">담은</span>
-        <span style="padding:0 14px;font-size:13.5px;color:#8f94ab">경민</span>
-        <span class="m" style="padding:0 14px;font-size:12.5px;color:#8f94ab">09-06</span>
-        <span style="padding:0 14px"><span style="font-size:12.5px;padding:3px 9px;border-radius:5px;background:#122b22;color:#3ddc97">완료</span></span>
-      </div>
-    </div>
-
-    <!-- 비교 (합쳐진 A/B) -->
-    <div style="display:flex;flex-direction:column;gap:9px">
-      <div style="display:flex;align-items:baseline;gap:12px">
-        <span style="font-size:15px;font-weight:600;letter-spacing:-.01em">비교</span>
-        <span style="font-size:12.5px;color:#8f94ab">두 대상 또는 두 기간을 같은 기준으로 — 예전 A/B 테스트를 여기로 합쳤다</span>
-      </div>
-      <div style="border:1px solid #2b3044;border-radius:9px;background:#171a27;padding:15px 16px;display:flex;flex-direction:column;gap:16px">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span style="font-size:12.5px;color:#8f94ab">빠른 비교</span>
-          <span style="padding:5px 12px;border-radius:7px;background:#232640;color:#e8e9f2;font-size:12.5px;font-weight:500">이번 주 vs 직전 주</span>
-          <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">캠페인 둘 고르기</span>
-          <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">광고그룹 둘 고르기</span>
-          <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">시간대 구간</span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#2b3044;border:1px solid #2b3044;border-radius:8px;overflow:hidden">
-          <div style="background:#202434;padding:12px 15px;display:flex;flex-direction:column;gap:8px">
-            <span class="m" style="font-size:12px;color:#8f94ab">A · 2026.08.30 – 09.05</span>
-            <div style="display:flex;gap:22px">
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">비용</span><span class="m" style="font-size:17px;font-weight:600">691,977원</span></div>
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">전환</span><span class="m" style="font-size:17px;font-weight:600">52건</span></div>
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">CPA</span><span class="m" style="font-size:17px;font-weight:600">13,307원</span></div>
-            </div>
-          </div>
-          <div style="background:#171a27;padding:12px 15px;display:flex;flex-direction:column;gap:8px">
-            <span class="m" style="font-size:12px;color:#8f94ab">B · 2026.08.23 – 08.29</span>
-            <div style="display:flex;gap:22px">
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">비용</span><span class="m" style="font-size:17px;font-weight:600;color:#b5b9cd">615,640원</span></div>
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">전환</span><span class="m" style="font-size:17px;font-weight:600;color:#b5b9cd">47건</span></div>
-              <div style="display:flex;flex-direction:column"><span style="font-size:12px;color:#8f94ab">CPA</span><span class="m" style="font-size:17px;font-weight:600;color:#b5b9cd">13,099원</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:8px;background:#202434">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3ddc97" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20"/></svg>
-          <span style="font-size:14px">비용 <b class="m" style="font-weight:600;color:#3ddc97">+12.4</b> 늘리는 동안 전환은 <b class="m" style="font-weight:600;color:#3ddc97">+10.6</b> 늘었다 — CPA는 거의 그대로다</span>
-        </div>
-      </div>
-    </div>
-
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 광고 성과 대시보드</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인하면 할 일 목록을 함께 볼 수 있어요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn">로그인</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">계정이 없으신가요? 관리자에게 계정 생성을 요청해주세요.</div>
+    <div class="status-msg" id="authStatus"></div>
   </div>
 </div>
+
+<div class="wrap" id="mainApp" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;row-gap:10px;">
+    <h1 style="font-size:20px;margin:0;">✅ 할 일 목록</h1>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
+      <a href="overview.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🗂️ 전체 업체 개요</a>
+      <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
+      <button class="export-btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px;">
+    <div class="panel-title">➕ 새 할 일 추가</div>
+    <div class="add-form">
+      <input type="text" class="txt" id="newTodoTitle" placeholder="할 일 내용 (예: SN라이프 키워드 점검)">
+      <select class="sel" id="newTodoClient"><option value="">업체 선택 (선택)</option></select>
+      <input type="text" class="txt" id="newTodoOwner" placeholder="담당자 (선택)">
+      <input type="date" class="txt" id="newTodoDue">
+      <button class="btn btn-accent" id="addTodoBtn" style="margin-top:0;width:auto;padding:9px 18px;">추가</button>
+    </div>
+    <div class="add-form-row2">
+      <select class="sel" id="newTodoStatus">
+        <option value="todo">상태: 할일</option>
+        <option value="doing">상태: 진행중</option>
+        <option value="done">상태: 완료</option>
+      </select>
+      <select class="sel" id="newTodoPrio">
+        <option value="high">우선순위: 높음</option>
+        <option value="mid" selected>우선순위: 보통</option>
+        <option value="low">우선순위: 낮음</option>
+      </select>
+      <input type="text" class="txt" id="newTodoMemo" placeholder="메모 / 설명 (선택)">
+    </div>
+    <div class="status-msg" id="todoAddStatus"></div>
+  </div>
+
+  <div class="filter-bar">
+    <select class="sel" id="filterClient"><option value="ALL">전체 업체</option></select>
+    <select class="sel" id="filterStatus">
+      <option value="ALL">전체 상태</option>
+      <option value="todo">할일</option>
+      <option value="doing">진행중</option>
+      <option value="done">완료</option>
+    </select>
+    <select class="sel" id="filterPrio">
+      <option value="ALL">전체 우선순위</option>
+      <option value="high">높음</option>
+      <option value="mid">보통</option>
+      <option value="low">낮음</option>
+    </select>
+    <select class="sel" id="sortMode">
+      <option value="due">마감일 빠른 순</option>
+      <option value="prio">우선순위 높은 순</option>
+      <option value="created">최근 등록 순</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;margin-left:auto;">
+      <input type="checkbox" id="hideDoneCheck" style="accent-color:var(--accent);"> 완료 항목 숨기기
+    </label>
+  </div>
+
+  <div class="panel">
+    <div id="todoList"></div>
+  </div>
+</div>
+
+<script>
+function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
+
+/* ---------- 인증 ---------- */
+let currentUserEmail = '';
+function authStatus(msg, type){
+  const el = document.getElementById('authStatus');
+  el.textContent = msg; el.className = 'status-msg show ' + (type||'');
+}
+document.getElementById('loginBtn').onclick = async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if(!email || !pw){ authStatus('이메일과 비밀번호를 입력해주세요.', 'err'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+  }catch(e){ authStatus('로그인 실패: ' + e.message, 'err'); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+/* ---------- 업체 목록 (드롭다운용) ---------- */
+function userClientsRef(){
+  if(!auth.currentUser) throw new Error('not signed in');
+  return db.collection('clients');
+}
+async function listClientsForDropdown(){
+  try{
+    const snap = await userClientsRef().get();
+    return snap.docs.map(d=>({ key:'client:'+d.id, name:(d.data()||{}).name || d.id }));
+  }catch(e){ console.error(e); return []; }
+}
+async function populateClientDropdowns(){
+  const clients = await listClientsForDropdown();
+  clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const optsPlain = clients.map(c=>`<option value="${c.key}">${c.name}</option>`).join('');
+  const newSel = document.getElementById('newTodoClient');
+  newSel.innerHTML = '<option value="">업체 선택 (선택)</option>' + optsPlain;
+  const filterSel = document.getElementById('filterClient');
+  filterSel.innerHTML = '<option value="ALL">전체 업체</option><option value="NONE">업체 없음(공통 업무)</option>' + optsPlain;
+  window.__todoClientNameMap = Object.fromEntries(clients.map(c=>[c.key, c.name]));
+}
+
+/* ---------- 할 일 저장소 (Firestore: config/todos 문서 안에 배열로 저장) ---------- */
+// 팀 전체가 공유하는 목록이라 업체 데이터(clients 컬렉션)와는 별도로 config 컬렉션에 둠.
+// 항목 수가 아주 많아지지 않는 한(문서 1MB 한도) 배열 하나로 충분히 단순하게 관리 가능.
+function todosRef(){ return db.collection('config').doc('todos'); }
+async function loadTodos(){
+  try{
+    const doc = await todosRef().get();
+    if(!doc.exists) return [];
+    return doc.data().items || [];
+  }catch(e){ console.error(e); return []; }
+}
+/* 팀 공용 목록이라 두 사람이 동시에 열어두는 일이 실제로 생김. 예전엔 화면에 들고 있던 배열을
+   통째로 덮어써서, A가 항목을 추가한 직후 B가 체크박스를 누르면 B의 저장이 A의 새 항목을 지웠음.
+   그래서 저장 직전에 트랜잭션으로 서버 값을 다시 읽고, 그 위에서 내가 바꾼 것만 반영함.
+   mutate(server) — 서버의 최신 배열을 받아서 새 배열을 돌려주는 함수. */
+async function mutateTodos(mutate){
+  try{
+    const ref = todosRef();
+    let applied = null;
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const server = (doc.exists && doc.data().items) || [];
+      applied = mutate(server.slice());
+      tx.set(ref, { items: applied }, { merge:true });
+    });
+    if(applied) todoItems = applied;
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+// 단일 항목 수정: id로 찾아서 그 항목의 필드만 바꿈(다른 사람이 추가/삭제한 항목은 그대로 둠)
+function patchTodo(id, patch){
+  return mutateTodos(list=>list.map(x=> x.id===id ? { ...x, ...patch } : x));
+}
+function newTodoId(){
+  return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+let todoItems = [];
+let filterState = { client:'ALL', status:'ALL', prio:'ALL', sort:'due', hideDone:false };
+
+async function refreshTodoList(){
+  todoItems = await loadTodos();
+  await populateClientDropdowns();
+  renderTodoList();
+}
+
+function prioRank(p){ return p==='high' ? 0 : p==='low' ? 2 : 1; }
+function statusLabel(s){ return s==='doing' ? '진행중' : s==='done' ? '완료' : '할일'; }
+function prioLabel(p){ return p==='high' ? '높음' : p==='low' ? '낮음' : '보통'; }
+
+/* '<'만 막으면 '&lt;'를 입력했을 때 그대로 '<'로 렌더됨(& 를 먼저 안 바꿔서). 순서대로 전부 치환. */
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function todoRowHTML(t){
+  const clientName = t.clientKey ? (window.__todoClientNameMap[t.clientKey] || '알 수 없는 업체') : '';
+  const clientTag = clientName ? `<span class="todo-tag todo-tag-client">🏢 ${esc(clientName)}</span>` : '';
+  const ownerTag = t.owner ? `<span class="todo-tag todo-tag-owner">👤 ${esc(t.owner)}</span>` : '';
+  let dueHtml = '';
+  if(t.due){
+    const isOverdue = t.status!=='done' && t.due < new Date().toISOString().slice(0,10);
+    dueHtml = `<span class="todo-due ${isOverdue?'overdue':''}">${isOverdue?'⚠️ ':'📅 '}${t.due}</span>`;
+  }
+  const memoHtml = t.memo ? `<div class="todo-memo">${esc(t.memo)}</div>` : '';
+  return `
+    <div class="todo-row ${t.status==='done'?'done':''}" data-id="${esc(t.id)}">
+      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''} title="완료로 표시/해제">
+      <div class="todo-main">
+        <div class="todo-title">${esc(t.title)}</div>
+        ${memoHtml}
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${clientTag}${ownerTag}</div>
+      </div>
+      ${dueHtml || '<span></span>'}
+      <select class="status-sel" data-status="${t.status}" title="상태 변경">
+        <option value="todo" ${t.status==='todo'?'selected':''}>할일</option>
+        <option value="doing" ${t.status==='doing'?'selected':''}>진행중</option>
+        <option value="done" ${t.status==='done'?'selected':''}>완료</option>
+      </select>
+      <select class="prio-sel" data-prio="${t.priority}" title="우선순위 변경">
+        <option value="high" ${t.priority==='high'?'selected':''}>높음</option>
+        <option value="mid" ${t.priority==='mid'?'selected':''}>보통</option>
+        <option value="low" ${t.priority==='low'?'selected':''}>낮음</option>
+      </select>
+      <button class="todo-delete-btn" title="삭제">✕</button>
+    </div>`;
+}
+
+function renderTodoList(){
+  const el = document.getElementById('todoList');
+  let rows = todoItems.slice();
+
+  if(filterState.client==='NONE') rows = rows.filter(t=>!t.clientKey);
+  else if(filterState.client!=='ALL') rows = rows.filter(t=>t.clientKey===filterState.client);
+  if(filterState.status!=='ALL') rows = rows.filter(t=>t.status===filterState.status);
+  if(filterState.prio!=='ALL') rows = rows.filter(t=>t.priority===filterState.prio);
+  if(filterState.hideDone) rows = rows.filter(t=>t.status!=='done');
+
+  if(filterState.sort==='due'){
+    rows.sort((a,b)=>{
+      if(!a.due && !b.due) return (b.createdAt||0)-(a.createdAt||0);
+      if(!a.due) return 1;
+      if(!b.due) return -1;
+      return a.due.localeCompare(b.due);
+    });
+  } else if(filterState.sort==='prio'){
+    rows.sort((a,b)=> prioRank(a.priority)-prioRank(b.priority) || (b.createdAt||0)-(a.createdAt||0));
+  } else if(filterState.sort==='created'){
+    rows.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  }
+
+  if(!rows.length){
+    el.innerHTML = `<div class="empty-state"><div style="font-size:28px;">📭</div><div>조건에 맞는 할 일이 없어요.</div></div>`;
+    return;
+  }
+  el.innerHTML = rows.map(todoRowHTML).join('');
+
+  el.querySelectorAll('.todo-row').forEach(rowEl=>{
+    const id = rowEl.dataset.id;
+    const t = todoItems.find(x=>x.id===id);
+    if(!t) return;
+    rowEl.querySelector('.todo-check').onchange = async (e)=>{
+      await patchTodo(id, { status: e.target.checked ? 'done' : 'todo' });
+      renderTodoList();
+    };
+    rowEl.querySelector('.status-sel').onchange = async (e)=>{
+      await patchTodo(id, { status: e.target.value });
+      renderTodoList();
+    };
+    rowEl.querySelector('.prio-sel').onchange = async (e)=>{
+      await patchTodo(id, { priority: e.target.value });
+      renderTodoList();
+    };
+    rowEl.querySelector('.todo-delete-btn').onclick = async ()=>{
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      await mutateTodos(list=>list.filter(x=>x.id!==id));
+      renderTodoList();
+    };
+  });
+}
+
+document.getElementById('addTodoBtn').onclick = async ()=>{
+  const titleEl = document.getElementById('newTodoTitle');
+  const title = titleEl.value.trim();
+  const statusMsg = document.getElementById('todoAddStatus');
+  function setMsg(msg, type){ statusMsg.textContent = msg; statusMsg.className = 'status-msg show ' + (type||''); }
+  if(!title){ setMsg('할 일 내용을 입력해주세요.', 'err'); return; }
+  const clientKey = document.getElementById('newTodoClient').value || null;
+  const owner = document.getElementById('newTodoOwner').value.trim() || null;
+  const due = document.getElementById('newTodoDue').value || null;
+  const status = document.getElementById('newTodoStatus').value;
+  const priority = document.getElementById('newTodoPrio').value;
+  const memo = document.getElementById('newTodoMemo').value.trim() || null;
+
+  const item = {
+    id: newTodoId(), title, clientKey, owner, due, status, priority, memo,
+    createdAt: Date.now(), createdBy: currentUserEmail
+  };
+  const ok = await mutateTodos(list=>[...list, item]);
+  if(ok){
+    setMsg('할 일을 추가했어요.', 'ok');
+    titleEl.value = '';
+    document.getElementById('newTodoOwner').value = '';
+    document.getElementById('newTodoDue').value = '';
+    document.getElementById('newTodoMemo').value = '';
+    document.getElementById('newTodoClient').value = '';
+    document.getElementById('newTodoStatus').value = 'todo';
+    document.getElementById('newTodoPrio').value = 'mid';
+    renderTodoList();
+  } else {
+    todoItems.pop();
+    setMsg('추가에 실패했어요. 다시 시도해주세요.', 'err');
+  }
+};
+
+document.getElementById('filterClient').onchange = (e)=>{ filterState.client = e.target.value; renderTodoList(); };
+document.getElementById('filterStatus').onchange = (e)=>{ filterState.status = e.target.value; renderTodoList(); };
+document.getElementById('filterPrio').onchange = (e)=>{ filterState.prio = e.target.value; renderTodoList(); };
+document.getElementById('sortMode').onchange = (e)=>{ filterState.sort = e.target.value; renderTodoList(); };
+document.getElementById('hideDoneCheck').onchange = (e)=>{ filterState.hideDone = e.target.checked; renderTodoList(); };
+
+auth.onAuthStateChanged(async (user)=>{
+  if(user){
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('authUserEmail').textContent = user.email;
+    currentUserEmail = user.email;
+    await refreshTodoList();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+  }
+});
+
+if(FIREBASE_CONFIG.apiKey.includes('여기에')){
+  document.getElementById('authScreen').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:28px;">⚠️</div>
+      <div style="color:#ff5d7a;font-weight:600;">Firebase 설정이 아직 입력되지 않았어요.</div>
+      <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
+    </div>`;
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>km-board · 데이터 관리</title>
+<!--
+  km-board 화면 초안 — 데이터 관리
+  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결이 되어 있지 않습니다.
+  · Pretendard는 jsDelivr CDN에서 불러옵니다.
+  · 실제 연결 시: 이 파일의 마크업 구조를 유지한 채 값만 채우면 됩니다.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+  <style>
+    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
+    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
+    .card{background:#171a27;border:1px solid #2b3044;border-radius:10px}
+    .lbl{font-size:12px;color:#8f94ab}
+    .pill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11.5px;font-weight:500}
+  </style>
+<style>
+  html,body{margin:0;padding:0}
+  body{min-width:1280px}
+</style>
+</head>
+<body>
+<div style="min-height:960px;display:flex;flex-direction:column;background:#0e0f16">
+
+  <div style="display:flex;align-items:center;gap:20px;padding:0 26px;height:56px;border-bottom:1px solid #2b3044;background:#111219">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:22px;height:22px;border-radius:6px;background:#8b7cff;display:flex;align-items:center;justify-content:center">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0e0f16" stroke-width="2.4" stroke-linecap="round"><path d="M4 19V11M10 19V5M16 19v-6M22 19H2"/></svg>
+      </div>
+      <span style="font-weight:600;font-size:15px;letter-spacing:-.01em">km-board</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:3px">
+      <span class="nav">전체 업체</span><span class="nav">대시보드</span><span class="nav">캠페인</span><span class="nav">키워드</span><span class="nav">시간대</span><span class="nav">할 일<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;margin-left:5px;border-radius:8px;background:#f5a524;color:#111219;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;vertical-align:1px">6</span></span>
+    </div>
+    <div style="flex-grow:1"></div>
+    <span style="padding:6px 12px;border-radius:7px;background:#252846;color:#e8e9f2;font-size:13.5px;font-weight:500">데이터 관리</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px;padding:22px 26px 34px">
+
+    <div>
+      <div style="font-size:20px;font-weight:600;letter-spacing:-.02em">데이터 관리</div>
+      <div class="lbl" style="margin-top:3px">수집 상태를 먼저 보고, 빠진 구간만 손으로 채웁니다</div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:15px 16px;border-bottom:1px solid #2b3044;display:flex;align-items:center;gap:12px">
+        <span style="font-weight:600;font-size:14px">자동 수집 상태</span>
+        <span class="lbl">매일 03:00 (KST) · 네이버 검색광고 API</span>
+        <div style="flex-grow:1"></div>
+        <span class="pill" style="background:#1e2c2a;color:#3ddc97">마지막 실행 성공 · 오늘 03:04</span>
+      </div>
+
+      <div style="padding:14px">
+        <div style="display:flex;gap:6px;font-size:11.5px;color:#8f94ab;margin-bottom:7px">
+          <span style="width:132px"></span>
+          <span style="flex-grow:1">2026-08-25</span><span>2026-09-05</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="width:132px;font-size:12.5px">예시업체 A <span class="lbl">(3계정)</span></span>
+            <div style="flex-grow:1;display:flex;gap:3px">
+              <i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="width:132px;font-size:12.5px">예시업체 B <span class="lbl">(1계정)</span></span>
+            <div style="flex-grow:1;display:flex;gap:3px">
+              <i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#f5a524"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="width:132px;font-size:12.5px">예시업체 C <span class="lbl">(2계정)</span></span>
+            <div style="flex-grow:1;display:flex;gap:3px">
+              <i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#ff6b85"></i><i style="flex:1;height:16px;border-radius:3px;background:#ff6b85"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i><i style="flex:1;height:16px;border-radius:3px;background:#3ddc97"></i>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid #202434">
+          <span style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:#8f94ab"><i style="width:9px;height:9px;border-radius:2px;background:#3ddc97;display:inline-block"></i>정상</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:#8f94ab"><i style="width:9px;height:9px;border-radius:2px;background:#f5a524;display:inline-block"></i>일부 계정 누락</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:#8f94ab"><i style="width:9px;height:9px;border-radius:2px;background:#ff6b85;display:inline-block"></i>수집 실패</span>
+          <div style="flex-grow:1"></div>
+          <span style="padding:5px 11px;border:1px solid #3a3160;border-radius:7px;font-size:12.5px;color:#b8aeff;background:#1c1930">빠진 구간 다시 수집</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:15px 16px;border-bottom:1px solid #2b3044;display:flex;align-items:center;gap:12px">
+        <span style="font-weight:600;font-size:14px">교차 검증</span>
+        <span class="lbl">저장된 값 vs 네이버 원본 API</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#2b3044">
+        <div style="background:#171a27;padding:16px 16px">
+          <div class="lbl">일일 검증 (매일 03:20)</div>
+          <div style="display:flex;align-items:baseline;gap:6px;margin-top:5px"><span class="m" style="font-size:20px;font-weight:600;color:#3ddc97">일치</span><span class="lbl">6/6 계정</span></div>
+        </div>
+        <div style="background:#171a27;padding:16px 16px">
+          <div class="lbl">월간 4단계 샘플링</div>
+          <div style="display:flex;align-items:baseline;gap:6px;margin-top:5px"><span class="m" style="font-size:20px;font-weight:600;color:#3ddc97">10/10</span><span class="lbl">DIFF 0</span></div>
+        </div>
+        <div style="background:#171a27;padding:16px 16px">
+          <div class="lbl">마지막 검증</div>
+          <div class="m" style="font-size:15px;font-weight:600;margin-top:6px">2026-09-06 03:22</div>
+        </div>
+        <div style="background:#171a27;padding:16px 16px">
+          <div class="lbl">보관 범위</div>
+          <div class="m" style="font-size:15px;font-weight:600;margin-top:6px">2025.09 ~ 2026.09</div>
+        </div>
+      </div>
+      <div style="padding:15px 16px;border-top:1px solid #2b3044;display:flex;gap:8px;align-items:center">
+        <span class="lbl" style="flex-grow:1">검증 실패가 나면 [할 일] 페이지에 자동으로 카드가 올라옵니다</span>
+        <span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;font-size:12.5px;color:#b5b9cd">지금 검증 실행</span>
+        <span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;font-size:12.5px;color:#b5b9cd">검증 이력</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div class="card" style="padding:17px 18px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+          <span style="font-weight:600;font-size:14px">수동 업로드</span>
+          <span class="pill" style="background:#2e2620;color:#f5a524">보조 수단</span>
+        </div>
+        <div class="lbl" style="margin-bottom:12px">API가 주지 않는 값(오프라인 전환, 매출 등)만 CSV로 올립니다</div>
+        <div style="border:1px dashed #3a3f57;border-radius:9px;padding:22px;text-align:center;background:#111219">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8f94ab" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:7px"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <div style="font-size:13.5px;color:#b5b9cd">CSV 파일을 끌어다 놓으세요</div>
+          <div class="lbl" style="margin-top:4px">필수 열: 날짜 / 업체 / 항목 / 값</div>
+        </div>
+        <div style="margin-top:11px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+            <span class="pill" style="background:#1e2c2a;color:#3ddc97">완료</span>
+            <span style="flex-grow:1">2026-08_offline_conv.csv</span>
+            <span class="m lbl">312행 · 08-31</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+            <span class="pill" style="background:#331f26;color:#ff6b85">오류 4행</span>
+            <span style="flex-grow:1">2026-07_sales.csv</span>
+            <span class="m lbl">1,204행 · 08-02</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:17px 18px">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">업체 · 계정 관리</div>
+        <div class="lbl" style="margin-bottom:12px">CUSTOMER_ID 단위로 묶어서 하나의 업체로 봅니다</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:#111219;border:1px solid #202434;border-radius:8px">
+            <span style="width:7px;height:7px;border-radius:50%;background:#3ddc97"></span>
+            <div style="flex-grow:1"><div style="font-size:13.5px;font-weight:500">예시업체 A</div><div class="lbl m">1234567 · 1234568 · 1234569</div></div>
+            <span class="lbl">2025.09~</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:#111219;border:1px solid #202434;border-radius:8px">
+            <span style="width:7px;height:7px;border-radius:50%;background:#3ddc97"></span>
+            <div style="flex-grow:1"><div style="font-size:13.5px;font-weight:500">예시업체 B</div><div class="lbl m">2234567</div></div>
+            <span class="lbl">2026.01~</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:#111219;border:1px solid #2e2620;border-radius:8px">
+            <span style="width:7px;height:7px;border-radius:50%;background:#f5a524"></span>
+            <div style="flex-grow:1"><div style="font-size:13.5px;font-weight:500">예시업체 C</div><div class="lbl m">3234567 · 3234568</div></div>
+            <span class="pill" style="background:#2e2620;color:#f5a524">백필 중 7/12개월</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px dashed #3a3f57;border-radius:8px;color:#b5b9cd;font-size:12.5px">
+            <span style="font-size:15px;line-height:1">+</span> 업체 추가
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

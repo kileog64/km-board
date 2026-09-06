@@ -1,283 +1,993 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>km-board · 전체 업체</title>
-<!--
-  km-board 화면 초안 — 전체 업체
-  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결이 되어 있지 않습니다.
-  · Pretendard는 jsDelivr CDN에서 불러옵니다.
-  · 실제 연결 시: 이 파일의 마크업 구조를 유지한 채 값만 채우면 됩니다.
--->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
-  <style>
-    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
-    a{color:#b8aeff;text-decoration:none}a:hover{color:#d3ccff}
-    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
-    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
-    .card{background:#171a27;border:1px solid #2b3044;border-radius:10px}
-    .lbl{font-size:12px;color:#8f94ab}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전체 업체 개요</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+  const storage = firebase.storage();
+</script>
 <style>
-  html,body{margin:0;padding:0}
-  body{min-width:1280px}
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1480px;margin:0 auto;padding:28px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
+  .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
+  .status-msg.show{display:block;}
+  .status-msg.err{color:var(--down);}
+  .export-btn{background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;}
+  .panel{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:20px;}
+  .panel-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:280px;color:var(--muted);font-size:14px;text-align:center;gap:10px;line-height:1.6;}
+
+  /* ---- 상단 요약 통계 ---- */
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:22px;}
+  .stat-card{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;}
+  .stat-card .lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .stat-card .val{font-size:28px;font-weight:800;margin-top:8px;letter-spacing:-.01em;}
+
+  /* ---- 필터바 ---- */
+  .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+  .biz-tab{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .biz-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(139,124,255,.12);}
+  .search-input{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);min-width:200px;}
+  .search-input:focus{outline:none;border-color:var(--accent);}
+  .sort-select{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);}
+
+  /* ---- 카드 그리드 ---- */
+  .client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+  .client-card{background:var(--panel-2);border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:border-color .15s,transform .15s;position:relative;}
+  .client-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .client-card-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .client-card-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;}
+  .client-card-name{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;}
+  .client-card-biz{font-size:12px;color:var(--muted);background:rgba(255,255,255,.08);padding:2px 8px;border-radius:10px;margin-top:3px;display:inline-block;}
+  .client-card-period{font-size:12px;color:var(--muted);margin-top:3px;}
+  .client-card-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .client-card-metric .m{font-size:12px;color:var(--muted);}
+  .client-card-metric .v{font-size:16px;font-weight:700;margin-top:3px;}
+  .client-card-badge{position:absolute;top:16px;right:44px;font-size:16px;}
+  .client-card-alert-badge{position:absolute;top:14px;left:16px;font-size:12px;font-weight:800;color:#fff;background:var(--down);border-radius:10px;padding:3px 8px;display:flex;align-items:center;gap:2px;}
+  .client-card-trend{font-weight:700;margin-left:4px;}
+  .client-card-trend.up{color:var(--up);}
+  .client-card-trend.down{color:var(--down);}
+  .overview-section-title{font-size:16px;font-weight:800;color:var(--text);margin:28px 0 14px;padding-top:4px;}
+  .overview-section-title:first-child{margin-top:0;}
+  .client-card-goal{margin-top:12px;padding-top:11px;border-top:1px dashed var(--border);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer;border-radius:6px;}
+  .client-card-goal:hover{background:rgba(255,255,255,.04);}
+  .client-card-goal.goal-met{color:var(--up);}
+  .client-card-goal.goal-miss{color:var(--down);}
+  .client-card-goal-empty{color:var(--muted);}
+  .client-card-goal-edit{font-size:12px;color:var(--accent);font-weight:700;white-space:nowrap;}
+  .client-card-pin{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px;z-index:2;}
+  .client-card-pin:hover{color:#f5c542;}
+  .client-card-pin.pinned{color:#f5c542;}
+  .client-card-spark{margin-top:12px;display:flex;align-items:center;gap:8px;}
+  .client-card-spark-lbl{font-size:11px;color:var(--muted);}
+  .risk-panel-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);font-size:14px;}
+  .risk-panel-row:last-child{border-bottom:none;}
+  .risk-panel-row .name{font-weight:700;min-width:90px;}
+  .risk-panel-row .text{color:var(--muted);flex:1;}
+  .risk-panel-sev{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 </style>
 </head>
 <body>
-<div style="min-height:960px;display:flex;flex-direction:column;background:#0e0f16">
 
-  <div style="display:flex;align-items:center;gap:20px;padding:0 26px;height:56px;border-bottom:1px solid #2b3044;background:#111219">
-    <div style="display:flex;align-items:center;gap:9px">
-      <div style="width:22px;height:22px;border-radius:6px;background:#8b7cff;display:flex;align-items:center;justify-content:center">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0e0f16" stroke-width="2.4" stroke-linecap="round"><path d="M4 19V11M10 19V5M16 19v-6M22 19H2"/></svg>
-      </div>
-      <span style="font-weight:600;font-size:15px;letter-spacing:-.01em">km-board</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:3px">
-      <span style="padding:6px 12px;border-radius:7px;background:#252846;color:#e8e9f2;font-size:13.5px;font-weight:500">전체 업체</span><span class="nav">대시보드</span><span class="nav">캠페인</span><span class="nav">키워드</span><span class="nav">시간대</span><span class="nav">할 일<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;margin-left:5px;border-radius:8px;background:#f5a524;color:#111219;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;vertical-align:1px">6</span></span>
-    </div>
-    <div style="flex-grow:1"></div>
-    <span style="color:#8f94ab;font-size:12.5px">kileog64</span>
-  </div>
-
-  <div style="display:flex;flex-direction:column;gap:20px;padding:22px 26px 34px">
-
-    <!-- 필터 바 -->
-    <div style="background:#171a27;border:1px solid #2b3044;border-radius:10px;overflow:hidden">
-
-      <div style="display:flex;align-items:center;gap:12px;padding:11px 15px">
-        <span style="font-size:12px;color:#8f94ab;white-space:nowrap;width:62px;flex-shrink:0">기간</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;flex-grow:1"><span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;background:transparent;color:#b5b9cd;font-size:12.5px;white-space:nowrap">어제</span><span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;background:transparent;color:#b5b9cd;font-size:12.5px;white-space:nowrap">최근 7일</span><span style="padding:5px 11px;border:1px solid #3a3160;border-radius:7px;background:#252846;color:#e8e9f2;font-size:12.5px;font-weight:500;white-space:nowrap">이번 달</span><span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;background:transparent;color:#b5b9cd;font-size:12.5px;white-space:nowrap">지난 달</span><span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;background:transparent;color:#b5b9cd;font-size:12.5px;white-space:nowrap">전체 기간</span><span style="padding:5px 11px;border:1px solid #2b3044;border-radius:7px;background:transparent;color:#b5b9cd;font-size:12.5px;white-space:nowrap">직접 선택 ▾</span></div>
-        <span style="font-size:12.5px;color:#b5b9cd;white-space:nowrap;font-variant-numeric:tabular-nums">2026-09-01 ~ 09-05 <span style="color:#6d7288">(5일)</span></span>
-        <span style="width:1px;height:18px;background:#2b3044"></span>
-        <span style="font-size:12px;color:#8f94ab;white-space:nowrap">비교 기준</span>
-        <span style="padding:5px 11px;border:1px solid #343950;border-radius:7px;font-size:12.5px;color:#e8e9f2;white-space:nowrap">직전 5일 ▾</span>
-      </div>
-
-          
-
-
-    <!-- 계정 전체 지표 -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#2b3044;border:1px solid #2b3044;border-radius:9px;overflow:hidden">
-      <div style="background:#202434;padding:14px 16px 15px;display:flex;flex-direction:column;gap:3px">
-        <span class="lbl">최근 7일 총비용</span>
-        <span class="m" style="font-size:25px;font-weight:600;letter-spacing:-.02em">14,540,000원</span>
-        <span class="m" style="font-size:12px;color:#ff6b85">▼ 80</span>
-      </div>
-      <div style="background:#171a27;padding:14px 16px 15px;display:flex;flex-direction:column;gap:3px">
-        <span class="lbl">총 전환</span>
-        <span class="m" style="font-size:22px;font-weight:600">103건</span>
-        <span class="m" style="font-size:12px;color:#ff6b85">▼ 77</span>
-      </div>
-      <div style="background:#171a27;padding:14px 16px 15px;display:flex;flex-direction:column;gap:3px">
-        <span class="lbl">DB 평균 CPA</span>
-        <span class="m" style="font-size:22px;font-weight:600">169,000원</span>
-        <span class="m" style="font-size:12px;color:#8f94ab">4개 업체</span>
-      </div>
-      <div style="background:#171a27;padding:14px 16px 15px;display:flex;flex-direction:column;gap:3px">
-        <span class="lbl">B2C 평균 ROAS</span>
-        <span class="m" style="font-size:22px;font-weight:600">246%</span>
-        <span class="m" style="font-size:12px;color:#8f94ab">3개 업체</span>
-      </div>
-      <div style="background:#171a27;padding:14px 16px 15px;display:flex;flex-direction:column;gap:3px">
-        <span class="lbl">확인 필요</span>
-        <span class="m" style="font-size:22px;font-weight:600;color:#ff6b85">11건</span>
-        <span class="m" style="font-size:12px;color:#8f94ab">6개 업체에 걸침</span>
-      </div>
-    </div>
-
-    <!-- filter row -->
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="padding:5px 12px;border-radius:7px;background:#232640;color:#e8e9f2;font-size:12.5px;font-weight:500">전체 7</span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">DB 4</span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">B2C 3</span>
-      <span style="width:1px;height:18px;background:#2b3044"></span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">즐겨찾기</span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#b5b9cd;font-size:12.5px">목표 미달만</span>
-      <div style="flex-grow:1"></div>
-      <span class="m" style="font-size:12.5px;color:#8f94ab">정렬</span>
-      <span style="padding:5px 12px;border-radius:7px;border:1px solid #343950;color:#e8e9f2;font-size:12.5px">확인 필요 많은 순 ▾</span>
-    </div>
-
-    <!-- 확인 필요 -->
-    <div style="display:flex;flex-direction:column;gap:9px">
-      <div style="display:flex;align-items:baseline;gap:12px">
-        <span style="font-size:15px;font-weight:600;letter-spacing:-.01em">지금 확인이 필요해요</span>
-        <span style="font-size:12.5px;color:#8f94ab">심각한 것부터 · 같은 유형은 묶음</span>
-        <div style="flex-grow:1"></div>
-        <span style="font-size:12.5px;color:#b8aeff">모두 할 일로 보내기</span>
-      </div>
-      <div class="card" style="overflow:hidden">
-        <div style="display:grid;grid-template-columns:3px 96px 1fr 230px;gap:0 13px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="background:#ff6b85;align-self:stretch"></div>
-          <span style="font-size:13.5px;font-weight:600;padding:11px 0">마크힘</span>
-          <span style="font-size:14px;padding:11px 0">CPA가 직전 기간 대비 32 상승</span>
-          <span class="m" style="font-size:13.5px;color:#ff6b85;text-align:right;padding-right:15px">282,551 → 372,120원</span>
-        </div>
-        <div style="display:grid;grid-template-columns:3px 96px 1fr 230px;gap:0 13px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="background:#ff6b85;align-self:stretch"></div>
-          <span style="font-size:13.5px;font-weight:600;padding:11px 0">모두트래블</span>
-          <span style="font-size:14px;padding:11px 0">ROAS가 직전 기간 대비 489p 하락</span>
-          <span class="m" style="font-size:13.5px;color:#ff6b85;text-align:right;padding-right:15px">719% → 230%</span>
-        </div>
-        <div style="display:grid;grid-template-columns:3px 96px 1fr 230px;gap:0 13px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="background:#ff6b85;align-self:stretch"></div>
-          <span style="font-size:13.5px;font-weight:600;padding:11px 0">세온기프트</span>
-          <span style="font-size:14px;padding:11px 0">ROAS가 직전 기간 대비 181p 하락</span>
-          <span class="m" style="font-size:13.5px;color:#ff6b85;text-align:right;padding-right:15px">224% → 42%</span>
-        </div>
-        <div style="display:grid;grid-template-columns:3px 96px 1fr 230px;gap:0 13px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="background:#f5a524;align-self:stretch"></div>
-          <span style="font-size:13.5px;font-weight:600;padding:11px 0">6개 업체</span>
-          <span style="font-size:14px;padding:11px 0">전환 0건인 캠페인 <b class="m" style="font-weight:600">37개</b> — 업체별로 펼쳐 보기</span>
-          <span class="m" style="font-size:13.5px;color:#b5b9cd;text-align:right;padding-right:15px">합계 5,685,368원</span>
-        </div>
-        <div style="display:grid;grid-template-columns:3px 96px 1fr 230px;gap:0 13px;align-items:center">
-          <div style="background:#343950;align-self:stretch"></div>
-          <span style="font-size:13.5px;font-weight:600;padding:11px 0">2개 업체</span>
-          <span style="font-size:14px;padding:11px 0">평균노출순위가 밀린 키워드 — 르하임 · 헬로티야</span>
-          <span class="m" style="font-size:13.5px;color:#b5b9cd;text-align:right;padding-right:15px">6.8 → 11.1위 · 5.2 → 6.2위</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 업체 표 -->
-    <div style="display:flex;flex-direction:column;gap:9px">
-      <div style="display:flex;align-items:baseline;gap:12px">
-        <span style="font-size:15px;font-weight:600;letter-spacing:-.01em">업체</span>
-        <span style="font-size:12.5px;color:#8f94ab">2026.09 기준</span>
-      </div>
-      <div class="card" style="overflow:hidden">
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;gap:0;background:#202434;border-bottom:1px solid #2b3044">
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px">업체</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px">유형</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:right">비용</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:right">전환</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:right">CPA · ROAS</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:right">ON 캠페인</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:center">최근 비용 추이</span>
-          <span class="m" style="font-size:11.5px;letter-spacing:.08em;color:#8f94ab;padding:9px 14px;text-align:right">확인</span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#5eb8ff;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">담</span>
-            <span style="font-weight:500">담은</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#f5a524" stroke="none"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#221f3d;color:#b8aeff">B2C</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">1,030,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">52건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#3ddc97">388% ▲</span>
-          <span class="m" style="padding:0 14px;text-align:right">5 / 8</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,16 14,12 26,14 38,7 50,9 62,4 74,8 84,3" stroke="#3ddc97" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#8f94ab">—</span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#ff8fa3;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">마</span>
-            <span style="font-weight:500">마크힘</span>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#202434;color:#b5b9cd">DB</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">2,600,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">7건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#ff6b85">372,120원 ▲</span>
-          <span class="m" style="padding:0 14px;text-align:right">6 / 9</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,9 14,6 26,11 38,5 50,13 62,10 74,16 84,18" stroke="#ff6b85" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#301620;color:#ff6b85">2</span></span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#f5a524;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">모</span>
-            <span style="font-weight:500">모두트래블</span>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#221f3d;color:#b8aeff">B2C</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">5,130,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">6건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#ff6b85">230% ▼</span>
-          <span class="m" style="padding:0 14px;text-align:right">11 / 27</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,5 14,7 26,6 38,11 50,14 62,13 74,17 84,19" stroke="#ff6b85" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#301620;color:#ff6b85">2</span></span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#e26a8d;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">S</span>
-            <span style="font-weight:500">SN라이프</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#f5a524" stroke="none"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#202434;color:#b5b9cd">DB</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">3,790,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">34건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#3ddc97">111,566원 ▼</span>
-          <span class="m" style="padding:0 14px;text-align:right">36 / 38</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,14 14,11 26,13 38,8 50,10 62,6 74,7 84,5" stroke="#3ddc97" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#2e2110;color:#f5a524">1</span></span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#8b7cff;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">르</span>
-            <span style="font-weight:500">르하임</span>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#202434;color:#b5b9cd">DB</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">660,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">3건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#ff6b85">219,978원 ▲</span>
-          <span class="m" style="padding:0 14px;text-align:right">3 / 8</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,11 14,15 26,9 38,12 50,8 62,14 74,11 84,13" stroke="#8f94ab" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#2e2110;color:#f5a524">2</span></span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center;border-bottom:1px solid #2b3044">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#c9a227;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">세</span>
-            <span style="font-weight:500">세온기프트</span>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#221f3d;color:#b8aeff">B2C</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">330,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right">1건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#ff6b85">42% ▼</span>
-          <span class="m" style="padding:0 14px;text-align:right">2 / 8</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,8 14,6 26,9 38,7 50,12 62,15 74,17 84,16" stroke="#ff6b85" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#301620;color:#ff6b85">2</span></span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1.5fr 84px 110px 82px 110px 92px 120px 92px;align-items:center">
-          <div style="display:flex;align-items:center;gap:9px;padding:10px 14px">
-            <span style="width:22px;height:22px;border-radius:6px;background:#4fb8a8;color:#0e0f16;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">헬</span>
-            <span style="font-weight:500">헬로티야</span>
-          </div>
-          <span class="m" style="font-size:11.5px;padding:0 14px"><span style="padding:1px 7px;border-radius:4px;background:#202434;color:#b5b9cd">DB</span></span>
-          <span class="m" style="padding:0 14px;text-align:right">990,000원</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#ff6b85">0건</span>
-          <span class="m" style="padding:0 14px;text-align:right;color:#8f94ab">—</span>
-          <span class="m" style="padding:0 14px;text-align:right">5 / 13</span>
-          <span style="padding:0 14px;display:flex;justify-content:center">
-            <svg width="86" height="22" viewBox="0 0 86 22" fill="none"><polyline points="2,10 14,8 26,12 38,9 50,11 62,10 74,13 84,12" stroke="#8f94ab" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="m" style="padding:0 14px;text-align:right"><span style="padding:1px 7px;border-radius:4px;background:#301620;color:#ff6b85">2</span></span>
-        </div>
-
-      </div>
-    </div>
-
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 광고 성과 대시보드</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인하면 전체 업체 데이터를 함께 볼 수 있어요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn">로그인</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">계정이 없으신가요? 관리자에게 계정 생성을 요청해주세요.</div>
+    <div class="status-msg" id="authStatus"></div>
   </div>
 </div>
+
+<div class="wrap" id="mainApp" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;row-gap:10px;">
+    <h1 style="font-size:20px;margin:0;">🗂️ 전체 업체 개요</h1>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
+      <a href="todo.html" style="font-size:12px;color:var(--accent);text-decoration:none;">✅ 할 일 목록</a>
+      <a href="campaigns.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📣 캠페인 비교 전용 보기</a>
+      <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🔑 키워드 전용 보기</a>
+      <a href="ab-test.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🧪 A/B 테스트</a>
+      <a href="hourly.html" style="font-size:12px;color:var(--accent);text-decoration:none;">⏰ 시간대별 전용 보기</a>
+        <a href="input.html" style="font-size:12px;color:var(--accent);text-decoration:none;">+ 데이터 입력하기</a>
+      <div class="alert-bell" id="alertBell" style="position:relative;">
+        <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#fff;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
+        <div id="alertBellDropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:340px;max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:50;padding:8px;"></div>
+      </div>
+      <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
+      <button class="export-btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <div id="statRow" class="stat-row"></div>
+
+  <div class="filter-bar">
+    <button class="biz-tab active" data-biztype="ALL" type="button">전체 (구분해서 보기)</button>
+    <button class="biz-tab" data-biztype="DB" type="button">DB만 (상담·전환)</button>
+    <button class="biz-tab" data-biztype="B2C" type="button">B2C만 (매출·ROAS)</button>
+    <input class="search-input" id="overviewSearch" placeholder="업체명 검색...">
+    <select class="sort-select" id="overviewRangeStartSelect" title="시작 월">
+      <option value="LATEST">최근 기간(자동)</option>
+    </select>
+    <span style="color:var(--muted);font-size:14px;">~</span>
+    <select class="sort-select" id="overviewRangeEndSelect" title="종료 월">
+      <option value="LATEST">최근 기간(자동)</option>
+    </select>
+    <select class="sort-select" id="overviewIndustryFilter">
+      <option value="ALL">전체 업종</option>
+    </select>
+    <button class="export-btn" id="overviewGroupToggle" type="button" data-active="0" style="white-space:nowrap;">업종별로 묶어보기</button>
+    <button class="export-btn" id="overviewGoalMissToggle" type="button" data-active="0" style="white-space:nowrap;">🎯 목표 미달만</button>
+    <button class="export-btn" id="overviewPinToggle" type="button" data-active="0" style="white-space:nowrap;">⭐ 즐겨찾기만</button>
+    <select class="sort-select" id="overviewSort">
+      <option value="efficiency">효율 좋은 순</option>
+      <option value="cost_desc">비용 많은 순</option>
+      <option value="cost_asc">비용 적은 순</option>
+      <option value="name">이름순</option>
+    </select>
+    <button class="export-btn" id="exportAllExcelBtn" style="margin-left:auto;">📊 전체 업체 엑셀 다운로드</button>
+  </div>
+
+  <div id="overviewRiskPanel" style="display:none;margin-bottom:18px;"></div>
+
+  <div id="overviewGrid"></div>
+  <div id="overviewGridB2C" style="margin-top:8px;"></div>
+
+  <div id="permOverviewPanel" style="display:none;margin-top:24px;"></div>
+</div>
+
+<script>
+function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
+function fmtMan(man){ return man>=10000 ? (man/10000).toFixed(man%10000===0?0:1)+'억' : Math.round(man).toLocaleString('ko-KR')+'만'; }
+function fmtWon(man){ return Math.round(man*10000).toLocaleString('ko-KR'); }
+function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function contrastText(hex){
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+  return lum > 0.6 ? '#12131c' : '#ffffff';
+}
+
+/* ---------- 저장소 (Firestore) ---------- */
+const DETAIL_DATA_FIELDS = ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign','wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign','wasteSearchTermsByCampaign','expandSearchTermsByCampaign','hourly','hourlyByCampaign','hourlyByDow','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate','adgroupsByCampaign','dailyByCampaign','dailyByKeyword'];
+function fieldEmptyDefault(f){ return (f==='hourly'||f==='hourlyByCampaign'||f==='hourlyByDow'||f==='hourlyByDowByCampaign'||f==='hourlyByAdgroup'||f==='hourlyByCampaignDate'||f==='dailyByCampaign'||f==='dailyByKeyword') ? [] : {}; }
+function userClientsRef(){
+  if(!auth.currentUser) throw new Error('not signed in');
+  return db.collection('clients');
+}
+let isAdminUser = false;
+let currentUserEmail = '';
+function rolesConfigRef(){ return db.collection('config').doc('roles'); }
+async function checkIsAdmin(email){
+  try{
+    const doc = await rolesConfigRef().get();
+    if(!doc.exists) return false;
+    const admins = doc.data().adminEmails || [];
+    return admins.includes(email);
+  }catch(e){ console.error(e); return false; }
+}
+async function listClients(){
+  try{
+    const snap = await userClientsRef().get();
+    return snap.docs.map(d=>'client:'+d.id);
+  }catch(e){ console.error(e); return []; }
+}
+async function getClient(key){
+  try{
+    const id = key.replace(/^client:/,'');
+    const docRef = userClientsRef().doc(id);
+    const doc = await docRef.get();
+    if(!doc.exists) return null;
+    const data = doc.data();
+    // 개요 페이지는 마지막 월 요약 수치만 필요해서, 무거운 상세데이터(detailData 하위컬렉션)는 굳이 안 불러옴 — 로딩 속도 최적화.
+    return data;
+  }catch(e){ console.error(e); return null; }
+}
+
+/* ---------- 인증 ---------- */
+function authStatus(msg, type){
+  const el = document.getElementById('authStatus');
+  el.textContent = msg; el.className = 'status-msg show ' + (type||'');
+}
+document.getElementById('loginBtn').onclick = async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if(!email || !pw){ authStatus('이메일과 비밀번호를 입력해주세요.', 'err'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+  }catch(e){ authStatus('로그인 실패: ' + e.message, 'err'); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+/* ---------- 전체 업체 개요 ---------- */
+let overviewRows = [];
+let overviewBizFilter = 'ALL';
+let overviewSortMode = 'efficiency';
+let overviewIndustryFilter = 'ALL';
+let overviewGroupByIndustry = false;
+let overviewGoalMissOnly = false;
+let overviewPinnedOnly = false;
+// overviewRangeState: { start, end } 각각 'LATEST'(업체별 최신 달, 기존 동작) 또는 실제 월 라벨 문자열(예: '2026.07').
+// 어느 한쪽이라도 'LATEST'면 "업체별 최신 달 1개만" 보는 기존 방식으로 동작하고, 둘 다 구체적인 라벨이면
+// 그 사이(양끝 포함) 기간을 업체별로 합산해서 보여줌.
+let overviewRangeState = { start: 'LATEST', end: 'LATEST' };
+let overviewAllClientData = []; // { key, data } — 월 선택이 바뀔 때마다 재조회 없이 다시 계산하기 위해 원본 보관
+let overviewCachedAlerts = []; // computeAlerts() 결과 — 알림은 항상 "현재 최신 달" 기준이라 월 선택과 무관해서 캐시해둠
+// 라벨은 보통 "YYYY.MM" 형식이지만 월이 0패딩 없이(예: "2026.7") 저장된 경우도 섞여 있을 수 있어서,
+// 단순 문자열 정렬 대신 연/월을 숫자로 뽑아 비교함. 여러 함수에서 재사용해서 최상위로 뺌.
+function labelSortKey(l){
+  const m = String(l).match(/(\d{4})\D+(\d{1,2})/);
+  return m ? Number(m[1])*100 + Number(m[2]) : -Infinity;
+}
+
+// 즐겨찾기(핀) — 브라우저별 로컬 저장. 자주 확인하는 업체를 그리드 맨 위로 고정할 때 사용.
+const PIN_KEY = 'ad_dashboard_pinned_clients';
+function getPinned(){ try{ return new Set(JSON.parse(localStorage.getItem(PIN_KEY)||'[]')); }catch(e){ return new Set(); } }
+function togglePinned(key){
+  const pinned = getPinned();
+  if(pinned.has(key)) pinned.delete(key); else pinned.add(key);
+  localStorage.setItem(PIN_KEY, JSON.stringify([...pinned]));
+  return pinned;
+}
+// 카드 미니 스파크라인 — 최근 30일 이내 일별 비용 추이를 작은 SVG 라인으로 표시(index.html의 sparkPath와 동일 로직)
+function sparkPath(vals, w, h){
+  if(!vals.length) return '';
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const range = (max - min) || 1;
+  const step = w / (Math.max(vals.length-1,1));
+  return vals.map((v,i)=>{
+    const x = i*step;
+    const y = h - ((v-min)/range)*h;
+    return `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+function sparklineHTML(vals, color){
+  if(!vals || vals.length<2) return '';
+  const w=100, h=28;
+  const d = sparkPath(vals, w, h);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:visible;"><path d="${d}" fill="none" stroke="${color||'var(--accent)'}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+// 선택된 기간 범위(overviewRangeState)에 해당하는 업체 한 곳의 달들을 골라 반환.
+// start/end 어느 한쪽이라도 'LATEST'면 그 업체의 가장 최근 달 1개만(기존 동작과 동일).
+// 그 외엔 라벨을 연/월 숫자로 변환해 범위 비교하므로, 업체마다 보유한 월이 서로 달라도
+// (예: A업체는 2026.03부터, B업체는 2026.05부터 데이터가 있음) 각자 가진 달 중 겹치는 부분만 자연스럽게 반영됨.
+function monthsOfClientInRange(data, range){
+  const months = data.months || [];
+  if(!months.length) return [];
+  if(range.start==='LATEST' || range.end==='LATEST') return [months[months.length-1]];
+  const sKey = labelSortKey(range.start), eKey = labelSortKey(range.end);
+  const lo = Math.min(sKey, eKey), hi = Math.max(sKey, eKey);
+  return months.filter(m => { const k = labelSortKey(m.label); return k>=lo && k<=hi; });
+}
+function buildOverviewRowForClient(key, data, range){
+  if(!data) return null;
+  if(!isAdminUser && !(data.allowedUsers||[]).includes(currentUserEmail)) return null;
+  const monthsInView = monthsOfClientInRange(data, range);
+  if(!monthsInView.length) return null; // 이 업체는 선택한 기간에 해당하는 데이터가 아예 없음 — 그리드에서 제외
+  const isMultiMonth = monthsInView.length > 1;
+  const cost = monthsInView.reduce((a,m)=>a+(m.cost||0),0);
+  const revenue = monthsInView.reduce((a,m)=>a+(m.revenue||0),0);
+  const conv = monthsInView.reduce((a,m)=>a+(m.conv||0),0);
+  const roas = cost>0 ? (revenue/cost*100) : 0;
+  const cpa = conv>0 ? (cost*10000/conv) : 0;
+
+  // 트렌드 배지(▲▼)와 전월 대비 비교는 "선택 구간의 마지막 달 vs 그 직전 달"이라는 단일 월 비교를 그대로 유지함
+  // (index.html 등 다른 페이지에서도 구간 전체를 둘로 나눠 비교하지 않고 이 방식을 채택함 — 일관성 유지).
+  const last = monthsInView[monthsInView.length-1];
+  const allMonths = data.months || [];
+  const lastIdx = allMonths.findIndex(m=>m.label===last.label);
+  const lastRoas = last.cost>0 ? (last.revenue/last.cost*100) : 0;
+  const lastCpa = last.conv>0 ? (last.cost*10000/last.conv) : 0;
+  let trend = null;
+  let prev = null;
+  if(lastIdx>=1){
+    prev = allMonths[lastIdx-1];
+    if(data.bizType==='DB'){
+      const prevCpa = prev.conv>0 ? (prev.cost*10000/prev.conv) : 0;
+      if(prevCpa>0 && lastCpa>0 && Math.abs(lastCpa-prevCpa)/prevCpa>=0.03){
+        trend = { dir: lastCpa<prevCpa?'down':'up', good: lastCpa<prevCpa };
+      }
+    } else {
+      const prevRoas = prev.cost>0 ? (prev.revenue/prev.cost*100) : 0;
+      if(prevRoas>0 && Math.abs(lastRoas-prevRoas)>=3){
+        trend = { dir: lastRoas>prevRoas?'up':'down', good: lastRoas>prevRoas };
+      }
+    }
+  }
+  // 카드 미니 스파크라인용 — 선택된 구간 전체의 일별 비용 추이(월 순서대로 이어붙인 뒤 최대 30개로 자름)
+  const dailyCost = monthsInView.flatMap(m=>(m.daily||[]).map(d=>d.cost||0)).slice(-30);
+  const periodLabel = isMultiMonth ? `${monthsInView[0].label} ~ ${last.label} 누적` : last.label;
+  return { key, name:data.name, color:data.color, bizType:data.bizType, industry:data.industry||'미분류',
+    allowedUsers: data.allowedUsers||[], goal: data.goal||null,
+    lastLabel:last.label, periodLabel, cost, revenue, conv, roas, cpa, trend,
+    prevCost: prev ? (prev.cost||0) : null, prevConv: prev ? (prev.conv||0) : null,
+    prevRevenue: prev ? (prev.revenue||0) : null, dailyCost };
+}
+
+async function loadOverview(){
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = `<div class="empty-state">불러오는 중...</div>`;
+  const keys = await listClients();
+  // 클라이언트별 조회를 순차(for...of + await)가 아니라 Promise.all로 동시에 실행 —
+  // 클라이언트 수가 늘어날수록 순차 방식은 "클라이언트 수 × 왕복시간"만큼 그대로 느려지는데,
+  // 각 클라이언트 조회는 서로 의존관계가 없어서 동시에 실행해도 안전함(로딩 속도 최적화).
+  // 알림 개수도 같은 시점에 동시에 계산해서 업체 카드에 바로 표시함(🔔 배지) — 매번 알림 벨을
+  // 눌러야만 어떤 업체에 문제가 있는지 알 수 있던 것을 그리드에서 한눈에 보이게 함.
+  const results = await Promise.all(keys.map(async key=>{
+    let data;
+    try{ data = await getClient(key); }catch(e){ console.error(e); return null; }
+    return data ? { key, data } : null;
+  }));
+  overviewAllClientData = results.filter(Boolean);
+  // 방금 받은 문서를 그대로 넘겨서 알림을 계산 — 같은 문서를 두 번 읽지 않음
+  overviewCachedAlerts = await computeAlerts(overviewAllClientData).catch(e=>{ console.error(e); return []; });
+
+  // 시작/종료 월 드롭다운 옵션을 실제 데이터에 존재하는 월 라벨들의 합집합으로 채움(과거순 — 범위 선택이라
+  // 시작~종료 순서로 눈에 보이는 게 자연스러움. 기존 단일 선택은 최신순이었지만 그건 '이 달만 보기' 용도였음).
+  const startSel = document.getElementById('overviewRangeStartSelect');
+  const endSel = document.getElementById('overviewRangeEndSelect');
+  const allLabels = [...new Set(overviewAllClientData.flatMap(({data})=> (data.months||[]).map(m=>m.label)))];
+  allLabels.sort((a,b)=> labelSortKey(a) - labelSortKey(b));
+  const optionsHtml = '<option value="LATEST">최근 기간(자동)</option>' + allLabels.map(l=>`<option value="${l}">${l}</option>`).join('');
+  startSel.innerHTML = optionsHtml;
+  endSel.innerHTML = optionsHtml;
+  const validOrLatest = v => (v==='LATEST' || allLabels.includes(v)) ? v : 'LATEST';
+  overviewRangeState = { start: validOrLatest(overviewRangeState.start), end: validOrLatest(overviewRangeState.end) };
+  startSel.value = overviewRangeState.start;
+  endSel.value = overviewRangeState.end;
+
+  await applySelectedMonth();
+}
+
+async function applySelectedMonth(){
+  // 알림(computeAlerts)은 항상 "현재 진행 중인 실제 최신 달" 기준으로만 의미가 있어서(예산 소진 임박 등은
+  // 오늘 날짜 기준 계산), 과거 월을 조회 중이어도 다시 계산하지 않고 loadOverview()에서 캐시해둔 걸 재사용함.
+  const alerts = overviewCachedAlerts;
+  const rowResults = overviewAllClientData.map(({key,data})=> buildOverviewRowForClient(key, data, overviewRangeState));
+  const alertCountByKey = {};
+  alerts.forEach(a=>{ alertCountByKey[a.key] = (alertCountByKey[a.key]||0) + 1; });
+  overviewRows = rowResults.filter(Boolean).map(r=> ({ ...r, alertCount: alertCountByKey[r.key]||0 }));
+
+  // 업종 필터 드롭다운 옵션을 실제 등록된 업종들로 채움 (매번 데이터가 바뀔 수 있어 갱신마다 다시 채움)
+  const industrySel = document.getElementById('overviewIndustryFilter');
+  const industries = [...new Set(overviewRows.map(r=>r.industry))].sort((a,b)=>a.localeCompare(b,'ko'));
+  const prevIndustryVal = industrySel.value || 'ALL';
+  industrySel.innerHTML = '<option value="ALL">전체 업종</option>' + industries.map(ind=>`<option value="${ind}">${ind}</option>`).join('');
+  industrySel.value = industries.includes(prevIndustryVal) ? prevIndustryVal : 'ALL';
+  overviewIndustryFilter = industrySel.value;
+
+  renderStatRow();
+  renderOverviewGrid();
+  if(isAdminUser){
+    renderPermOverviewPanel();
+    renderRiskPanel(alerts);
+  }
+}
+
+// 관리자 전용 — 알림 벨을 열어봐야만 알 수 있던 "지금 확인이 필요한 업체들"을 한 화면에 상시 노출.
+// 알림 유형별 심각도 순으로 정렬해서, 여러 업체에 문제가 겹쳐 있을 때 뭐부터 봐야 할지 바로 보이게 함.
+const RISK_SEVERITY = { '📉':1, '📈':1, '🎯':2, '💸':3, '🚫':4, '📊':4 }; // 낮을수록 심각(위로 정렬)
+function renderRiskPanel(alerts){
+  const panel = document.getElementById('overviewRiskPanel');
+  if(!alerts || !alerts.length){ panel.style.display = 'none'; panel.innerHTML = ''; return; }
+  const sorted = alerts.slice().sort((a,b)=> (RISK_SEVERITY[a.icon]||9) - (RISK_SEVERITY[b.icon]||9));
+  const rowsHtml = sorted.slice(0,12).map(a=>{
+    const sev = RISK_SEVERITY[a.icon]||9;
+    const sevColor = sev<=1 ? 'var(--down)' : sev===2 ? '#f5c542' : 'var(--muted)';
+    return `
+      <div class="risk-panel-row" data-key="${a.key}" style="cursor:pointer;">
+        <span class="risk-panel-sev" style="background:${sevColor};"></span>
+        <span class="name">${a.icon} ${a.name}</span>
+        <span class="text">${a.text}</span>
+      </div>`;
+  }).join('');
+  const moreTxt = alerts.length>12 ? `<div style="font-size:12px;color:var(--muted);padding:8px 4px 0;">그 외 ${alerts.length-12}건 더 있어요 — 🔔 알림 벨에서 전체 확인 가능</div>` : '';
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="panel-title">⚠️ 지금 확인이 필요해요 <span style="font-weight:400;color:var(--muted);font-size:12px;">(관리자 전용 · 전체 ${alerts.length}건)</span></div>
+      <div>${rowsHtml}</div>
+      ${moreTxt}
+    </div>`;
+  panel.querySelectorAll('.risk-panel-row').forEach(el=>{
+    el.onclick = ()=>{
+      localStorage.setItem('ad_dashboard_active_client', el.dataset.key);
+      window.location.href = 'index.html';
+    };
+  });
+}
+
+function momBadgeHTML(curr, prev, goodDir){
+  // goodDir: 'up'이면 증가가 좋은 지표(전환수 등), 'down'이면 감소가 좋은 지표
+  if(prev===null || prev===undefined || !prev) return '';
+  const pct = (curr-prev)/prev*100;
+  if(!isFinite(pct) || Math.abs(pct)<0.5) return '';
+  const isUp = pct>0;
+  const good = goodDir==='up' ? isUp : !isUp;
+  return `<span style="font-size:12px;font-weight:700;margin-left:8px;color:${good?'var(--up)':'var(--down)'};">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
+}
+function renderStatRow(){
+  const el = document.getElementById('statRow');
+  if(!overviewRows.length){ el.innerHTML = ''; return; }
+  const totalCost = overviewRows.reduce((a,r)=>a+r.cost,0);
+  const totalConv = overviewRows.reduce((a,r)=>a+r.conv,0);
+  const dbCount = overviewRows.filter(r=>r.bizType==='DB').length;
+  const b2cCount = overviewRows.filter(r=>r.bizType!=='DB').length;
+
+  // 전월 대비 총합 변화율 — prevCost/prevConv가 있는(=지난달 데이터가 있는) 업체만 합산해서 비교.
+  // 없는 업체까지 0으로 섞으면 왜곡되므로, 이번 달·지난 달 둘 다 있는 업체만 골라서 비교함.
+  const withPrev = overviewRows.filter(r=>r.prevCost!==null);
+  const prevTotalCost = withPrev.reduce((a,r)=>a+r.prevCost,0);
+  const prevTotalConv = withPrev.reduce((a,r)=>a+r.prevConv,0);
+  const costMom = momBadgeHTML(totalCost, prevTotalCost, 'down');
+  const convMom = momBadgeHTML(totalConv, prevTotalConv, 'up');
+
+  // 업종 유형별 평균 효율 — DB는 평균 CPA(낮을수록 좋음), B2C는 평균 ROAS(높을수록 좋음)
+  const dbRows = overviewRows.filter(r=>r.bizType==='DB' && r.cpa>0);
+  const b2cRows = overviewRows.filter(r=>r.bizType!=='DB' && r.cost>0);
+  /* 예전엔 업체별 CPA를 그냥 평균냈는데, 그러면 월 100만원 쓰는 업체와 1억 쓰는 업체가 같은 무게를
+     가져서 대표값이 안 됨. 총비용/총전환, 총매출/총비용으로 계산해야 전체를 대표하는 값이 됨
+     (hourly.html은 이미 전환수·비용 가중으로 계산하고 있어 같은 기준으로 맞춤). */
+  const dbCost = dbRows.reduce((a,r)=>a+(r.cost||0),0);
+  const dbConv = dbRows.reduce((a,r)=>a+(r.conv||0),0);
+  const b2cCost = b2cRows.reduce((a,r)=>a+(r.cost||0),0);
+  const b2cRev  = b2cRows.reduce((a,r)=>a+(r.revenue||0),0);
+  const avgCpa = dbConv > 0 ? (dbCost/dbConv) : null;
+  const avgRoas = b2cCost > 0 ? (b2cRev/b2cCost*100) : null;
+  const effLines = [
+    avgCpa!==null ? `DB 평균 CPA ${fmtNum(avgCpa)}원` : null,
+    avgRoas!==null ? `B2C 평균 ROAS ${avgRoas.toFixed(0)}%` : null
+  ].filter(Boolean);
+  const effVal = effLines.length ? effLines.join('<br>') : '-';
+
+  el.innerHTML = `
+    <div class="stat-card"><div class="lbl">전체 업체 수</div><div class="val">${overviewRows.length}개</div></div>
+    <div class="stat-card"><div class="lbl">DB / B2C</div><div class="val">${dbCount} / ${b2cCount}</div></div>
+    <div class="stat-card"><div class="lbl">최근 기간 총 비용</div><div class="val">${fmtMan(totalCost)}원${costMom}</div></div>
+    <div class="stat-card"><div class="lbl">최근 기간 총 전환수</div><div class="val">${fmtNum(totalConv)}건${convMom}</div></div>
+    <div class="stat-card"><div class="lbl">업종 유형별 평균 효율</div><div class="val" style="font-size:14px;line-height:1.5;">${effVal}</div></div>
+  `;
+}
+
+function isGoalMissed(r){
+  if(!r.goal || !r.goal.target) return false;
+  const isDB = r.bizType==='DB';
+  const target = Number(r.goal.target);
+  const curr = isDB ? r.cpa : r.roas;
+  const met = isDB ? (curr>0 && curr<=target) : (curr>=target);
+  return !met;
+}
+function goalLineHTML(r){
+  const isDB = r.bizType==='DB';
+  if(!r.goal || !r.goal.target){
+    return `<div class="client-card-goal client-card-goal-empty" data-key="${r.key}" title="목표 KPI를 설정해보세요">🎯 목표 미설정 <span class="client-card-goal-edit">설정하기 ›</span></div>`;
+  }
+  const target = Number(r.goal.target);
+  const curr = isDB ? r.cpa : r.roas;
+  const met = isDB ? (curr>0 && curr<=target) : (curr>=target);
+  const targetTxt = isDB ? `CPA ${fmtNum(target)}원 이하` : `ROAS ${target}% 이상`;
+  // 목표 대비 진행률 막대 — index.html 개별 업체 화면의 목표 진행 바(renderGoalPanelHTML)와 같은 방식으로,
+  // 전체 업체를 훑어보는 이 카드 목록에서도 숫자만이 아니라 시각적으로 한눈에 들어오게 함.
+  // DB는 CPA가 낮을수록 좋아서 target/curr(역수), B2C는 ROAS가 높을수록 좋아서 curr/target로 비율 계산.
+  const ratio = isDB ? (curr>0 && target>0 ? target/curr : 0) : (target>0 ? curr/target : 0);
+  const pct = Math.round(Math.min(1, Math.max(0, ratio))*100);
+  const barColor = met ? 'var(--up)' : 'var(--down)';
+  return `<div class="client-card-goal ${met?'goal-met':'goal-miss'}" data-key="${r.key}" title="목표 수정하기" style="flex-direction:column;align-items:stretch;gap:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+      <span>🎯 목표 ${targetTxt} ${met?'· 달성 중':'· 미달'}</span>
+      <span class="client-card-goal-edit">수정 ›</span>
+    </div>
+    <div style="height:5px;border-radius:3px;background:var(--panel-2);overflow:hidden;">
+      <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};"></div>
+    </div>
+  </div>`;
+}
+function overviewCardHTML(r, bestKeys, worstKeys, pinnedSet){
+  const initial = (r.name||'?').trim().charAt(0);
+  const textColor = contrastText(r.color||'#8b7cff');
+  const badge = bestKeys.has(r.key) ? '<span class="client-card-badge" title="이번 기간 가장 효율적">🏆</span>'
+    : worstKeys.has(r.key) ? '<span class="client-card-badge" title="점검이 필요해요">⚠️</span>' : '';
+  // 알림 배지 — 알림 벨을 직접 열어봐야 알 수 있던 "이 업체에 문제가 있는지"를 카드에서 바로 보이게 함.
+  const alertBadge = r.alertCount>0 ? `<span class="client-card-alert-badge" title="확인 필요한 알림 ${r.alertCount}건">🔔 ${r.alertCount}</span>` : '';
+  const trendHtml = r.trend ? `<span class="client-card-trend ${r.trend.good?'up':'down'}">${r.trend.dir==='up'?'▲':'▼'}</span>` : '';
+  const isPinned = pinnedSet && pinnedSet.has(r.key);
+  const pinHtml = `<button class="client-card-pin ${isPinned?'pinned':''}" data-key="${r.key}" type="button" title="${isPinned?'즐겨찾기 해제':'즐겨찾기에 추가'}">${isPinned?'★':'☆'}</button>`;
+  const sparkHtml = r.dailyCost && r.dailyCost.length>=2 ? `<div class="client-card-spark">${sparklineHTML(r.dailyCost, r.color||'var(--accent)')}<span class="client-card-spark-lbl">최근 비용 추이</span></div>` : '';
+  return `
+    <div class="client-card" data-key="${r.key}">
+      ${pinHtml}
+      ${badge}
+      ${alertBadge}
+      <div class="client-card-head">
+        <div class="client-card-icon" style="background:${r.color};color:${textColor};">${initial}</div>
+        <div>
+          <div class="client-card-name">${r.name}</div>
+          <span class="client-card-biz">${r.bizType==='DB'?'DB · 상담/전환':'B2C · 매출/ROAS'} · ${r.industry}</span>
+          <div class="client-card-period">${r.periodLabel} 기준</div>
+        </div>
+      </div>
+      <div class="client-card-metrics">
+        <div class="client-card-metric"><div class="m">비용</div><div class="v">${fmtMan(r.cost)}원</div></div>
+        <div class="client-card-metric"><div class="m">전환수</div><div class="v">${fmtNum(r.conv)}건</div></div>
+        <div class="client-card-metric"><div class="m">${r.bizType==='DB'?'CPA':'ROAS'}</div><div class="v">${r.bizType==='DB' ? fmtNum(r.cpa)+'원' : r.roas.toFixed(0)+'%'}${trendHtml}</div></div>
+        ${r.bizType==='DB' ? '' : `<div class="client-card-metric"><div class="m">전환매출</div><div class="v">${fmtMan(r.revenue)}원</div></div>`}
+      </div>
+      ${sparkHtml}
+      ${goalLineHTML(r)}
+    </div>`;
+}
+function renderOneSection(containerEl, rows, sectionRows, sectionLabel){
+  // sectionRows: 이 섹션(DB 또는 B2C) 전체(필터 적용 전)를 기준으로 순위(🏆/⚠️) 계산 — 다른 업종 유형과
+  // 섞이지 않도록 항상 같은 bizType 안에서만 비교함(완전 분리).
+  const isDB = sectionRows.length ? sectionRows[0].bizType==='DB' : null;
+  let ranked;
+  if(isDB){
+    ranked = sectionRows.filter(r=>r.cpa>0).sort((a,b)=>a.cpa-b.cpa);
+  } else {
+    ranked = sectionRows.filter(r=>r.cost>0).sort((a,b)=>b.roas-a.roas);
+  }
+  const bestKeys = new Set(), worstKeys = new Set();
+  if(ranked.length>=2){ bestKeys.add(ranked[0].key); worstKeys.add(ranked[ranked.length-1].key); }
+  const pinnedSet = getPinned();
+
+  if(!rows.length){
+    containerEl.innerHTML = `
+      <div class="overview-section-title">${sectionLabel} <span style="font-weight:400;color:var(--muted);">(0개)</span></div>
+      <div class="empty-state"><div style="font-size:28px;">🔎</div><div>조건에 맞는 업체가 없어요.</div></div>`;
+    return;
+  }
+
+  let bodyHtml;
+  if(overviewGroupByIndustry){
+    const groups = {};
+    rows.forEach(r=>{ if(!groups[r.industry]) groups[r.industry]=[]; groups[r.industry].push(r); });
+    const industryNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko'));
+    bodyHtml = industryNames.map(ind=>`
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin:16px 0 8px;">${ind} <span style="font-weight:400;">(${groups[ind].length}개)</span></div>
+      <div class="client-grid">${groups[ind].map(r=>overviewCardHTML(r,bestKeys,worstKeys,pinnedSet)).join('')}</div>
+    `).join('');
+  } else {
+    bodyHtml = `<div class="client-grid">${rows.map(r=>overviewCardHTML(r,bestKeys,worstKeys,pinnedSet)).join('')}</div>`;
+  }
+
+  containerEl.innerHTML = `
+    <div class="overview-section-title">${sectionLabel} <span style="font-weight:400;color:var(--muted);">(${rows.length}개)</span></div>
+    ${bodyHtml}`;
+
+  containerEl.querySelectorAll('.client-card').forEach(el=>{
+    el.onclick = (ev)=>{
+      if(ev.target.closest('.client-card-goal') || ev.target.closest('.client-card-pin')) return; // 목표 설정/즐겨찾기 클릭은 아래에서 별도 처리
+      localStorage.setItem('ad_dashboard_active_client', el.dataset.key);
+      window.location.href = 'index.html';
+    };
+  });
+  containerEl.querySelectorAll('.client-card-goal').forEach(el=>{
+    el.onclick = (ev)=>{
+      ev.stopPropagation();
+      localStorage.setItem('ad_dashboard_goal_target_client', el.dataset.key);
+      window.location.href = 'input.html#goal';
+    };
+  });
+  containerEl.querySelectorAll('.client-card-pin').forEach(el=>{
+    el.onclick = (ev)=>{
+      ev.stopPropagation();
+      togglePinned(el.dataset.key);
+      renderOverviewGrid(); // 즐겨찾기 상태·정렬(핀 우선)이 바로 반영되도록 전체 다시 렌더
+    };
+  });
+}
+
+function renderOverviewGrid(){
+  const gridDB = document.getElementById('overviewGrid');
+  const gridB2C = document.getElementById('overviewGridB2C');
+  const term = document.getElementById('overviewSearch').value.trim().toLowerCase();
+  const pinnedSet = getPinned();
+  let rows = overviewRows.slice();
+  if(overviewIndustryFilter!=='ALL') rows = rows.filter(r=> r.industry===overviewIndustryFilter);
+  if(term) rows = rows.filter(r=> r.name.toLowerCase().includes(term));
+  if(overviewGoalMissOnly) rows = rows.filter(r=> isGoalMissed(r));
+  if(overviewPinnedOnly) rows = rows.filter(r=> pinnedSet.has(r.key));
+
+  const sortFn = (a,b)=>{
+    // 즐겨찾기한 업체는 어떤 정렬 기준을 골라도 항상 그 안에서 맨 위로 고정됨.
+    const aPinned = pinnedSet.has(a.key), bPinned = pinnedSet.has(b.key);
+    if(aPinned!==bPinned) return aPinned ? -1 : 1;
+    if(overviewSortMode==='efficiency'){
+      if(a.bizType==='DB'){ const av=a.cpa>0?a.cpa:Infinity, bv=b.cpa>0?b.cpa:Infinity; return av-bv; }
+      return b.roas-a.roas;
+    } else if(overviewSortMode==='cost_desc'){
+      return b.cost-a.cost;
+    } else if(overviewSortMode==='cost_asc'){
+      return a.cost-b.cost;
+    } else if(overviewSortMode==='name'){
+      return a.name.localeCompare(b.name,'ko');
+    }
+    return 0;
+  };
+
+  // DB와 B2C를 하나의 그리드로 섞지 않고, 항상 완전히 분리된 두 개의 섹션으로 렌더링함.
+  // 전체/DB/B2C 탭은 이제 "섞어서 보여주는 필터"가 아니라 "어떤 섹션을 보여줄지"만 결정함.
+  const showDB = overviewBizFilter==='ALL' || overviewBizFilter==='DB';
+  const showB2C = overviewBizFilter==='ALL' || overviewBizFilter==='B2C';
+
+  const dbAll = overviewRows.filter(r=>r.bizType==='DB');
+  const b2cAll = overviewRows.filter(r=>r.bizType!=='DB');
+  const dbRows = rows.filter(r=>r.bizType==='DB').sort(sortFn);
+  const b2cRows = rows.filter(r=>r.bizType!=='DB').sort(sortFn);
+
+  if(showDB){
+    gridDB.style.display = '';
+    renderOneSection(gridDB, dbRows, dbAll, '📋 DB 업체 (상담·전환)');
+  } else {
+    gridDB.style.display = 'none';
+    gridDB.innerHTML = '';
+  }
+  if(showB2C){
+    gridB2C.style.display = '';
+    renderOneSection(gridB2C, b2cRows, b2cAll, '🛒 B2C 업체 (매출·ROAS)');
+  } else {
+    gridB2C.style.display = 'none';
+    gridB2C.innerHTML = '';
+  }
+}
+
+document.querySelectorAll('.biz-tab').forEach(btn=>{
+  btn.onclick = ()=>{
+    overviewBizFilter = btn.dataset.biztype;
+    document.querySelectorAll('.biz-tab').forEach(b=> b.classList.toggle('active', b===btn));
+    renderOverviewGrid();
+  };
+});
+document.getElementById('overviewSearch').oninput = ()=> renderOverviewGrid();
+document.getElementById('overviewSort').onchange = (e)=>{ overviewSortMode = e.target.value; renderOverviewGrid(); };
+document.getElementById('overviewIndustryFilter').onchange = (e)=>{ overviewIndustryFilter = e.target.value; renderOverviewGrid(); };
+// 시작/종료 어느 한쪽을 구체적인 월로 바꿨는데 다른 쪽이 아직 '최근 기간(자동)'이면, 그 월 하나만 보는
+// 상태로 자동으로 맞춰줌(사용자가 굳이 양쪽을 다 골라야 하는 번거로움을 줄임). 시작이 종료보다 뒤로 가면
+// (또는 그 반대) 서로 맞춰서 역전을 방지함.
+document.getElementById('overviewRangeStartSelect').onchange = async (e)=>{
+  overviewRangeState.start = e.target.value;
+  if(overviewRangeState.start!=='LATEST' && overviewRangeState.end==='LATEST'){
+    overviewRangeState.end = overviewRangeState.start;
+  } else if(overviewRangeState.start!=='LATEST' && overviewRangeState.end!=='LATEST' && labelSortKey(overviewRangeState.start) > labelSortKey(overviewRangeState.end)){
+    overviewRangeState.end = overviewRangeState.start;
+  }
+  document.getElementById('overviewRangeEndSelect').value = overviewRangeState.end;
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = `<div class="empty-state">불러오는 중...</div>`;
+  await applySelectedMonth();
+};
+document.getElementById('overviewRangeEndSelect').onchange = async (e)=>{
+  overviewRangeState.end = e.target.value;
+  if(overviewRangeState.end!=='LATEST' && overviewRangeState.start==='LATEST'){
+    overviewRangeState.start = overviewRangeState.end;
+  } else if(overviewRangeState.end!=='LATEST' && overviewRangeState.start!=='LATEST' && labelSortKey(overviewRangeState.end) < labelSortKey(overviewRangeState.start)){
+    overviewRangeState.start = overviewRangeState.end;
+  }
+  document.getElementById('overviewRangeStartSelect').value = overviewRangeState.start;
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = `<div class="empty-state">불러오는 중...</div>`;
+  await applySelectedMonth();
+};
+// 눌렀다/뗐다 하는 토글형 필터 버튼 공통 처리 — 업종별 묶기 외에 목표 미달만/즐겨찾기만 필터도 같은 방식으로 동작함.
+function setupToggleBtn(id, getVal, setVal, onLabel, offLabel){
+  const btn = document.getElementById(id);
+  btn.onclick = ()=>{
+    const next = !getVal();
+    setVal(next);
+    btn.dataset.active = next ? '1' : '0';
+    btn.style.borderColor = next ? 'var(--accent)' : '';
+    btn.style.color = next ? 'var(--accent)' : '';
+    btn.style.background = next ? 'rgba(139,124,255,.12)' : '';
+    btn.textContent = next ? onLabel : offLabel;
+    renderOverviewGrid();
+  };
+}
+setupToggleBtn('overviewGroupToggle',
+  ()=>overviewGroupByIndustry, v=>overviewGroupByIndustry=v,
+  '✓ 업종별로 묶어보는 중', '업종별로 묶어보기');
+setupToggleBtn('overviewGoalMissToggle',
+  ()=>overviewGoalMissOnly, v=>overviewGoalMissOnly=v,
+  '✓ 목표 미달만 보는 중', '🎯 목표 미달만');
+setupToggleBtn('overviewPinToggle',
+  ()=>overviewPinnedOnly, v=>overviewPinnedOnly=v,
+  '✓ 즐겨찾기만 보는 중', '⭐ 즐겨찾기만');
+
+// 관리자 전용 — 업체별 접근 권한(allowedUsers) 현황을 한 화면에서 확인.
+// 기존에는 input.html에서 업체를 하나씩 선택해야만 권한을 볼 수 있었음.
+function renderPermOverviewPanel(){
+  const panel = document.getElementById('permOverviewPanel');
+  if(!overviewRows.length){ panel.style.display = 'none'; panel.innerHTML=''; return; }
+  const rows = overviewRows.slice().sort((a,b)=> a.name.localeCompare(b.name,'ko'));
+  const rowsHtml = rows.map(r=>{
+    const restricted = r.allowedUsers && r.allowedUsers.length>0;
+    const statusHtml = restricted
+      ? `<span style="color:var(--accent);font-weight:700;">제한: ${r.allowedUsers.length}명</span>`
+      : `<span style="color:var(--muted);">전체 공개</span>`;
+    const emailsHtml = restricted
+      ? `<div style="font-size:12px;color:var(--muted);margin-top:3px;">${r.allowedUsers.map(e=>e.replace(/</g,'&lt;')).join(', ')}</div>`
+      : '';
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border);">
+        <div style="min-width:120px;font-size:14px;font-weight:600;">${r.name}</div>
+        <div style="flex:1;text-align:right;">
+          <div style="font-size:14px;">${statusHtml}</div>
+          ${emailsHtml}
+        </div>
+      </div>`;
+  }).join('');
+  const restrictedCount = rows.filter(r=>r.allowedUsers && r.allowedUsers.length>0).length;
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="panel">
+      <div class="panel-title">🔐 업체별 접근 권한 현황 <span style="font-weight:400;color:var(--muted);font-size:12px;">(관리자 전용 · 전체 공개 ${rows.length-restrictedCount}개 · 제한 ${restrictedCount}개)</span></div>
+      <div>${rowsHtml}</div>
+    </div>`;
+}
+
+document.getElementById('exportAllExcelBtn').onclick = ()=>{
+  if(!overviewRows.length) return;
+  const header = ['업체명','업종','업종 유형','기간','비용(원)','전환수(건)','전환매출(원)','ROAS(%)','CPA(원)'];
+  const body = overviewRows.map(r=>[
+    r.name, r.industry, r.bizType==='DB'?'DB(상담·전환)':'B2C(매출·ROAS)', r.periodLabel,
+    Math.round(r.cost*10000), r.conv, r.bizType==='DB' ? '' : Math.round(r.revenue*10000),
+    r.bizType==='DB' ? '' : Number(r.roas.toFixed(1)),
+    r.bizType==='DB' ? Math.round(r.cpa) : ''
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '전체업체요약');
+  XLSX.writeFile(wb, `전체업체요약_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+/* ---------- 이상 징후 알림(벨) ---------- */
+// index.html과 동일한 로직 — 전체 업체를 훑어서 CPA 급등/ROAS 급락/전환 0건 캠페인/예산 소진 임박을 감지.
+const ALERT_SEEN_KEY = 'ad_dashboard_seen_alerts';
+const ALERT_CPA_SPIKE_PCT = 20;
+const ALERT_ROAS_DROP_PCT = 10;
+// 예산 규모별 알림 민감도 배율 — 작은 계정(월 비용 50만원 미만)은 CPA/ROAS가 표본이 적어 원래 변동폭이
+// 크기 때문에 기준을 완화(둔감하게)하고, 큰 계정(300만원 이상)은 같은 %변화라도 실제 손실 금액이 커서
+// 기준을 강화(민감하게)함. costMan은 last(가장 최근 달) 비용, 단위 만원.
+function alertSensitivityMult(costMan){
+  if(costMan < 50) return 1.5;   // 소액 계정: 기준을 1.5배 완화 (예: CPA 20% → 30%)
+  if(costMan >= 300) return 0.75; // 대형 계정: 기준을 0.75배 강화 (예: CPA 20% → 15%)
+  return 1;
+}
+function getSeenAlertIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(ALERT_SEEN_KEY)||'[]')); }catch(e){ return new Set(); }
+}
+function markAlertsSeen(ids){
+  try{
+    const seen = getSeenAlertIds();
+    ids.forEach(id=>seen.add(id));
+    const arr = [...seen].slice(-500);
+    localStorage.setItem(ALERT_SEEN_KEY, JSON.stringify(arr));
+  }catch(e){ console.error(e); }
+}
+/* preloaded: [{key, data}] — 이미 받아둔 업체 문서가 있으면 그걸 그대로 씀.
+   loadOverview()가 전 업체를 가져오는데 같은 Promise.all 안에서 computeAlerts()가 또 전부 가져와서
+   업체 7개면 읽기가 14회였음. 넘겨주면 7회로 줄어듦. 알림 벨에서 단독 호출할 땐 인자 없이 부르면
+   예전처럼 직접 조회함. */
+async function computeAlerts(preloaded){
+  const preMap = new Map((preloaded||[]).filter(Boolean).map(r=>[r.key, r.data]));
+  const keys = preMap.size ? [...preMap.keys()] : await listClients();
+  const todayDate = new Date();
+  const todayStr = todayDate.toISOString().slice(0,10);
+  // 클라이언트별 조회·판정을 Promise.all로 동시에 실행 — 순차 for-loop는 클라이언트 수만큼 왕복시간이
+  // 그대로 누적되는데, 알림 벨은 페이지 열 때마다/드롭다운 열 때마다 매번 다시 계산돼서 체감 영향이 큼.
+  const perClientResults = await Promise.all(keys.map(async key=>{
+    const alerts = [];
+    let data = preMap.get(key);
+    if(!data){ try{ data = await getClient(key); }catch(e){ return alerts; } }
+    if(!data || !data.months || !data.months.length) return alerts;
+    const months = data.months;
+    const last = months[months.length-1];
+    const prev = months.length>=2 ? months[months.length-2] : null;
+    const isDB = data.bizType==='DB';
+    const name = data.name;
+    const sensMult = alertSensitivityMult(last.cost||0);
+    if(prev){
+      if(isDB){
+        const prevCpa = prev.conv>0 ? (prev.cost*10000/prev.conv) : null;
+        const currCpa = last.conv>0 ? (last.cost*10000/last.conv) : null;
+        if(prevCpa && currCpa && last.conv>=5 && prev.conv>=5){
+          const diff = (currCpa-prevCpa)/prevCpa*100;
+          const threshold = ALERT_CPA_SPIKE_PCT*sensMult;
+          if(diff>=threshold){
+            alerts.push({ id:`${key}:cpa-spike:${last.label}`, key, name, icon:'📈', text:`CPA가 직전 기간 대비 ${diff.toFixed(0)}% 상승했어요 (${Math.round(prevCpa).toLocaleString('ko-KR')}원 → ${Math.round(currCpa).toLocaleString('ko-KR')}원)` });
+          }
+        }
+      } else {
+        const prevRoas = prev.cost>0 ? (prev.revenue/prev.cost*100) : null;
+        const currRoas = last.cost>0 ? (last.revenue/last.cost*100) : null;
+        if(prevRoas!==null && currRoas!==null && last.cost>=5 && prev.cost>=5){
+          const diff = prevRoas-currRoas;
+          const threshold = ALERT_ROAS_DROP_PCT*sensMult;
+          if(diff>=threshold){
+            alerts.push({ id:`${key}:roas-drop:${last.label}`, key, name, icon:'📉', text:`ROAS가 직전 기간 대비 ${diff.toFixed(0)}%p 하락했어요 (${prevRoas.toFixed(0)}% → ${currRoas.toFixed(0)}%)` });
+          }
+        }
+      }
+    }
+    // 목표(goal) 대비 직접 비교 — "직전 기간보다 나빠졌는지"와는 별개로, 애초에 계약/설정해둔 목표치를
+    // 못 맞추고 있으면 그 자체로도 알림. index.html의 goalBadge(🎯)와 같은 goal 필드를 재사용.
+    if(data.goal && data.goal.target){
+      const target = Number(data.goal.target);
+      if(target>0){
+        if(isDB && data.goal.metric==='cpa' && last.conv>=5){
+          const currCpa = last.conv>0 ? (last.cost*10000/last.conv) : null;
+          if(currCpa!==null && currCpa > target*1.1){
+            const overPct = ((currCpa-target)/target*100);
+            alerts.push({ id:`${key}:goal-miss-cpa:${last.label}`, key, name, icon:'🎯', text:`CPA가 목표(${Math.round(target).toLocaleString('ko-KR')}원)보다 ${overPct.toFixed(0)}% 높아요 (현재 ${Math.round(currCpa).toLocaleString('ko-KR')}원)` });
+          }
+        } else if(!isDB && data.goal.metric==='roas' && last.cost>=5){
+          const currRoas = last.cost>0 ? (last.revenue/last.cost*100) : null;
+          if(currRoas!==null && currRoas < target*0.9){
+            const underPct = ((target-currRoas)/target*100);
+            alerts.push({ id:`${key}:goal-miss-roas:${last.label}`, key, name, icon:'🎯', text:`ROAS가 목표(${target}%)보다 ${underPct.toFixed(0)}% 낮아요 (현재 ${currRoas.toFixed(0)}%)` });
+          }
+        }
+      }
+    }
+    if(last.campaigns && last.campaigns.length){
+      const zeroConv = last.campaigns.filter(c=>(c.cost||0)>=1 && (c.conv||0)===0);
+      if(zeroConv.length){
+        const totalWaste = zeroConv.reduce((s,c)=>s+c.cost,0);
+        alerts.push({ id:`${key}:zero-conv:${last.label}`, key, name, icon:'🚫', text:`전환 0건인 캠페인이 ${zeroConv.length}개 있어요 (합계 비용 ${fmtWon(totalWaste)}원)` });
+      }
+    }
+    // 평균노출순위(avgRank, 숫자가 작을수록 상위) 급락 — index.html의 computeAlerts와 동일 로직(알림은
+    // 두 페이지에서 같은 결과를 내야 해서 항상 같이 수정함). 노출수가 일정 이상인 캠페인만 비교(표본 부족 방지).
+    if(prev && last.campaigns && prev.campaigns && last.campaigns.length){
+      const prevRankMap = {};
+      prev.campaigns.forEach(c=>{ if(c.avgRank!==null && c.avgRank!==undefined && (c.impressions||0)>=50) prevRankMap[c.campaign]=c.avgRank; });
+      const rankDrops = [];
+      last.campaigns.forEach(c=>{
+        if(c.avgRank===null || c.avgRank===undefined || (c.impressions||0)<50) return;
+        const pr = prevRankMap[c.campaign];
+        if(pr===undefined) return;
+        const diff = c.avgRank - pr;
+        if(diff>=1){ rankDrops.push({ campaign:c.campaign, prevRank:pr, currRank:c.avgRank, diff }); }
+      });
+      if(rankDrops.length){
+        rankDrops.sort((a,b)=>b.diff-a.diff);
+        const top = rankDrops[0];
+        alerts.push({ id:`${key}:rank-drop:${last.label}`, key, name, icon:'📊', text:`'${top.campaign}' 평균노출순위가 ${top.prevRank.toFixed(1)}위 → ${top.currRank.toFixed(1)}위로 떨어졌어요${rankDrops.length>1?` (외 ${rankDrops.length-1}개 캠페인도 순위 하락)`:''}` });
+      }
+    }
+    if(data.goal && data.goal.budgetTarget && last.daily && last.daily.length>=3){
+      const lm = last.label.match(/(\d{4})\D*(\d{1,2})/);
+      if(lm && parseInt(lm[1],10)===todayDate.getFullYear() && parseInt(lm[2],10)===(todayDate.getMonth()+1)){
+        const daysElapsed = last.daily.length;
+        const daysInMonth = new Date(todayDate.getFullYear(), todayDate.getMonth()+1, 0).getDate();
+        if(daysElapsed<daysInMonth){
+          const avgDailyCost = last.cost/daysElapsed;
+          const projectedCost = avgDailyCost*daysInMonth;
+          const budgetTargetMan = data.goal.budgetTarget/10000;
+          if(budgetTargetMan>0 && projectedCost/budgetTargetMan>=1.05){
+            const exhaustDay = Math.min(daysInMonth, Math.ceil(budgetTargetMan/avgDailyCost));
+            alerts.push({ id:`${key}:budget-pace:${todayStr}`, key, name, icon:'💸', text:`이 페이스면 예산이 ${exhaustDay}일쯤 소진될 것으로 보여요 (목표 ${fmtMan(budgetTargetMan)}원)` });
+          }
+        }
+      }
+    }
+    return alerts;
+  }));
+  return perClientResults.flat();
+}
+async function loadAlerts(){
+  const badge = document.getElementById('alertBellBadge');
+  const dropdown = document.getElementById('alertBellDropdown');
+  if(!badge || !dropdown) return;
+  let alerts = [];
+  try{ alerts = await computeAlerts(); }catch(e){ console.error(e); }
+  window.__alerts = alerts;
+  const seen = getSeenAlertIds();
+  const unread = alerts.filter(a=>!seen.has(a.id));
+  if(unread.length){ badge.textContent = unread.length>99?'99+':String(unread.length); badge.style.display = 'block'; }
+  else badge.style.display = 'none';
+  if(!alerts.length){
+    dropdown.innerHTML = `<div style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;">🔔 이상 징후가 없어요.</div>`;
+    return;
+  }
+  dropdown.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;">
+      <span style="font-size:12px;font-weight:700;color:var(--text);">이상 징후 알림 (${alerts.length})</span>
+      <button id="alertMarkAllReadBtn" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;">모두 읽음</button>
+    </div>
+    ${alerts.map(a=>{
+      const isUnread = !seen.has(a.id);
+      return `<div class="alert-item" data-key="${a.key}" data-id="${a.id.replace(/"/g,'&quot;')}" style="display:flex;gap:8px;padding:9px 6px;border-radius:8px;cursor:pointer;${isUnread?'background:rgba(139,124,255,.08);':''}">
+        <span style="font-size:14px;flex-shrink:0;">${a.icon}</span>
+        <div style="min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${a.name}${isUnread?' <span style="color:var(--accent);">●</span>':''}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;">${a.text}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+  dropdown.querySelectorAll('.alert-item').forEach(el=>{
+    el.onclick = ()=>{
+      markAlertsSeen([el.dataset.id]);
+      localStorage.setItem('ad_dashboard_active_client', el.dataset.key);
+      window.location.href = 'index.html';
+    };
+  });
+  const markAllBtn = document.getElementById('alertMarkAllReadBtn');
+  if(markAllBtn) markAllBtn.onclick = (e)=>{
+    e.stopPropagation();
+    markAlertsSeen(alerts.map(a=>a.id));
+    loadAlerts();
+  };
+}
+document.getElementById('alertBellBtn').onclick = (e)=>{
+  e.stopPropagation();
+  const dropdown = document.getElementById('alertBellDropdown');
+  const willOpen = dropdown.style.display==='none';
+  dropdown.style.display = willOpen ? 'block' : 'none';
+  if(willOpen) loadAlerts();
+};
+document.addEventListener('click', (e)=>{
+  const bell = document.getElementById('alertBell');
+  if(bell && !bell.contains(e.target)) document.getElementById('alertBellDropdown').style.display = 'none';
+});
+
+auth.onAuthStateChanged(async (user)=>{
+  if(user){
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('authUserEmail').textContent = user.email;
+    currentUserEmail = user.email;
+    isAdminUser = await checkIsAdmin(user.email);
+    const inputLink = document.querySelector('a[href="input.html"]');
+    if(inputLink) inputLink.style.display = isAdminUser ? '' : 'none';
+    await loadOverview();
+    loadAlerts();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+  }
+});
+
+if(FIREBASE_CONFIG.apiKey.includes('여기에')){
+  document.getElementById('authScreen').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:28px;">⚠️</div>
+      <div style="color:#ff5d7a;font-weight:600;">Firebase 설정이 아직 입력되지 않았어요.</div>
+      <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
+    </div>`;
+}
+</script>
 </body>
 </html>
