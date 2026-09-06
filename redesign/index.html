@@ -268,6 +268,54 @@ table td, table th{ padding-top:10px !important; padding-bottom:10px !important;
 
 /* 작은 글씨들 살짝 키움 */
 .lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+
+/* 목표 대비 KPI — 4칸 + 진행 막대 */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
+.kpi-cell{background:var(--panel-2);padding:15px 17px}
+.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
+.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
+.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
+.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
+.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
+.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
+.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
+.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- 상단 필터 바 ---- */
+.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
+.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
+.filterbar .fb-g:last-child{border-right:0}
+.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
+.filterbar button{border-radius:7px!important}
+.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
+header.rep .totals{display:none}
+.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
+.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
+@media(max-width:900px){.filterbar .fb-g{border-right:0}}
+
+/* ---- 성과 인사이트 2단 ---- */
+.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
+.ins-col-good{border-left:3px solid var(--up)}
+.ins-col-warn{border-left:3px solid var(--down)}
+.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
+.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
+.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
+.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
+.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ins-neutral .ins-li{color:var(--muted)}
+#insightsPanel{border-left:0!important}
+@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1734,17 +1782,21 @@ function icoSvg(kind, color, size){
 }
 
 function buildInsightsHTML(insights){
-  const icon = t => t==='good' ? icoSvg('good','var(--up)') : t==='warn' ? icoSvg('warn','var(--down)') : icoSvg('info','var(--muted)');
-  const color = t => t==='good' ? 'var(--up)' : t==='warn' ? 'var(--down)' : 'var(--muted)';
-  const row = i => `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>${icon(i.type)}</span><span style="color:${color(i.type)==='var(--muted)'?'var(--text)':color(i.type)};">${i.text}</span></div>`;
   const good = insights.filter(i=>i.type==='good');
   const warn = insights.filter(i=>i.type==='warn');
   const neutral = insights.filter(i=>i.type!=='good'&&i.type!=='warn');
-  const groupLabel = (text, count) => `<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:${count?'10px':'0'} 0 2px;">${text}</div>`;
-  let html = `<div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">${icoSvg('idea','var(--accent)',14)}성과 인사이트</div>`;
-  if(good.length) html += groupLabel('잘하고 있어요', 0) + good.map(row).join('');
-  if(warn.length) html += groupLabel('확인이 필요해요', good.length) + warn.map(row).join('');
-  if(neutral.length) html += neutral.map(row).join('');
+  const strip = t => String(t||'').replace(/^(?:\p{Extended_Pictographic}|\uFE0F|\u200D|\s)+/u,'').trim();
+  const row = (i,kind) => `<li class="ins-li ins-${kind}">${strip(i.text)}</li>`;
+  const col = (kind, title, ico, arr) => arr.length
+    ? `<div class="ins-col ins-col-${kind}">
+         <div class="ins-h">${ico}<span>${title}</span><b>${arr.length}</b></div>
+         <ul class="ins-ul">${arr.map(i=>row(i,kind)).join('')}</ul>
+       </div>` : '';
+  let html = `<div class="ins-top">${icoSvg('idea','var(--accent)',15)}<span>성과 인사이트</span></div>`;
+  const cols = col('good','잘하고 있어요', icoSvg('good','var(--up)',14), good)
+             + col('warn','확인이 필요해요', icoSvg('urgent','var(--down)',14), warn);
+  if(cols) html += `<div class="ins-grid">${cols}</div>`;
+  if(neutral.length) html += `<ul class="ins-ul ins-neutral">${neutral.map(i=>row(i,'info')).join('')}</ul>`;
   return html;
 }
 
@@ -3252,6 +3304,12 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
           <div class="idn-name">${data.name} <span class="badge">${data.industry||'-'}</span></div>
           <div class="period" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span>${labels[0]||'-'} ~ ${labels[labels.length-1]||'-'} (${months.length}개 기간) ${isMultiMonth?'누적':'단독'} 성과</span>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="filterbar">
+      <div class="fb-g"><span class="fb-lab">기간</span>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
               <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">◀</button>
               <select id="monthRangeStartSelect" title="시작 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
@@ -3264,7 +3322,8 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
               <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">▶</button>
               <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">전체</button>
             </div>
-          </div>
+      </div>
+      <div class="fb-g">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;${dayBoundsMin?'':'opacity:.5;'}" title="${dayBoundsMin?'':'이 기간엔 일별 데이터가 없어서 날짜를 좁혀도 결과가 바뀌지 않아요.'}">
             <span style="font-size:12px;color:var(--muted);">📆 날짜 선택:</span>
             ${['yesterday','last7','thisMonth','lastMonth','all'].map(pk=>{
@@ -3274,6 +3333,16 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
             }).join('')}
             <button id="dayRangeCustomToggle" ${dayBoundsMin?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};">📆 직접 선택</button>
           </div>
+      </div>
+      <div class="fb-g">
+      <span style="font-size:12px;color:var(--muted);">▲▼ 비교 기준:</span>
+      <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">
+        <option value="AUTO" ${compareMonthState[key]==='AUTO'?'selected':''}>직전 기간 자동</option>
+        ${allMonths.filter(m=>!months.some(mm=>mm.label===m.label)).map(m=>`<option value="${m.label}" ${compareMonthState[key]===m.label?'selected':''}>${m.label} 과 비교</option>`).join('')}
+      </select>
+      ${refD && cmpD ? `<span style="font-size:12px;color:var(--muted);">${refLabel} vs ${cmpLabel}</span>` : refD ? `<span style="font-size:12px;color:var(--muted);">비교할 기간이 없어요</span>` : ''}
+      </div>
+    </div>
           ${dayBoundsMin && dayRangeCustomOpen[key] ? `
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
             <input type="date" id="dayRangeStartInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].start || dayBoundsMin || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
@@ -3281,18 +3350,64 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
             <input type="date" id="dayRangeEndInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].end || dayBoundsMax || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
             ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
           </div>` : ''}
-        </div>
+    <div class="kpi-strip">
+      ${(() => {
+        const G = data.goal || {};
+        const budgetMan = G.budgetTarget ? G.budgetTarget/10000 : null;
+        const pace = budgetMan ? Math.min(100, Math.round(totalCostMan/budgetMan*100)) : null;
+        const cell = (lab, sub, val, valColor, barPct, barColor, foot) => `
+          <div class="kpi-cell">
+            <div class="k-lab">${lab}${sub?` <i>${sub}</i>`:''}</div>
+            <div class="k-val"${valColor?` style="color:${valColor}"`:''}>${val}</div>
+            <div class="k-bar">${barPct!==null?`<b style="width:${Math.max(2,Math.min(100,barPct))}%;background:${barColor}"></b>`:''}</div>
+            <div class="k-foot">${foot||''}</div>
+          </div>`;
+        const OK='#3ddc97', BAD='#ff6b85', ACC='var(--accent)';
+        const t = pct => (pct===null||pct===undefined||!isFinite(pct)) ? '' :
+          `<span style="color:${pct>=0?OK:BAD}">${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(0)}%</span> 직전 대비`;
+
+        let out = cell('비용', budgetMan?`/ 예산 ${fmtMan(budgetMan)}원`:'', fmtWonExact(totalCostMan), '',
+                       pace, pace!==null&&pace>=100?BAD:ACC,
+                       pace!==null ? `예산의 ${pace}% 사용 · ${t(pctChange2('cost'))}` : t(pctChange2('cost')));
+
+        if(isDB){
+          const tgt = (G.metric==='cpa' && G.target) ? Number(G.target) : null;
+          const met = tgt ? avgCpa<=tgt : null;
+          out += cell('CPA', tgt?`/ 목표 ${tgt.toLocaleString('ko-KR')}원`:'',
+                      avgCpa.toLocaleString('ko-KR')+'원', met===false?BAD:(met===true?OK:''),
+                      tgt&&avgCpa>0?Math.round(tgt/avgCpa*100):null, met?OK:BAD,
+                      tgt ? (met?'목표 안쪽':`목표보다 ${Math.round((avgCpa/tgt-1)*100)}% 높음`) : t(pctChange2('cpa')));
+          out += cell('클릭률', '', (totalImp>0?(totalClick/totalImp*100).toFixed(2):'0.00')+'%', '', null, '', t(pctChange2('ctr')));
+        } else {
+          const tgt = (G.metric==='roas' && G.target) ? Number(G.target) : null;
+          const met = tgt ? totalRoas>=tgt : null;
+          out += cell('ROAS', tgt?`/ 목표 ${tgt}`:'', totalRoas.toFixed(1)+'%', met===false?BAD:(met===true?OK:''),
+                      tgt?Math.round(totalRoas/tgt*100):null, met?OK:BAD,
+                      tgt ? (met?`목표보다 ${Math.round(totalRoas-tgt)}%p 높음`:`목표보다 ${Math.round(tgt-totalRoas)}%p 낮음`) : t(pctChange2('roas')));
+          out += cell('전환매출', '', fmtWonExact(totalRevenueMan), '', null, '', t(pctChange2('revenue')));
+        }
+        out += cell('전환', totalClick>0?`/ 전환율 ${(totalConv/totalClick*100).toFixed(2)}%`:'',
+                    fmtNum(totalConv)+'건', '', null, '', t(pctChange2('conv')));
+        return out;
+      })()}
+    </div>
+    <div class="kpi-mini">
+      <div><span class="m-lab">노출수</span><span class="m-val">${fmtNum(totalImp)}</span>${trendBadge(pctChange2('impressions'),'up')}</div>
+      <div><span class="m-lab">클릭수</span><span class="m-val">${fmtNum(totalClick)}</span>${trendBadge(pctChange2('clicks'),'up')}</div>
+      <div><span class="m-lab">${isDB?'전환매출':'클릭률'}</span><span class="m-val">${isDB?fmtWonExact(totalRevenueMan):(totalImp>0?(totalClick/totalImp*100).toFixed(2)+'%':'0.00%')}</span></div>
+    </div>
+
+    <div class="charts-row">
+      <div class="panel">
+        <div class="panel-title">📈 일별 유입 성과 (노출수 · 클릭률)</div>
+        <div class="chart-box" style="height:340px;"><canvas id="chartA"></canvas></div>
       </div>
-      <div class="totals">
-        ${isDB ? `
-        <div><div class="lbl">TOTAL 비용</div><div class="val">${fmtWonExact(totalCostMan)}</div></div>
-        <div><div class="lbl">TOTAL 전환수(CPA)</div><div class="val accent">${fmtNum(totalConv)}건 · ${avgCpa.toLocaleString('ko-KR')}원</div></div>
-        ` : `
-        <div><div class="lbl">TOTAL REVENUE</div><div class="val">${fmtWonExact(totalRevenueMan)}</div></div>
-        <div><div class="lbl">TOTAL ROAS</div><div class="val accent">${totalRoas.toFixed(1)}%</div></div>
-        `}
+      <div class="panel">
+        <div class="panel-title">${isDB ? '📞 일별 전환 성과 (비용 · 전환수)' : '💰 일별 전환 성과 (매출·비용 · ROAS)'}</div>
+        <div class="chart-box" style="height:340px;"><canvas id="chartB"></canvas></div>
       </div>
-    </header>
+    </div>
+
     ${buildCollectorAlertsHTML(data, key)}
     <div class="panel" id="insightsPanel" style="margin-bottom:18px;border-left:3px solid var(--accent);"></div>
 
@@ -3312,49 +3427,6 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
 
     ${renderBudgetSimulatorHTML(months, isDB)}
 
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--muted);">▲▼ 비교 기준:</span>
-      <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">
-        <option value="AUTO" ${compareMonthState[key]==='AUTO'?'selected':''}>직전 기간 자동</option>
-        ${allMonths.filter(m=>!months.some(mm=>mm.label===m.label)).map(m=>`<option value="${m.label}" ${compareMonthState[key]===m.label?'selected':''}>${m.label} 과 비교</option>`).join('')}
-      </select>
-      ${refD && cmpD ? `<span style="font-size:12px;color:var(--muted);">${refLabel} vs ${cmpLabel}</span>` : refD ? `<span style="font-size:12px;color:var(--muted);">비교할 기간이 없어요</span>` : ''}
-    </div>
-    <div class="kpi-row">
-      <div class="kpi"><div><div class="kpi-label">비용</div><div class="kpi-value">${fmtMan(totalCostMan)}원</div></div>
-        ${trendBadge(pctChange2('cost'),'down')}</div>
-      ${isDB ? `
-      <div class="kpi"><div><div class="kpi-label">전환단가(CPA)</div><div class="kpi-value">${avgCpa.toLocaleString('ko-KR')}원</div></div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${trendBadge(pctChange2('cpa'),'down')}${goalBadge(avgCpa,true,data)}</div></div>
-      ` : `
-      <div class="kpi"><div><div class="kpi-label">전환매출</div><div class="kpi-value">${fmtMan(totalRevenueMan)}원</div></div>
-        ${trendBadge(pctChange2('revenue'),'up')}</div>
-      `}
-      ${isDB ? `
-      <div class="kpi"><div><div class="kpi-label">클릭률(CTR)</div><div class="kpi-value">${totalImp>0?(totalClick/totalImp*100).toFixed(2):'0.00'}%</div></div>
-        ${trendBadge(pctChange2('ctr'),'up')}</div>
-      ` : `
-      <div class="kpi"><div><div class="kpi-label">ROAS</div><div class="kpi-value">${totalRoas.toFixed(1)}%</div></div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${trendBadge(pctChange2('roas'),'up')}${goalBadge(totalRoas,false,data)}</div></div>
-      `}
-      <div class="kpi"><div><div class="kpi-label">노출수</div><div class="kpi-value">${fmtNum(totalImp)}</div></div>
-        ${trendBadge(pctChange2('impressions'),'up')}</div>
-      <div class="kpi"><div><div class="kpi-label">클릭수</div><div class="kpi-value">${fmtNum(totalClick)}</div></div>
-        ${trendBadge(pctChange2('clicks'),'up')}</div>
-      <div class="kpi"><div><div class="kpi-label">전환수</div><div class="kpi-value">${fmtNum(totalConv)}건</div></div>
-        ${trendBadge(pctChange2('conv'),'up')}</div>
-    </div>
-
-    <div class="charts-row">
-      <div class="panel">
-        <div class="panel-title">📈 일별 유입 성과 (노출수 · 클릭률)</div>
-        <div class="chart-box" style="height:340px;"><canvas id="chartA"></canvas></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">${isDB ? '📞 일별 전환 성과 (비용 · 전환수)' : '💰 일별 전환 성과 (매출·비용 · ROAS)'}</div>
-        <div class="chart-box" style="height:340px;"><canvas id="chartB"></canvas></div>
-      </div>
-    </div>
 
     ${buildAnomalyPanelHTML(key, dailyAll, hasRealDailyData)}
 
