@@ -164,6 +164,70 @@ table td, table th{ padding-top:10px !important; padding-bottom:10px !important;
 
 /* 작은 글씨들 살짝 키움 */
 .lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+
+/* 목표 대비 KPI — 4칸 + 진행 막대 */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
+.kpi-cell{background:var(--panel-2);padding:15px 17px}
+.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
+.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
+.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
+.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
+.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
+.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
+.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
+.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- 상단 필터 바 ---- */
+.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
+.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
+.filterbar .fb-g:last-child{border-right:0}
+.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
+.filterbar button{border-radius:7px!important}
+.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
+header.rep .totals{display:none}
+.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
+.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
+@media(max-width:900px){.filterbar .fb-g{border-right:0}}
+
+/* ---- 성과 인사이트 2단 ---- */
+.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
+.ins-col-good{border-left:3px solid var(--up)}
+.ins-col-warn{border-left:3px solid var(--down)}
+.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
+.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
+.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
+.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
+.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ins-neutral .ins-li{color:var(--muted)}
+#insightsPanel{border-left:0!important}
+@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
+
+.dc-two{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.dc-two{grid-template-columns:1fr}}
+
+/* ---- 큰 숫자 줄 ----
+   칸 수가 6개(DB)/7개(B2C)로 달라지고 화면 폭에 따라 줄바꿈되는데, grid로 하면 마지막 줄에 빈칸이 남는다.
+   flex + flex-grow 로 두면 남은 칸들이 늘어나 폭을 꽉 채운다. */
+.dc-kpi{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-kpi > div{flex:1 1 142px;min-width:0}
+
+.dc-kpi2{display:flex;flex-direction:column;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-k-top,.dc-k-bot{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b}
+.dc-k-top > div,.dc-k-bot > div{flex:1 1 160px;min-width:0}
+
+.ov-row:hover td{background:#1b1e2c}
+.ov-row td{transition:background .12s}
 </style>
 </head>
 <body>
@@ -469,6 +533,7 @@ async function applySelectedMonth(){
 // 알림 유형별 심각도 순으로 정렬해서, 여러 업체에 문제가 겹쳐 있을 때 뭐부터 봐야 할지 바로 보이게 함.
 const RISK_SEVERITY = { '📉':1, '📈':1, '🎯':2, '💸':3, '🚫':4, '📊':4 }; // 낮을수록 심각(위로 정렬)
 function renderRiskPanel(alerts){
+  window.__overviewAlerts = alerts || [];
   const panel = document.getElementById('overviewRiskPanel');
   if(!alerts || !alerts.length){ panel.style.display = 'none'; panel.innerHTML = ''; return; }
   const sorted = alerts.slice().sort((a,b)=> (RISK_SEVERITY[a.icon]||9) - (RISK_SEVERITY[b.icon]||9));
@@ -507,6 +572,50 @@ function momBadgeHTML(curr, prev, goodDir){
   const good = goodDir==='up' ? isUp : !isUp;
   return `<span style="font-size:12px;font-weight:700;margin-left:8px;color:${good?'var(--up)':'var(--down)'};">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
+/* ================= 공통 디자인 조각 (목업 기준) ================= */
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+             card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
+const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
+const dcWon = man => dcNum((man||0)*10000)+'원';
+const dcSecHead = (title, sub, right) => `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+  <span style="font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:${DC.txt}">${title}</span>
+  ${sub?`<span style="font-size:11.5px;color:${DC.mut}">${sub}</span>`:''}
+  <div style="flex-grow:1"></div>${right||''}</div>`;
+const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
+// 큰 숫자 줄 — 윗줄은 결과(크게), 아랫줄은 과정(작게). 칸이 모자라면 남은 칸이 늘어나 폭을 채운다.
+function dcCellHTML(lab, val, delta, big){
+  const L = String(val).length;
+  const fs = big ? (L>17?21:L>13?24:27) : (L>17?15:L>13?17:19);
+  return `<div style="padding:${big?'16px 20px':'13px 20px'};background:${DC.card};min-width:0">
+    <div style="font-size:11.5px;color:${DC.mut};margin-bottom:${big?'7px':'5px'}">${lab}</div>
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap"><span class="m" style="font-size:${fs}px;font-weight:600;letter-spacing:-.025em;color:${DC.txt};white-space:nowrap">${val}</span>${delta||''}</div>
+  </div>`;
+}
+function dcDelta(now, prev, inv){
+  if(prev===null||prev===undefined||!isFinite(prev)||prev===0||now===null||!isFinite(now)) return '';
+  const p = (now/prev-1)*100, good = inv ? p<0 : p>0;
+  return `<span class="m" style="font-size:12px;color:${good?DC.up:DC.dn};margin-left:8px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}</span>`;
+}
+function dcKpi2HTML(top, bottom){
+  const r = arr => arr.filter(Boolean).map(c=>dcCellHTML(c[0], c[1], c[2], c[3])).join('');
+  return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
+}
+// 표 조각
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
+const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
+  <thead><tr style="background:${DC.head}">${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div></div>`;
+// 미니 스파크라인 (비용 추이)
+function dcSpark(vals, w, h){
+  const v = (vals||[]).filter(x=>isFinite(x));
+  if(v.length < 2) return '';
+  const W = w||84, H = h||22, max = Math.max(...v), min = Math.min(...v), span = (max-min)||1;
+  const pts = v.map((x,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(H - (x-min)/span*(H-2) - 1).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:middle;overflow:visible">
+    <polyline points="${pts}" fill="none" stroke="${DC.acc}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/></svg>`;
+}
+
 function renderStatRow(){
   const el = document.getElementById('statRow');
   if(!overviewRows.length){ el.innerHTML = ''; return; }
@@ -533,7 +642,7 @@ function renderStatRow(){
   const dbConv = dbRows.reduce((a,r)=>a+(r.conv||0),0);
   const b2cCost = b2cRows.reduce((a,r)=>a+(r.cost||0),0);
   const b2cRev  = b2cRows.reduce((a,r)=>a+(r.revenue||0),0);
-  const avgCpa = dbConv > 0 ? (dbCost/dbConv) : null;
+  const avgCpa = dbConv > 0 ? (dbCost*10000/dbConv) : null;  // 비용이 만원 단위로 저장돼 있어 10000을 곱해야 '원'이 됨
   const avgRoas = b2cCost > 0 ? (b2cRev/b2cCost*100) : null;
   const effLines = [
     avgCpa!==null ? `DB 평균 CPA ${fmtNum(avgCpa)}원` : null,
@@ -541,13 +650,19 @@ function renderStatRow(){
   ].filter(Boolean);
   const effVal = effLines.length ? effLines.join('<br>') : '-';
 
-  el.innerHTML = `
-    <div class="stat-card"><div class="lbl">전체 업체 수</div><div class="val">${overviewRows.length}개</div></div>
-    <div class="stat-card"><div class="lbl">DB / B2C</div><div class="val">${dbCount} / ${b2cCount}</div></div>
-    <div class="stat-card"><div class="lbl">최근 기간 총 비용</div><div class="val">${fmtMan(totalCost)}원${costMom}</div></div>
-    <div class="stat-card"><div class="lbl">최근 기간 총 전환수</div><div class="val">${fmtNum(totalConv)}건${convMom}</div></div>
-    <div class="stat-card"><div class="lbl">업종 유형별 평균 효율</div><div class="val" style="font-size:14px;line-height:1.5;">${effVal}</div></div>
-  `;
+  // 윗줄 = 전체가 얼마 쓰고 얼마 벌었나(결과), 아랫줄 = 업체 구성과 유형별 평균 효율(과정)
+  const riskCount = (window.__overviewAlerts||[]).length;
+  const riskClients = new Set((window.__overviewAlerts||[]).map(a=>a.key)).size;
+  el.innerHTML = dcKpi2HTML(
+    [ ['총 비용', dcWon(totalCost), dcDelta(totalCost, prevTotalCost||null, true), 1],
+      ['총 전환', dcNum(totalConv)+'건', dcDelta(totalConv, prevTotalConv||null), 1],
+      riskCount ? ['확인 필요', riskCount+'건',
+        `<span style="font-size:12px;color:${DC.mut};margin-left:8px">${riskClients}개 업체</span>`, 1]
+      : ['업체 수', overviewRows.length+'개', '', 1] ],
+    [ ['업체 수', `${overviewRows.length}개`, `<span style="font-size:12px;color:${DC.mut};margin-left:8px">DB ${dbCount} · B2C ${b2cCount}</span>`],
+      ['DB 평균 CPA', avgCpa!==null ? dcNum(avgCpa)+'원' : '-', dbRows.length?`<span style="font-size:12px;color:${DC.mut};margin-left:8px">${dbRows.length}개 업체</span>`:''],
+      ['B2C 평균 ROAS', avgRoas!==null ? Math.round(avgRoas)+'%' : '-', b2cRows.length?`<span style="font-size:12px;color:${DC.mut};margin-left:8px">${b2cRows.length}개 업체</span>`:''] ]
+  );
 }
 
 function isGoalMissed(r){
@@ -582,6 +697,45 @@ function goalLineHTML(r){
       <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};"></div>
     </div>
   </div>`;
+}
+
+/* ---------- 업체 목록: 카드 → 표 (목업 Overview 구조) ---------- */
+function overviewRowHTML(r, bestKeys, worstKeys, pinnedSet){
+  const initial = (r.name||'?').trim().charAt(0);
+  const textColor = contrastText(r.color||'#8b7cff');
+  const isPinned = pinnedSet && pinnedSet.has(r.key);
+  const mark = bestKeys.has(r.key) ? `<span title="이번 기간 가장 효율적" style="margin-left:5px">🏆</span>`
+             : worstKeys.has(r.key) ? `<span title="점검이 필요해요" style="margin-left:5px">⚠️</span>` : '';
+  const trend = r.trend ? `<span style="color:${r.trend.good?DC.up:DC.dn};font-size:11px;margin-left:4px">${r.trend.dir==='up'?'▲':'▼'}</span>` : '';
+  const eff = r.bizType==='DB'
+    ? (r.cpa>0 ? dcNum(r.cpa)+'원' : '-')
+    : (r.cost>0 ? Math.round(r.roas)+'%' : '-');
+  const biz = r.bizType==='DB'
+    ? `<span class="m" style="font-size:10.5px;padding:1px 7px;border-radius:4px;background:#221f3d;color:${DC.acc2}">DB</span>`
+    : `<span class="m" style="font-size:10.5px;padding:1px 7px;border-radius:4px;background:#1b2c33;color:#6fd3e8">B2C</span>`;
+  const alertCell = r.alertCount>0
+    ? `<span class="m" style="font-size:11px;padding:1px 8px;border-radius:20px;background:#33202a;color:${DC.dn};font-weight:600">${r.alertCount}</span>`
+    : `<span style="color:${DC.mut}">—</span>`;
+  return `<tr class="ov-row" data-key="${r.key}" style="cursor:pointer">
+    ${dcTd(`<div style="display:flex;align-items:center;gap:9px">
+        <button class="client-card-pin ${isPinned?'pinned':''}" data-key="${r.key}" type="button" title="${isPinned?'즐겨찾기 해제':'즐겨찾기에 추가'}" style="position:static;background:none;border:0;color:${isPinned?'#f5c542':DC.mut};font-size:14px;cursor:pointer;padding:0;line-height:1">${isPinned?'★':'☆'}</button>
+        <span style="width:24px;height:24px;border-radius:7px;background:${r.color};color:${textColor};display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;flex-shrink:0">${initial}</span>
+        <span style="font-weight:500;color:${DC.txt}">${r.name}</span>${mark}
+        <span style="font-size:11px;color:${DC.mut}">${r.industry}</span>
+      </div>`)}
+    ${dcTd(biz)}
+    ${dcTd(dcWon(r.cost), 1)}
+    ${r.bizType==='DB' ? '' : dcTd(dcWon(r.revenue), 1)}
+    ${dcTd(dcNum(r.conv)+'건', 1)}
+    ${dcTd(eff+trend, 1)}
+    ${dcTd(dcSpark(r.dailyCost)||`<span style="color:${DC.mut}">—</span>`, 1)}
+    ${dcTd(alertCell, 1)}
+  </tr>`;
+}
+function overviewTableHTML(rows, bestKeys, worstKeys, pinnedSet, isDB){
+  const head = dcTh('업체')+dcTh('유형')+dcTh('비용',1)+(isDB?'':dcTh('전환매출',1))+dcTh('전환',1)
+             + dcTh(isDB?'CPA':'ROAS',1)+dcTh('최근 비용 추이',1)+dcTh('확인',1);
+  return dcTable(head, rows.map(r=>overviewRowHTML(r,bestKeys,worstKeys,pinnedSet)).join(''));
 }
 function overviewCardHTML(r, bestKeys, worstKeys, pinnedSet){
   const initial = (r.name||'?').trim().charAt(0);
@@ -645,17 +799,17 @@ function renderOneSection(containerEl, rows, sectionRows, sectionLabel){
     const industryNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko'));
     bodyHtml = industryNames.map(ind=>`
       <div style="font-size:12px;font-weight:700;color:var(--muted);margin:16px 0 8px;">${ind} <span style="font-weight:400;">(${groups[ind].length}개)</span></div>
-      <div class="client-grid">${groups[ind].map(r=>overviewCardHTML(r,bestKeys,worstKeys,pinnedSet)).join('')}</div>
+      ${overviewTableHTML(groups[ind], bestKeys, worstKeys, pinnedSet, isDB)}
     `).join('');
   } else {
-    bodyHtml = `<div class="client-grid">${rows.map(r=>overviewCardHTML(r,bestKeys,worstKeys,pinnedSet)).join('')}</div>`;
+    bodyHtml = overviewTableHTML(rows, bestKeys, worstKeys, pinnedSet, isDB);
   }
 
   containerEl.innerHTML = `
     <div class="overview-section-title">${sectionLabel} <span style="font-weight:400;color:var(--muted);">(${rows.length}개)</span></div>
     ${bodyHtml}`;
 
-  containerEl.querySelectorAll('.client-card').forEach(el=>{
+  containerEl.querySelectorAll('.client-card, .ov-row').forEach(el=>{
     el.onclick = (ev)=>{
       if(ev.target.closest('.client-card-goal') || ev.target.closest('.client-card-pin')) return; // 목표 설정/즐겨찾기 클릭은 아래에서 별도 처리
       localStorage.setItem('ad_dashboard_active_client', el.dataset.key);
