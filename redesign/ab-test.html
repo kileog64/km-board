@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>광고 성과 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script>
+  // ▼▼▼ Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성 후,
+  // 프로젝트 설정 > 일반 > "내 앱" 웹앱 추가 시 나오는 값을 그대로 붙여넣으세요.
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+  const storage = firebase.storage();
+</script>
+<style>
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .display{font-family:'Pretendard',sans-serif;}
+  .wrap{max-width:1480px;margin:0 auto;padding:28px;display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
+
+  .input-panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;position:sticky;top:20px;}
+  .input-panel h2{font-size:16px;margin:0 0 6px;color:var(--text);font-weight:700;}
+  .input-panel .sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
+  .section-title{font-size:12px;color:var(--accent);font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
+  .file-drop{border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;background:var(--panel-2);margin-bottom:10px;transition:border-color .15s,background .15s;}
+  .file-drop.dragover{border-color:var(--accent);background:rgba(139,124,255,.1);}
+  .file-drop label{display:block;font-size:14px;color:var(--text);font-weight:600;margin-bottom:7px;}
+  .file-drop input[type=file]{font-size:12px;color:var(--muted);width:100%;}
+  .file-drop .status{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5;}
+  .file-drop .status.ok{color:var(--up);}
+  .file-drop .status.err{color:var(--down);}
+  .preview-box{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;font-size:12px;}
+  .preview-box .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);}
+  .preview-box .row b{color:var(--text);}
+  .col-ref{background:rgba(139,124,255,.08);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin:-4px 0 10px;}
+  .col-ref-title{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:3px;}
+  .col-ref-list{font-family:'Pretendard',monospace;font-size:12px;color:var(--muted);line-height:1.6;word-break:break-all;}
+  .col-ref-list b{color:var(--text);}
+  .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
+  .status-msg.show{display:block;}
+  .status-msg.ok{color:var(--up);}
+  .status-msg.err{color:var(--down);}
+
+  .tabs{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .tab{display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-size:14px;font-weight:500;color:var(--muted);transition:all .15s;}
+  .tab.active{border-color:var(--accent);color:var(--text);background:var(--panel-2);}
+  .tab .dot{width:9px;height:9px;border-radius:50%;}
+  .export-btn{margin-left:auto;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;}
+  .client-switcher{position:relative;display:inline-block;}
+  .client-switcher-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-size:14px;font-weight:600;color:var(--text);min-width:170px;}
+  .client-switcher-btn .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-btn .chev{margin-left:auto;font-size:12px;color:var(--muted);}
+  .client-switcher-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:50;width:280px;max-height:360px;overflow-y:auto;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:none;}
+  .client-switcher-dropdown.open{display:block;}
+  .client-switcher-search{width:100%;box-sizing:border-box;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:14px;outline:none;position:sticky;top:0;background:var(--panel-2);}
+  .client-switcher-biztabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:37px;background:var(--panel-2);z-index:1;}
+  .client-switcher-biztab{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 0;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent);background:rgba(139,124,255,.12);}
+  .client-switcher-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:14px;color:var(--text);}
+  .client-switcher-item:hover{background:var(--panel);}
+  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent);font-weight:700;}
+  .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
+  .ai-chat-toggle{position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a89aff);border:none;font-size:28px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100;}
+  .ai-chat-panel{position:fixed;bottom:90px;right:24px;width:520px;max-height:min(760px,85vh);background:var(--panel-2);border:1px solid var(--border);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden;z-index:100;}
+  .ai-chat-panel.open{display:flex;}
+  .ai-chat-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--text);}
+  .ai-chat-icon-btn{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px;}
+  .ai-chat-setup{padding:16px;display:none;}
+  .ai-chat-setup.show{display:block;}
+  .ai-chat-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;min-height:320px;}
+  .ai-chat-msg{font-size:14px;line-height:1.65;padding:11px 14px;border-radius:10px;max-width:90%;white-space:pre-wrap;}
+  .ai-chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff;}
+  .ai-chat-msg.assistant{align-self:flex-start;background:var(--panel);color:var(--text);}
+  .ai-chat-msg.system{align-self:center;color:var(--muted);font-size:12px;text-align:center;}
+  .ai-chat-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);}
+  .ai-chat-input-row textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;max-height:140px;min-height:44px;}
+  .ai-chat-input-row button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;}
+  @media (max-width:640px){
+    .ai-chat-panel{right:10px;left:10px;width:auto;bottom:84px;}
+    .ai-chat-toggle{right:16px;bottom:16px;}
+  }
+
+  .main-layout{display:grid;grid-template-columns:1fr 250px;gap:20px;align-items:start;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:26px 28px;min-height:400px;}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:360px;color:var(--muted);font-size:14px;text-align:center;gap:10px;line-height:1.6;}
+  header.rep{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:14px;}
+  .idn{display:flex;align-items:center;gap:14px;}
+  .icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;font-family:'Pretendard',sans-serif;}
+  .idn-name{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:700;}
+  .badge{font-size:12px;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.1);color:var(--muted);font-weight:600;}
+  .period{font-size:14px;color:var(--muted);margin-top:4px;}
+  .totals{display:flex;gap:32px;text-align:right;}
+  .totals .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500;}
+  .totals .val{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:3px;letter-spacing:-.01em;}
+  .totals .val.accent{color:var(--accent);}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
+  .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  .kpi:hover{border-color:var(--accent);}
+  .kpi-label{font-size:12px;color:var(--muted);margin-bottom:9px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .kpi-value{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;}
+  .kpi-note{font-size:16px;font-weight:800;padding:7px 13px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+  .kpi-note.up{color:var(--up);background:rgba(74,222,154,.14);} .kpi-note.down{color:var(--down);background:rgba(255,107,133,.14);}
+  .kpi-spark{width:100%;height:30px;margin-top:9px;}
+
+  .charts-row{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:22px;}
+  .panel{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:20px;}
+  .panel-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
+  .chart-box{height:320px;}
+
+  .bottom-row{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{text-align:left;color:var(--muted);font-weight:600;padding:8px 7px;border-bottom:1px solid var(--border);}
+  td{padding:10px 7px;border-bottom:1px solid #262841;}
+  tr:last-child td{border-bottom:none;}
+  .kw-name{color:var(--text);font-weight:600;}
+
+  .improve-box{margin-bottom:16px;}
+  .improve-row{display:flex;align-items:center;justify-content:space-between;}
+  .improve-side .m{font-size:12px;color:var(--muted);font-weight:500;}
+  .improve-side .v{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:4px;}
+  .improve-side.right{text-align:right;}
+  .improve-side.right .v{color:var(--accent);}
+  .arrow{color:var(--muted);font-size:20px;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .sub-metric{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);}
+  .sub-metric .chg{color:var(--text);font-weight:700;font-family:'Pretendard',sans-serif;font-size:16px;}
+
+
+  .filter-panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;position:sticky;top:20px;}
+  .filter-head{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .filter-group{margin-bottom:14px;}
+  .filter-campaign-list{max-height:260px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;}
+  .filter-campaign-list::-webkit-scrollbar{width:5px;}
+  .filter-campaign-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .filter-group-title{background:rgba(139,124,255,.18);color:#c3b8ff;border-radius:7px;padding:6px 9px;font-size:12px;font-weight:700;margin-bottom:6px;}
+  .filter-item{display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:12px;color:var(--text);font-weight:500;}
+  .filter-item input{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;}
+  .filter-item .swatch{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+  @media (max-width:1100px){
+    .wrap{grid-template-columns:1fr;}
+    .input-panel{position:static;}
+    .main-layout{grid-template-columns:1fr;}
+    .filter-panel{position:static;}
+    .kpi-row{grid-template-columns:repeat(3,1fr);}
+    .charts-row, .bottom-row{grid-template-columns:1fr;}
+  }
+
+  @media (max-width:640px){
+    body{font-size:14px;}
+    .wrap{padding:14px;}
+    header.rep{flex-direction:column;align-items:flex-start;}
+    .totals{gap:16px;text-align:left;width:100%;}
+    .idn-name{font-size:16px;}
+    .kpi-row{grid-template-columns:repeat(2,1fr)!important;}
+    .panel{padding:14px;overflow-x:auto;}
+    .chart-box{height:240px!important;}
+    table{font-size:12px;}
+  }
+</style>
+
+<style id="km-redesign-skin">
+/* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
+:root{
+  --bg:#0e0f16;
+  --panel:#141622;
+  --panel-2:#171a27;
+  --border:#2b3044;
+  --text:#e8e9f2;
+  --muted:#8f94ab;
+  --radius:11px;
+}
+body{
+  background:#0e0f16 !important;
+  letter-spacing:-.006em;
+}
+
+/* 큰 카드 */
+.card{ border-radius:12px !important; padding:20px 22px !important; }
+.panel{ border-radius:11px !important; padding:16px 18px !important; }
+.panel-title{
+  font-size:15px !important; font-weight:600 !important;
+  letter-spacing:-.015em !important; margin-bottom:12px !important;
+}
+
+/* 목표 대비 KPI — 라벨은 조용하게, 숫자는 크게 */
+.kpi-row{ gap:10px !important; margin-bottom:20px !important; }
+.kpi{ border-radius:11px !important; padding:15px 17px !important; }
+.kpi-label{
+  text-transform:none !important; letter-spacing:0 !important;
+  font-weight:400 !important; font-size:12px !important;
+  color:var(--muted) !important; margin-bottom:6px !important;
+}
+.kpi-value{
+  font-size:25px !important; font-weight:600 !important;
+  letter-spacing:-.022em !important; font-variant-numeric:tabular-nums;
+}
+.kpi-note{
+  font-size:12.5px !important; font-weight:600 !important;
+  padding:4px 9px !important; border-radius:6px !important;
+}
+
+/* 배지 · 버튼 · 탭 */
+.badge{ border-radius:5px !important; font-size:11.5px !important; font-weight:600 !important; padding:2.5px 8px !important; }
+.btn{ border-radius:8px !important; font-weight:600 !important; font-size:13px !important; padding:11px !important; }
+.tabs{ gap:6px !important; }
+.tab{ border-radius:7px !important; padding:7px 12px !important; font-size:13px !important; }
+.export-btn{ border-radius:8px !important; font-size:12.5px !important; }
+
+/* 표 — 줄 간격 넓히고 숫자 자릿수 맞춤 */
+table{ font-variant-numeric:tabular-nums; }
+table th{ font-size:12px !important; font-weight:500 !important; color:var(--muted) !important; letter-spacing:0 !important; text-transform:none !important; }
+table td{ font-size:13.5px !important; }
+table td, table th{ padding-top:10px !important; padding-bottom:10px !important; }
+
+/* 왼쪽 필터 */
+.filter-panel{ border-radius:11px !important; }
+.filter-group-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
+.filter-item{ font-size:13px !important; }
+.section-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
+
+/* 업체 선택 */
+.client-switcher-btn{ border-radius:8px !important; font-size:13.5px !important; }
+.client-switcher-dropdown{ border-radius:11px !important; }
+.client-switcher-item{ font-size:13.5px !important; }
+
+/* 작은 글씨들 살짝 키움 */
+.lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+</style>
+</head>
+<body>
+
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 광고 성과 대시보드</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인하면 전체 업체 데이터를 함께 볼 수 있어요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn">로그인</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">계정이 없으신가요? 관리자에게 계정 생성을 요청해주세요.</div>
+    <div class="status-msg" id="authStatus"></div>
+  </div>
+</div>
+
+<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
+  <div style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:-8px;flex-wrap:wrap;row-gap:6px;">
+    <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
+    <a href="overview.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🗂️ 전체 업체 개요</a>
+    <a href="todo.html" style="font-size:12px;color:var(--accent);text-decoration:none;">✅ 할 일 목록</a>
+    <a href="campaigns.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📣 캠페인 비교 전용 보기</a>
+    <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🔑 키워드 전용 보기</a>
+    <a href="hourly.html" style="font-size:12px;color:var(--accent);text-decoration:none;">⏰ 시간대 전용 보기</a>
+    <a href="input.html" style="font-size:12px;color:var(--accent);text-decoration:none;">+ 데이터 입력하기</a>
+    <span style="font-size:12px;color:var(--text);font-weight:700;">🧪 A/B 테스트</span>
+    <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
+      <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
+      <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
+        <input class="client-switcher-search" id="clientSwitcherSearch" placeholder="업체 검색...">
+        <div class="client-switcher-biztabs" id="clientSwitcherBizTabs">
+          <button class="client-switcher-biztab active" data-biztype="ALL" type="button">전체</button>
+          <button class="client-switcher-biztab" data-biztype="DB" type="button">DB</button>
+          <button class="client-switcher-biztab" data-biztype="B2C" type="button">B2C</button>
+        </div>
+        <div id="clientSwitcherList"></div>
+      </div>
+    </div>
+    <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
+    <button class="export-btn" id="logoutBtn">로그아웃</button>
+  </div>
+
+  <div>
+    <div class="tabs" id="tabs"></div>
+    <div class="main-layout" id="mainLayout" style="grid-template-columns:1fr;">
+      <div class="card" id="card">
+        <div class="empty-state">
+          <div style="font-size:28px;">🧪</div>
+          <div>업체를 선택하면<br>A/B 테스트를 만들고 비교할 수 있어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<button id="aiChatToggleBtn" class="ai-chat-toggle" title="AI에게 데이터로 물어보기">🤖</button>
+<div id="aiChatPanel" class="ai-chat-panel">
+  <div class="ai-chat-header">
+    <span>🤖 AI 데이터 질문</span>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button id="aiChatNewBtn" class="ai-chat-icon-btn" title="새 대화 시작">🔄</button>
+      <button id="aiChatSettingsBtn" class="ai-chat-icon-btn" title="API 키 설정">⚙️</button>
+      <button id="aiChatCloseBtn" class="ai-chat-icon-btn" title="닫기">✕</button>
+    </div>
+  </div>
+  <div id="aiChatSetup" class="ai-chat-setup">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Google Gemini API 키를 입력해주세요 (무료 요금제로 계속 쓸 수 있어요). 이 키는 이 브라우저에만 저장되고 서버로 전송되지 않아요.<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">키 발급받기 →</a></div>
+    <input id="aiApiKeyInput" type="password" placeholder="AIza..." style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:8px;">
+    <button id="aiApiKeySaveBtn" class="btn" style="margin-top:0;background:var(--accent);color:#fff;">저장하고 시작</button>
+  </div>
+  <div id="aiChatBody" class="ai-chat-body"></div>
+  <div id="aiChatInputRow" class="ai-chat-input-row" style="display:none;">
+    <textarea id="aiChatInput" placeholder="예: 이번 달 왜 전환이 줄었어?" rows="1"></textarea>
+    <button id="aiChatSendBtn">전송</button>
+  </div>
+</div>
+
+<script>
+let activeSlug = null;
+const filterState = {};
+const monthRangeState = {}; // key -> { start: label, end: label } — campaigns/keywords.html과 동일한 시작~종료 임의 구간 패턴
+const compareMonthState = {};
+function ensureMonthRange(key, allMonths){
+  if(!allMonths.length) return;
+  const cur = monthRangeState[key];
+  const has = l => allMonths.some(m=>m.label===l);
+  if(!cur || !has(cur.start) || !has(cur.end)){
+    monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
+  }
+}
+function monthsInRange(allMonths, range){
+  const si = allMonths.findIndex(m=>m.label===range.start);
+  const ei = allMonths.findIndex(m=>m.label===range.end);
+  if(si<0 || ei<0) return allMonths;
+  const lo = Math.min(si,ei), hi = Math.max(si,ei);
+  return allMonths.slice(lo, hi+1);
+}
+const dayCompareCampaigns = {};
+const dayCompareMetric = {};
+function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
+const CAMPAIGN_TYPE_LABELS = { WEB_SITE:'파워링크', SHOPPING:'쇼핑검색', POWER_CONTENTS:'파워컨텐츠', BRAND_SEARCH:'브랜드검색광고', PLACE:'플레이스', PLACE_TP:'플레이스', CATEGORY_EDIT:'세부업종', CAMPAIGN_TYPE_UNKNOWN:'기타' };
+function campaignTypeLabel(t){ return CAMPAIGN_TYPE_LABELS[t] || t; }
+function fmtWon(man){ return Math.round(man*10000).toLocaleString('ko-KR'); }
+function fmtMan(man){ return man>=10000 ? (man/10000).toFixed(man%10000===0?0:1)+'억' : Math.round(man).toLocaleString('ko-KR')+'만'; }
+function hexToRgba(hex, alpha){
+  if(!hex) return `rgba(139,124,255,${alpha})`;
+  hex = hex.trim();
+  let h = hex.replace('#','');
+  if(h.length===3) h = h.split('').map(c=>c+c).join('');
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  if(Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return `rgba(139,124,255,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function fmtNum(n){ return Math.round(n).toLocaleString('ko-KR'); }
+
+function randomAccentColor(){
+  const hue = Math.floor(Math.random()*360);
+  const sat = 60 + Math.random()*15;
+  const light = 52 + Math.random()*10;
+  return hslToHex(hue, sat, light);
+}
+function hslToHex(h,s,l){
+  s/=100; l/=100;
+  const k = n => (n + h/30) % 12;
+  const a = s * Math.min(l, 1-l);
+  const f = n => l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1)));
+  const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function contrastText(hex){
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+  return lum > 0.6 ? '#12131c' : '#ffffff';
+}
+function sparkPath(vals, w, h){
+  if(!vals.length) return '';
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const range = (max - min) || 1;
+  const step = w / (Math.max(vals.length-1,1));
+  return vals.map((v,i)=>{
+    const x = i*step;
+    const y = h - ((v-min)/range)*h;
+    return `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+function dateKey(d){ return String(d).replace(/\D/g,''); }
+function weekdayOf(dateStr){
+  // "2026.07.01" -> Date
+  const parts = dateStr.split('.').map(s=>s.trim()).filter(Boolean);
+  if(parts.length<3) return null;
+  const dt = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+  return dt.getDay(); // 0=Sun..6=Sat
+}
+const WEEKDAY_LABELS = ['일','월','화','수','목','금','토'];
+
+/* ---------- 파일 파싱 ---------- */
+
+function showStatus(msg, type){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg show ' + (type||'');
+}
+
+/* ---------- 저장소 (Firestore, 로그인한 팀 전체가 공유) ---------- */
+
+const DETAIL_DATA_FIELDS = ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign','wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign','wasteSearchTermsByCampaign','expandSearchTermsByCampaign','hourly','hourlyByCampaign','hourlyByDow','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate','adgroupsByCampaign','dailyByCampaign','dailyByKeyword'];
+// hourlyByDowByAdgroup(요일×시간×광고그룹)은 광고그룹·캠페인이 많은 계정에서 요일 구분 없이도
+// Firestore 문서 1MB 한도를 넘길 만큼 커질 수 있어서 hourlyByAdgroup(시간 단위만)로 대체하고 폐기함.
+// DETAIL_DATA_FIELDS에서는 빠졌지만 예전에 그 이름으로 저장된 문서가 남아있을 수 있어서 정리 대상에 포함.
+const RETIRED_DETAIL_FIELDS = ['hourlyByDowByAdgroup'];
+function fieldEmptyDefault(f){ return (f==='hourly'||f==='hourlyByCampaign'||f==='hourlyByDow'||f==='hourlyByDowByCampaign'||f==='hourlyByAdgroup'||f==='hourlyByCampaignDate'||f==='dailyByCampaign'||f==='dailyByKeyword') ? [] : {}; }
+// Firebase Storage 상세데이터 경로 — 업체(id)별 폴더 아래 "월라벨__필드명.json" 파일 하나씩.
+function detailStorageRef(id, label, field){ return storage.ref(`clients/${id}/${label}__${field}.json`); }
+// 반환값: { notFound:true }(파일이 원래 없음 — 정상, 빈 값으로 취급해도 안전) |
+// { failed:true }(네트워크/CORS 등으로 못 가져옴 — 실제로 있는 파일일 수 있어서 빈 값 취급하면 안 됨) |
+// { value }(정상적으로 읽어옴)
+async function fetchDetailFile(ref){
+  try{
+    const url = await ref.getDownloadURL();
+    const res = await fetch(url);
+    if(!res.ok) return { failed:true };
+    const json = await res.json();
+    return { value: json.value };
+  }catch(e){
+    if(e && (e.code==='storage/object-not-found')) return { notFound:true };
+    console.error('[fetchDetailFile]', ref.fullPath, e);
+    return { failed:true };
+  }
+}
+function userClientsRef(){
+  if(!auth.currentUser) throw new Error('not signed in');
+  return db.collection('clients');
+}
+let isAdminUser = false;
+let currentUserEmail = '';
+function rolesConfigRef(){ return db.collection('config').doc('roles'); }
+async function checkIsAdmin(email){
+  try{
+    const doc = await rolesConfigRef().get();
+    if(!doc.exists) return false;
+    const admins = doc.data().adminEmails || [];
+    return admins.includes(email);
+  }catch(e){ console.error(e); return false; }
+}
+async function listClients(){
+  try{
+    const snap = await userClientsRef().get();
+    return snap.docs.map(d=>'client:'+d.id);
+  }catch(e){ console.error(e); return []; }
+}
+// 상단 탭 목록(refreshTabs)이나 AI 채팅 전체요약처럼 이름·색상·업종·최근월 요약만 필요한 경우를 위한
+// 가벼운 버전 — 매 페이지를 열 때마다 모든 업체의 상세데이터(detailData 하위컬렉션)까지 통째로 읽어오는 낭비를 피함.
+async function getClientLight(key){
+  try{
+    const id = key.replace(/^client:/,'');
+    const docRef = userClientsRef().doc(id);
+    const doc = await docRef.get();
+    if(!doc.exists) return null;
+    return doc.data();
+  }catch(e){ console.error(e); return null; }
+}
+async function getClient(key){
+  try{
+    const id = key.replace(/^client:/,'');
+    const docRef = userClientsRef().doc(id);
+    const doc = await docRef.get();
+    if(!doc.exists) return null;
+    const data = doc.data();
+    const months = data.months || [];
+    // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 월별 하위 컬렉션에 따로 저장돼있어서 여기서 합쳐줌.
+    // 아직 하위 컬렉션으로 안 옮겨진(예전 형식) 업체는 month 객체에 그대로 남아있는 값을 그대로 씀(하위호환).
+    if(months.length){
+      // 상세데이터는 예전엔 월 하나당 문서 하나(모든 필드를 합쳐서)로 저장했는데, 광고그룹별 시간대
+      // 분석처럼 필드 하나만으로도 캠페인×광고그룹×요일×시간 조합이 많은 계정은 그 합쳐진 문서 하나가
+      // Firestore 문서당 1MB 한도를 넘어버리는 경우가 생겨서, 이제 "월라벨__필드명" 단위로 문서를 더
+      // 잘게 나눠 저장함 — 필드 하나가 아무리 커져도 같은 달의 다른 필드와 합쳐져서 한도를 넘는 일이 없어짐.
+      // 예전 형식(월 하나에 모든 필드가 합쳐진 문서, id가 그냥 월라벨)으로 저장된 달은 그대로 읽어서 하위호환함.
+      // 1순위: Storage 파일("clients/{id}/{월라벨}__{필드명}.json"). 없으면 아래 Firestore 경로로 폴백.
+      const storageResults = await Promise.all(
+        months.flatMap(m => DETAIL_DATA_FIELDS.map(f => ({ label:m.label, field:f })))
+          .map(async ({label,field}) => ({ label, field, res: await fetchDetailFile(detailStorageRef(id,label,field)) }))
+      );
+      const storageMap = {}; // "월라벨__필드명" -> value (Storage에서 정상적으로 찾은 것만)
+      const failedSet = new Set(); // "월라벨__필드명" — Storage에 파일이 있을 수도 있는데 네트워크/CORS 등으로 못 가져온 것
+      storageResults.forEach(r=>{
+        if(r.res && r.res.value!==undefined) storageMap[r.label+'__'+r.field] = r.res.value;
+        else if(r.res && r.res.failed) failedSet.add(r.label+'__'+r.field);
+      });
+      const detailSnap = await docRef.collection('detailData').get().catch(()=>({docs:[]}));
+      const fieldDocMap = {}; // "월라벨__필드명" -> {value}
+      const legacyDocMap = {}; // "월라벨" -> {필드명: 값, ...}
+      detailSnap.docs.forEach(d=>{
+        const sep = d.id.indexOf('__');
+        const fname = sep>0 ? d.id.slice(sep+2) : null;
+        if(fname && DETAIL_DATA_FIELDS.includes(fname)) fieldDocMap[d.id] = d.data();
+        else legacyDocMap[d.id] = d.data();
+      });
+      data.months = months.map(m=>{
+        const legacy = legacyDocMap[m.label];
+        const merged = { ...m };
+        const unreliable = [];
+        DETAIL_DATA_FIELDS.forEach(f=>{
+          const key2 = m.label+'__'+f;
+          if(storageMap[key2]!==undefined){ merged[f] = storageMap[key2]; return; }
+          const perField = fieldDocMap[key2];
+          if(perField){ merged[f] = perField.value!==undefined ? perField.value : fieldEmptyDefault(f); return; }
+          if(legacy){ merged[f] = legacy[f]!==undefined ? legacy[f] : fieldEmptyDefault(f); return; }
+          if(failedSet.has(key2)){
+            // Storage 파일을 못 가져왔을 뿐 실제로는 데이터가 있을 수 있음 — 화면 표시는 일단 빈 값으로 하되,
+            // 이 상태로 저장(setClient)하면 진짜 데이터를 빈 값으로 덮어쓸 위험이 있으니 표시해둠.
+            merged[f] = fieldEmptyDefault(f);
+            unreliable.push(f);
+            return;
+          }
+          if(m[f]===undefined) merged[f] = fieldEmptyDefault(f);
+        });
+        if(unreliable.length) merged.__unreliableFields = unreliable;
+        return merged;
+      });
+    }
+    return data;
+  }catch(e){ console.error(e); return null; }
+}
+async function setClient(key, data){
+  try{
+    const id = key.replace(/^client:/,'');
+    const docRef = userClientsRef().doc(id);
+    const months = data.months || [];
+    // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 메인 문서에서 빼서 월별 하위 컬렉션 문서로 분리 저장
+    const lightMonths = months.map(m=>{
+      const light = { ...m };
+      DETAIL_DATA_FIELDS.forEach(f=> delete light[f]);
+      delete light.__unreliableFields; // getClient가 붙인 임시 내부 마커 — Firestore엔 저장하지 않음
+      return light;
+    });
+    // lastBackup(되돌리기용 백업)에 예전 코드가 실수로 dailyByCampaign(날짜×캠페인 상세)까지 저장해둔
+    // 경우가 있어서, 이미 Firestore에 저장돼있던 무거운 백업을 그대로 불러와 다시 저장하면 메인 문서 저장
+    // 요청 자체가 커져서 실패할 수 있음 — 어떤 경로로 만들어진 백업이든 저장 시점에 항상 가볍게 정리함
+    // (매번 자동으로 정리되므로 한 번만 저장해도 예전에 쌓인 무거운 백업이 자연히 사라짐).
+    const lightData = { ...data };
+    if(lightData.lastBackup && Array.isArray(lightData.lastBackup.entries)){
+      lightData.lastBackup = {
+        ...lightData.lastBackup,
+        entries: lightData.lastBackup.entries.map(entry=>{
+          if(!entry || !entry.month) return entry;
+          const { dailyByCampaign, ...restMonth } = entry.month;
+          return { ...entry, month: restMonth };
+        })
+      };
+    }
+    // 메인(가벼운) 문서를 먼저 저장 — 아래 상세데이터 저장 중 어떤 이유로든 실패하더라도 이름·색상·목표 등
+    // 최신 요약 정보는 반영되도록 함.
+    await docRef.set({ ...lightData, months: lightMonths });
+    // 월별 상세데이터(키워드·시간대·일별 등)는 Firebase Storage에 "clients/{id}/{월라벨}__{필드명}.json"
+    // 파일로 하나씩 저장함. Firestore 문서(1MB 한도)와 달리 Storage 파일은 사실상 용량 제한이 없음.
+    // __unreliableFields: getClient가 이 필드를 Storage에서 불러오다 실패해서(네트워크/CORS 등) 화면엔
+    // 일단 빈 값으로 채워둔 필드 목록 — 실제로는 값이 있을 수 있으므로 여기서 그대로 다시 저장하면
+    // 진짜 데이터를 빈 값으로 영구히 덮어쓸 수 있음. 이런 필드는 업로드를 건너뛰고 기존 파일을 그대로 둠.
+    const uploadTasks = [];
+    for(const m of months){
+      if(!m.label) continue;
+      const unreliable = new Set(m.__unreliableFields||[]);
+      for(const f of DETAIL_DATA_FIELDS){
+        if(unreliable.has(f)) continue;
+        const value = m[f]!==undefined ? m[f] : fieldEmptyDefault(f);
+        uploadTasks.push({ label:m.label, field:f, value });
+      }
+    }
+    const CONCURRENCY = 6;
+    for(let i=0; i<uploadTasks.length; i+=CONCURRENCY){
+      const slice = uploadTasks.slice(i, i+CONCURRENCY);
+      await Promise.all(slice.map(async ({label,field,value})=>{
+        const payloadStr = JSON.stringify({ value });
+        await detailStorageRef(id, label, field).putString(payloadStr, 'raw', { contentType:'application/json' });
+      }));
+    }
+    // 예전 Firestore 형식(합쳐진 문서, "월라벨__필드명" 단위 문서, 폐기된 필드)이 남아있다면 정리.
+    const deleteDocIds = [];
+    for(const m of months){
+      if(!m.label) continue;
+      deleteDocIds.push(m.label);
+      DETAIL_DATA_FIELDS.forEach(f=> deleteDocIds.push(m.label+'__'+f));
+      RETIRED_DETAIL_FIELDS.forEach(f=> deleteDocIds.push(m.label+'__'+f));
+    }
+    const CLEANUP_CHUNK = 450;
+    for(let i=0; i<deleteDocIds.length; i+=CLEANUP_CHUNK){
+      const cleanupBatch = db.batch();
+      deleteDocIds.slice(i, i+CLEANUP_CHUNK).forEach(docId=> cleanupBatch.delete(docRef.collection('detailData').doc(docId)));
+      await cleanupBatch.commit().catch(e=>console.warn('[setClient] legacy detailData cleanup failed (non-fatal)', e));
+    }
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+
+/* ---------- 인증 ---------- */
+
+function authStatus(msg, type){
+  const el = document.getElementById('authStatus');
+  el.textContent = msg; el.className = 'status-msg show ' + (type||'');
+}
+document.getElementById('loginBtn').onclick = async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if(!email || !pw){ authStatus('이메일과 비밀번호를 입력해주세요.', 'err'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+  }catch(e){ authStatus('로그인 실패: ' + e.message, 'err'); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+
+const ACTIVE_CLIENT_STORAGE = 'ad_dashboard_active_client';
+function getStoredActiveClient(){ return localStorage.getItem(ACTIVE_CLIENT_STORAGE) || null; }
+function setStoredActiveClient(key){ if(key) localStorage.setItem(ACTIVE_CLIENT_STORAGE, key); else localStorage.removeItem(ACTIVE_CLIENT_STORAGE); }
+let clientListCache = []; // [{key, name, color}] - 검색/드롭다운용 캐시
+async function refreshTabs(selectAfter){
+  const keys = await listClients();
+  const dataList = await Promise.all(keys.map(k=>getClientLight(k)));
+  clientListCache = [];
+  keys.forEach((key,i)=>{
+    const data = dataList[i];
+    if(!data) return;
+    if(!isAdminUser && !(data.allowedUsers||[]).includes(currentUserEmail)) return;
+    clientListCache.push({ key, name: data.name, color: data.color, bizType: data.bizType });
+  });
+  // 다른 페이지에서 이미 업체를 선택했다면(localStorage), 이 페이지 첫 로드 때도 그 업체를 그대로 이어서 보여줌
+  if(!selectAfter && !activeSlug){
+    const stored = getStoredActiveClient();
+    if(stored && clientListCache.some(c=>c.key===stored)) selectAfter = stored;
+  }
+  renderClientSwitcher();
+  if(selectAfter){
+    activeSlug = selectAfter;
+    setStoredActiveClient(selectAfter);
+    const data = await getClient(selectAfter);
+    if(data){ renderAbTestPage(data); renderClientSwitcher(); }
+  }
+}
+let clientSwitcherBizFilter = 'ALL';
+function renderClientSwitcher(searchTerm){
+  const active = clientListCache.find(c=>c.key===activeSlug);
+  document.getElementById('clientSwitcherLabel').textContent = active ? active.name : '업체 선택';
+  document.getElementById('clientSwitcherDot').style.background = active ? active.color : '#666';
+  const listEl = document.getElementById('clientSwitcherList');
+  const term = (searchTerm||'').trim().toLowerCase();
+  let filtered = term ? clientListCache.filter(c=>c.name.toLowerCase().includes(term)) : clientListCache.slice();
+  if(clientSwitcherBizFilter!=='ALL') filtered = filtered.filter(c=> (clientSwitcherBizFilter==='DB' ? c.bizType==='DB' : c.bizType!=='DB'));
+  listEl.innerHTML = filtered.length ? filtered.map(c=>`
+    <div class="client-switcher-item${c.key===activeSlug?' active':''}" data-key="${c.key}">
+      <span class="dot" style="background:${c.color}"></span>${c.name}
+    </div>`).join('') : `<div class="client-switcher-empty">검색 결과가 없어요</div>`;
+  listEl.querySelectorAll('.client-switcher-item').forEach(el=>{
+    el.onclick = async ()=>{
+      const key = el.dataset.key;
+      activeSlug = key;
+      setStoredActiveClient(key);
+      document.getElementById('clientSwitcherDropdown').classList.remove('open');
+      const data = await getClient(key);
+      if(data){ renderAbTestPage(data); }
+      renderClientSwitcher();
+    };
+  });
+}
+document.querySelectorAll('.client-switcher-biztab').forEach(btn=>{
+  btn.onclick = (e)=>{
+    e.stopPropagation();
+    clientSwitcherBizFilter = btn.dataset.biztype;
+    document.querySelectorAll('.client-switcher-biztab').forEach(b=> b.classList.toggle('active', b===btn));
+    renderClientSwitcher(document.getElementById('clientSwitcherSearch').value);
+  };
+});
+document.getElementById('clientSwitcherBtn').onclick = (e)=>{
+  e.stopPropagation();
+  const dd = document.getElementById('clientSwitcherDropdown');
+  const opening = !dd.classList.contains('open');
+  dd.classList.toggle('open');
+  if(opening){
+    document.getElementById('clientSwitcherSearch').value = '';
+    renderClientSwitcher();
+    document.getElementById('clientSwitcherSearch').focus();
+  }
+};
+document.getElementById('clientSwitcherSearch').oninput = (e)=>{ renderClientSwitcher(e.target.value); };
+document.getElementById('clientSwitcherSearch').onclick = (e)=> e.stopPropagation();
+document.addEventListener('click', ()=>{ document.getElementById('clientSwitcherDropdown').classList.remove('open'); });
+
+/* ---------- AI 데이터 질문 챗봇 ---------- */
+const AI_KEY_STORAGE = 'ad_dashboard_gemini_key';
+const CHAT_HISTORY_STORAGE = 'ad_dashboard_chat_history';
+const CHAT_OPEN_STORAGE = 'ad_dashboard_chat_open';
+function loadChatHistory(){ try{ return JSON.parse(sessionStorage.getItem(CHAT_HISTORY_STORAGE) || '[]'); }catch(e){ return []; } }
+function saveChatHistory(){ try{ sessionStorage.setItem(CHAT_HISTORY_STORAGE, JSON.stringify(aiChatHistory.slice(-30))); }catch(e){} }
+let aiChatHistory = loadChatHistory();
+function getAIApiKey(){ return localStorage.getItem(AI_KEY_STORAGE) || ''; }
+function setAIApiKey(k){ localStorage.setItem(AI_KEY_STORAGE, k); }
+function extractTopKeywordsFromClientData(data){
+  const months = data.months || [];
+  if(!months.length) return [];
+  const last = months[months.length-1];
+  const maps = [last.keywordsByCampaign, last.brandKeywordsByCampaign, last.searchTermsByCampaign].filter(Boolean);
+  const all = [];
+  maps.forEach(map=>{
+    Object.keys(map||{}).forEach(camp=>{
+      (map[camp]||[]).forEach(item=> all.push({ ...item, campaign: camp }));
+    });
+  });
+  all.sort((a,b)=> ((b.revenue||0)-(a.revenue||0)) || ((b.conv||0)-(a.conv||0)));
+  return all.slice(0,15);
+}
+async function buildAllClientsSummary(){
+  const keys = await listClients();
+  const rows = (await Promise.all(keys.map(async key=>{
+    const d = await getClientLight(key);
+    if(!d) return null;
+    const months = d.months || [];
+    const last = months[months.length-1];
+    if(!last) return null;
+    return { name: d.name, industry: d.industry||'-', isDB: d.bizType==='DB', label: last.label, cost: last.cost||0, conv: last.conv||0, revenue: last.revenue||0 };
+  }))).filter(Boolean);
+  return rows;
+}
+async function buildAIContext(){
+  const data = window.__currentClientData;
+  const ctx = window.__pageAIContext;
+  if(!data || !ctx){
+    const rows = await buildAllClientsSummary();
+    if(!rows.length) return '아직 등록된 업체가 없어요.';
+    const lines = ['현재 특정 업체가 선택돼있지 않아요. 아래는 전체 업체의 최근 기간 요약이에요 — 특정 업체를 지정하지 않은 질문에는 이 요약을 참고해서 답하고, 특정 업체의 자세한 분석이 필요한 질문이면 어떤 업체를 볼지 먼저 사용자에게 물어보세요.', ''];
+    rows.forEach(r=>{
+      const metric = r.isDB ? `전환 ${r.conv}건` : `매출 ${Math.round(r.revenue*10000).toLocaleString('ko-KR')}원`;
+      lines.push(`- ${r.name} (${r.industry}, ${r.label}): 비용 ${Math.round(r.cost*10000).toLocaleString('ko-KR')}원, ${metric}`);
+    });
+    return lines.join('\n');
+  }
+  const lines = [];
+  lines.push(`업체명: ${data.name} (${data.industry||'-'}), 업종: ${ctx.isDB?'DB(상담·전환형)':'B2C(매출형)'}`);
+  lines.push(`현재 보고 있는 화면: 일별 전용 페이지 - ${ctx.periodLabel} 기준 (총 ${ctx.dayCount}일)`);
+  if(ctx.totals) lines.push(ctx.isDB
+    ? `\n기간 합계: 비용 ${Math.round(ctx.totals.cost*10000).toLocaleString('ko-KR')}원, 전환 ${ctx.totals.conv}건${ctx.totals.cpa!==null?`, 평균 CPA ${Math.round(ctx.totals.cpa).toLocaleString('ko-KR')}원`:''}`
+    : `\n기간 합계: 비용 ${Math.round(ctx.totals.cost*10000).toLocaleString('ko-KR')}원, 전환 ${ctx.totals.conv}건, 매출 ${Math.round(ctx.totals.revenue*10000).toLocaleString('ko-KR')}원, ROAS ${ctx.totals.roas.toFixed(0)}%`);
+  if(ctx.bestDay) lines.push(ctx.isDB
+    ? `가장 효율적인 날: ${ctx.bestDay.date} (CPA ${Math.round(ctx.bestDay.cpa).toLocaleString('ko-KR')}원, 전환 ${ctx.bestDay.conv}건)`
+    : `가장 효율적인 날: ${ctx.bestDay.date} (ROAS ${(ctx.bestDay.roas||0).toFixed(0)}%, 전환 ${ctx.bestDay.conv}건)`);
+  if(ctx.worstDays.length) lines.push(`비용만 쓰고 전환 0건인 날: ${ctx.worstDays.map(d=>d.date).join(', ')}`);
+  if(ctx.dowInsight) lines.push(`\n${ctx.dowInsight}`);
+  if(ctx.dowWorstInsight) lines.push(ctx.dowWorstInsight);
+  if(ctx.trendInsight) lines.push(`\n${ctx.trendInsight}`);
+  const topKeywords = extractTopKeywordsFromClientData(data);
+  if(topKeywords.length){
+    lines.push('\n참고: 이 업체의 최근 기간 키워드/검색어 성과:');
+    topKeywords.forEach(k=> lines.push(`- ${k.keyword} (${k.campaign}): 비용 ${Math.round((k.cost||0)*10000).toLocaleString('ko-KR')}원, 전환 ${k.conv||0}건`));
+  }
+  return lines.join('\n');
+}
+function formatChatText(text){
+  // 마크다운 별표(**굵게**, * 목록)를 그대로 화면에 노출하지 않고 자연스러운 텍스트로 바꿔줌
+  let s = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  s = s.replace(/^[*-]\s+/gm, '• ');
+  s = s.replace(/\*/g, '');
+  s = s.replace(/^-{3,}\s*$/gm, '');
+  return s;
+}
+function appendChatMsg(role, text){
+  const body = document.getElementById('aiChatBody');
+  const div = document.createElement('div');
+  div.className = 'ai-chat-msg ' + role;
+  div.innerHTML = formatChatText(text);
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return div;
+}
+function refreshChatUI(){
+  const hasKey = !!getAIApiKey();
+  document.getElementById('aiChatSetup').classList.toggle('show', !hasKey);
+  document.getElementById('aiChatInputRow').style.display = hasKey ? 'flex' : 'none';
+}
+function restoreChatUI(){
+  const body = document.getElementById('aiChatBody');
+  body.innerHTML = '';
+  if(aiChatHistory.length){
+    aiChatHistory.forEach(m=> appendChatMsg(m.role==='assistant' ? 'assistant' : 'user', m.content));
+  } else if(getAIApiKey()){
+    appendChatMsg('system', '준비됐어요. 지금 보고 있는 화면의 데이터에 대해 질문해보세요.');
+  }
+  if(sessionStorage.getItem(CHAT_OPEN_STORAGE)==='1'){
+    document.getElementById('aiChatPanel').classList.add('open');
+  }
+}
+document.getElementById('aiChatToggleBtn').onclick = ()=>{
+  const dd = document.getElementById('aiChatPanel');
+  dd.classList.toggle('open');
+  sessionStorage.setItem(CHAT_OPEN_STORAGE, dd.classList.contains('open') ? '1' : '0');
+  refreshChatUI();
+};
+document.getElementById('aiChatCloseBtn').onclick = ()=>{
+  document.getElementById('aiChatPanel').classList.remove('open');
+  sessionStorage.setItem(CHAT_OPEN_STORAGE, '0');
+};
+document.getElementById('aiChatNewBtn').onclick = ()=>{
+  aiChatHistory = [];
+  saveChatHistory();
+  const body = document.getElementById('aiChatBody');
+  body.innerHTML = '';
+  if(getAIApiKey()) appendChatMsg('system', '새 대화를 시작했어요. 지금 보고 있는 화면의 데이터에 대해 질문해보세요.');
+};
+document.getElementById('aiChatSettingsBtn').onclick = ()=>{
+  document.getElementById('aiChatSetup').classList.add('show');
+  document.getElementById('aiApiKeyInput').value = getAIApiKey();
+};
+document.getElementById('aiApiKeySaveBtn').onclick = ()=>{
+  const v = document.getElementById('aiApiKeyInput').value.trim();
+  if(!v){ alert('API 키를 입력해주세요.'); return; }
+  setAIApiKey(v);
+  document.getElementById('aiApiKeyInput').value = '';
+  refreshChatUI();
+  if(!document.getElementById('aiChatBody').children.length){
+    appendChatMsg('system', '준비됐어요. 지금 보고 있는 화면의 데이터에 대해 질문해보세요.');
+  }
+};
+async function sendAIChat(){
+  const input = document.getElementById('aiChatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const apiKey = getAIApiKey();
+  if(!apiKey){ refreshChatUI(); return; }
+  appendChatMsg('user', text);
+  input.value = '';
+  aiChatHistory.push({ role:'user', content: text });
+  saveChatHistory();
+  const sendBtn = document.getElementById('aiChatSendBtn');
+  sendBtn.disabled = true;
+  const loadingEl = appendChatMsg('assistant', '생각 중...');
+  try{
+    const contextStr = await buildAIContext();
+    const systemPrompt = `당신은 네이버 검색광고 성과 데이터를 분석해주는 어시스턴트입니다. 아래는 지금 대행사 담당자가 보고 있는 화면의 데이터 요약입니다. 이 데이터를 바탕으로 한국어로 간결하고 실용적으로 답변하세요. 데이터에 없는 내용은 추측하지 말고 모른다고 답하세요.\n\n${contextStr}`;
+    const contents = aiChatHistory.slice(-10).map(m=>({ role: m.role==='assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error((errBody && errBody.error && errBody.error.message) || `HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    const cand = (json.candidates && json.candidates[0]) || {};
+    const parts = (cand.content && cand.content.parts) || [];
+    const replyText = parts.map(p=>p.text||'').join('\n').trim() || '(응답이 없어요)';
+    loadingEl.innerHTML = formatChatText(replyText);
+    aiChatHistory.push({ role:'assistant', content: replyText });
+    saveChatHistory();
+  }catch(e){
+    console.error(e);
+    loadingEl.innerHTML = formatChatText('오류가 발생했어요: ' + (e.message||e));
+    loadingEl.style.color = 'var(--down)';
+  }finally{
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+document.getElementById('aiChatSendBtn').onclick = sendAIChat;
+document.getElementById('aiChatInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendAIChat(); }
+});
+refreshChatUI();
+restoreChatUI();
+
+/* ---------- AI 총평 (성과 인사이트를 자연스러운 문단으로 종합) ---------- */
+// campaigns.html과 동일한 방식 — 기존 챗봇의 Gemini 연동·컨텍스트(buildAIContext)를 재사용해서
+// 규칙 기반 인사이트를 나열하지 않고 하나의 자연스러운 총평 문단으로 종합해서 보여줌.
+const aiSummaryState = {}; // "client:slug::기간라벨" -> { status:'loading'|'done'|'error', text, errorMsg }
+function aiSummaryStateKey(key, periodLabel){ return key + '::' + periodLabel; }
+// Gemini API가 "high demand"(일시적 과부하) 응답을 줄 때가 잦아서, 매번 사용자가 손으로 "다시 시도"를
+// 누르지 않아도 되도록 몇 초 간격을 두고 자동으로 재시도함. 429(요청 과다)·503(서버 과부하)류의 일시적
+// 오류나 "overloaded"/"high demand" 문구가 섞인 오류만 재시도 대상으로 보고, 그 외(예: API 키 자체가
+// 잘못된 경우)는 재시도해봐야 소용없으니 바로 실패 처리함.
+const GEMINI_RETRY_DELAYS_MS = [1500, 4000, 9000]; // 최대 3회 자동 재시도, 갈수록 간격을 늘림
+function isRetryableGeminiError(status, errBody){
+  if(status===429 || status===503) return true;
+  const msg = ((errBody && errBody.error && errBody.error.message) || '').toLowerCase();
+  return msg.includes('overloaded') || msg.includes('high demand') || msg.includes('unavailable');
+}
+async function callGeminiGenerateContent(apiKey, systemPrompt, userText, onRetry){
+  for(let attempt=0; ; attempt++){
+    let res, networkErr = null;
+    try{
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role:'user', parts:[{ text:userText }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        })
+      });
+    }catch(e){ networkErr = e; }
+    if(!networkErr && res.ok){
+      const json = await res.json();
+      const cand = (json.candidates && json.candidates[0]) || {};
+      const parts = (cand.content && cand.content.parts) || [];
+      return parts.map(p=>p.text||'').join('\n').trim() || '(응답이 없어요)';
+    }
+    const errBody = networkErr ? null : await res.json().catch(()=>({}));
+    const canRetry = attempt < GEMINI_RETRY_DELAYS_MS.length && (networkErr || isRetryableGeminiError(res.status, errBody));
+    if(!canRetry){
+      if(networkErr) throw networkErr;
+      throw new Error((errBody && errBody.error && errBody.error.message) || `HTTP ${res.status}`);
+    }
+    if(onRetry) onRetry(attempt+1, GEMINI_RETRY_DELAYS_MS.length+1);
+    await new Promise(r=>setTimeout(r, GEMINI_RETRY_DELAYS_MS[attempt]));
+  }
+}
+async function generateAISummary(data, key, periodLabel){
+  const apiKey = getAIApiKey();
+  if(!apiKey){
+    document.getElementById('aiChatPanel').classList.add('open');
+    sessionStorage.setItem(CHAT_OPEN_STORAGE, '1');
+    document.getElementById('aiChatSetup').classList.add('show');
+    refreshChatUI();
+    return;
+  }
+  const sKey = aiSummaryStateKey(key, periodLabel);
+  aiSummaryState[sKey] = { status:'loading' };
+  renderAbTestPage(data);
+  try{
+    const contextStr = await buildAIContext();
+    const systemPrompt = `당신은 네이버 검색광고 대행사의 시니어 매니저입니다. 아래는 지금 보고 있는 화면(일별 전용 보기)의 데이터 요약과, 이미 규칙 기반으로 뽑아낸 인사이트 목록입니다.\n\n${contextStr}\n\n위 내용을 바탕으로, 고객 보고서에 그대로 붙여넣을 수 있는 자연스러운 한국어 총평을 2~4문장으로 작성하세요. 규칙: (1) 위 데이터·인사이트에 없는 내용은 추측하지 마세요. (2) 인사이트 목록을 그대로 나열하지 말고 핵심만 골라 하나의 자연스러운 글로 종합하세요. (3) 가능하면 다음 기간에 시도해볼 만한 액션을 한 가지 짧게 제안하세요. (4) 마크다운(별표, 목록 기호 등)은 쓰지 마세요.`;
+    const replyText = await callGeminiGenerateContent(apiKey, systemPrompt, '위 데이터를 바탕으로 총평을 작성해주세요.', (attempt, max)=>{
+      aiSummaryState[sKey] = { status:'loading', retryAttempt: attempt, retryMax: max };
+      renderAbTestPage(data);
+    });
+    aiSummaryState[sKey] = { status:'done', text: replyText };
+  }catch(e){
+    console.error(e);
+    aiSummaryState[sKey] = { status:'error', errorMsg: e.message||String(e) };
+  }
+  renderAbTestPage(data);
+}
+function buildAISummaryBoxHTML(key, periodLabel){
+  const sKey = aiSummaryStateKey(key, periodLabel);
+  const st = aiSummaryState[sKey];
+  if(!st){
+    return `<button class="btn btn-ghost ai-summary-btn" style="margin-top:10px;width:100%;font-size:12px;">🤖 AI 총평 쓰기 (이 기간 데이터로 자연스러운 요약 문단 생성)</button>`;
+  }
+  if(st.status==='loading'){
+    return `<div style="margin-top:10px;font-size:12px;color:var(--muted);">🤖 ${st.retryAttempt ? `일시적 오류로 자동 재시도 중이에요 (${st.retryAttempt}/${st.retryMax})...` : '총평을 쓰는 중...'}</div>`;
+  }
+  if(st.status==='error'){
+    return `<div style="margin-top:10px;font-size:12px;color:var(--down);">⚠️ 총평 생성 실패: ${st.errorMsg}</div><button class="btn btn-ghost ai-summary-btn" style="margin-top:6px;width:100%;font-size:12px;">다시 시도</button>`;
+  }
+  return `
+    <div style="margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--panel-2);border:1px solid var(--border);font-size:12px;line-height:1.7;color:var(--text);">
+      🤖 <b>AI 총평</b> <span style="font-size:11px;color:var(--muted);font-weight:400;">(Gemini 생성 · 참고용, 내보내기 전 검토 권장)</span>
+      <div style="margin-top:6px;">${formatChatText(st.text)}</div>
+    </div>
+    <button class="btn btn-ghost ai-summary-btn" style="margin-top:8px;width:100%;font-size:12px;">🔄 다시 생성</button>
+  `;
+}
+
+
+function ensureFilterState(key, data){
+  if(filterState[key]) return filterState[key];
+  const campSet = new Set();
+  const typeSet = new Set();
+  (data.months||[]).forEach(m=>{
+    (m.campaigns||[]).forEach(c=>{ campSet.add(c.campaign); typeSet.add(c.type); });
+  });
+  filterState[key] = { types: new Set(typeSet), campaigns: new Set(campSet) };
+  return filterState[key];
+}
+
+
+function mergedCampaignList(data){
+  const map = {};
+  (data.months||[]).forEach(m=>{
+    (m.campaigns||[]).forEach(c=>{
+      if(!map[c.campaign]) map[c.campaign] = { type:c.type, campaign:c.campaign };
+    });
+  });
+  return Object.values(map);
+}
+
+/* ---------- 렌더링 ---------- */
+
+
+const newTestFormState = {}; // key -> { name, hypothesis, A:{...}, B:{...} }
+const expandedNewForm = {}; // key -> boolean (새 테스트 폼이 펼쳐져 있는지)
+// axis: 'adgroup'(광고그룹) | 'keyword'(키워드) | 'hour'(시간대) — 무엇을 기준으로 A/B를 나눌지.
+// axis별로 쓰는 필드가 다름: adgroup→adgroup, keyword→keyword, hour→hourStart/hourEnd. 나머지는 null로 둠.
+function defaultSideState(){ return { axis:'adgroup', campaign:null, adgroup:null, keyword:null, hourStart:null, hourEnd:null, start:null, end:null }; }
+function ensureNewTestForm(key){
+  if(!newTestFormState[key]) newTestFormState[key] = { name:'', hypothesis:'', A: defaultSideState(), B: defaultSideState() };
+  return newTestFormState[key];
+}
+function allCampaignNames(data){ return mergedCampaignList(data).map(c=>c.campaign); }
+// 캠페인 안의 광고그룹 목록은 adgroupsByCampaign(월별 스냅샷)에서 모아옴 — 여러 달에 걸쳐 이름이
+// 다를 수 있어서 전체 기간 기준으로 합집합을 만듦.
+function campaignAdgroups(data, campaign){
+  const set = new Set();
+  (data.months||[]).forEach(m=>{
+    const list = (m.adgroupsByCampaign && m.adgroupsByCampaign[campaign]) || [];
+    list.forEach(ag=> set.add(ag.adgroup));
+  });
+  return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+}
+// 캠페인 안의 키워드 목록 — dailyByKeyword(일별, 있으면)와 keywordsByCampaign(월별 스냅샷, 상위 25개) 둘 다에서 모아옴.
+function campaignKeywords(data, campaign){
+  if(!campaign) return [];
+  const set = new Set();
+  (data.months||[]).forEach(m=>{
+    (m.dailyByKeyword||[]).forEach(r=>{ if(r.campaign===campaign) set.add(r.keyword); });
+    const list = (m.keywordsByCampaign && m.keywordsByCampaign[campaign]) || [];
+    list.forEach(k=> set.add(k.keyword));
+  });
+  return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+}
+// 캠페인에 dailyByKeyword(일별 키워드 데이터)가 있는지 — 있으면 일 단위로 정확히, 없으면 월 단위 합계로만 계산 가능.
+function campaignHasDailyKeyword(data, campaign){
+  return (data.months||[]).some(m=>(m.dailyByKeyword||[]).some(r=>r.campaign===campaign));
+}
+// 캠페인에 hourlyByCampaignDate(일별 시간대 데이터)가 있는지.
+function campaignHasHourlyDate(data, campaign){
+  return (data.months||[]).some(m=>(m.hourlyByCampaignDate||[]).some(r=>!campaign || r.campaign===campaign));
+}
+// 캠페인(또는 계정 전체)에 실제 일별 데이터가 존재하는 날짜 목록 — 드롭다운 옵션으로 씀
+function campaignDateOptions(data, campaign){
+  const set = new Set();
+  (data.months||[]).forEach(m=>{
+    if(campaign){
+      (m.dailyByCampaign||[]).forEach(r=>{ if(r.campaign===campaign) set.add(r.date); });
+    } else {
+      (m.daily||[]).forEach(r=> set.add(r.date));
+    }
+  });
+  return [...set].sort((a,b)=>dateKey(a).localeCompare(dateKey(b)));
+}
+function monthLabelOptions(data){ return (data.months||[]).map(m=>m.label); }
+
+// A/B 각 side의 성과를 계산. axis(분류 축)에 따라 집계 소스와 단위(일/월)가 달라짐:
+//  - adgroup: 광고그룹까지 지정하면 월 단위 스냅샷(adgroupsByCampaign)만 있어서 월 단위,
+//    캠페인 이하(캠페인 전체 또는 계정 전체)면 일별 데이터(daily/dailyByCampaign)로 정확한 날짜 구간 계산.
+//  - keyword: dailyByKeyword(일별, 상위 25개 키워드까지만 있음)가 있으면 일 단위로, 없으면
+//    keywordsByCampaign(월별 스냅샷, 상위 25개 합계)로 월 단위 계산.
+//  - hour: hourlyByCampaignDate(일별)가 있으면 일 단위+시간대 범위로, 없으면 hourlyByCampaign(월별
+//    스냅샷)으로 월 단위 시간대 합계.
+function computeSideMetrics(data, side){
+  const axis = side.axis || 'adgroup';
+  const agg = { impressions:0, clicks:0, cost:0, conv:0, revenue:0 };
+  let unitCount = 0;
+  let granularity = 'day';
+
+  if(axis==='keyword'){
+    const hasDaily = side.campaign && campaignHasDailyKeyword(data, side.campaign);
+    if(hasDaily){
+      const lo = dateKey(side.start||''), hi = dateKey(side.end||'99999999');
+      (data.months||[]).forEach(m=>{
+        (m.dailyByKeyword||[]).forEach(r=>{
+          if(r.campaign!==side.campaign) return;
+          if(side.keyword && r.keyword!==side.keyword) return;
+          const dk = dateKey(r.date);
+          if(side.start && dk<lo) return;
+          if(side.end && dk>hi) return;
+          agg.impressions+=r.impressions||0; agg.clicks+=r.clicks||0; agg.cost+=r.cost||0; agg.conv+=r.conv||0; agg.revenue+=r.revenue||0;
+          unitCount++;
+        });
+      });
+    } else {
+      granularity = 'month';
+      const allLabels = monthLabelOptions(data);
+      let si = allLabels.indexOf(side.start), ei = allLabels.indexOf(side.end);
+      if(si<0) si = 0; if(ei<0) ei = allLabels.length-1;
+      const lo = Math.min(si,ei), hi = Math.max(si,ei);
+      (data.months||[]).forEach((m,idx)=>{
+        if(idx<lo || idx>hi || !side.campaign) return;
+        const list = (m.keywordsByCampaign && m.keywordsByCampaign[side.campaign]) || [];
+        list.forEach(k=>{
+          if(side.keyword && k.keyword!==side.keyword) return;
+          agg.impressions+=k.impressions||0; agg.clicks+=k.clicks||0; agg.cost+=k.cost||0; agg.conv+=k.conv||0; agg.revenue+=k.revenue||0;
+          unitCount++;
+        });
+      });
+    }
+  } else if(axis==='hour'){
+    const hasDaily = campaignHasHourlyDate(data, side.campaign);
+    const hs = side.hourStart!==null && side.hourStart!==undefined && side.hourStart!=='' ? parseInt(side.hourStart,10) : 0;
+    const he = side.hourEnd!==null && side.hourEnd!==undefined && side.hourEnd!=='' ? parseInt(side.hourEnd,10) : 23;
+    const fullHourRange = (hs===0 && he===23); // 시간 범위를 안 좁혔으면 '시간 미상' 실적도 합계에 포함
+    if(hasDaily){
+      const lo = dateKey(side.start||''), hi = dateKey(side.end||'99999999');
+      (data.months||[]).forEach(m=>{
+        (m.hourlyByCampaignDate||[]).forEach(r=>{
+          if(side.campaign && r.campaign!==side.campaign) return;
+          if(!isRealHour(r.hour)){ if(!fullHourRange) return; }
+          else { const h = parseInt(r.hour,10); if(h<hs || h>he) return; }
+          const dk = dateKey(r.date);
+          if(side.start && dk<lo) return;
+          if(side.end && dk>hi) return;
+          agg.impressions+=r.impressions||0; agg.clicks+=r.clicks||0; agg.cost+=r.cost||0; agg.conv+=r.conv||0; agg.revenue+=r.revenue||0;
+          unitCount++;
+        });
+      });
+    } else {
+      granularity = 'month';
+      const allLabels = monthLabelOptions(data);
+      let si = allLabels.indexOf(side.start), ei = allLabels.indexOf(side.end);
+      if(si<0) si = 0; if(ei<0) ei = allLabels.length-1;
+      const lo = Math.min(si,ei), hi = Math.max(si,ei);
+      (data.months||[]).forEach((m,idx)=>{
+        if(idx<lo || idx>hi) return;
+        (m.hourlyByCampaign||[]).forEach(r=>{
+          if(side.campaign && r.campaign!==side.campaign) return;
+          if(!isRealHour(r.hour)){ if(!fullHourRange) return; }
+          else { const h = parseInt(r.hour,10); if(h<hs || h>he) return; }
+          agg.impressions+=r.impressions||0; agg.clicks+=r.clicks||0; agg.cost+=r.cost||0; agg.conv+=r.conv||0; agg.revenue+=r.revenue||0;
+          unitCount++;
+        });
+      });
+    }
+  } else if(side.adgroup){
+    granularity = 'month';
+    const allLabels = monthLabelOptions(data);
+    let si = allLabels.indexOf(side.start), ei = allLabels.indexOf(side.end);
+    if(si<0) si = 0; if(ei<0) ei = allLabels.length-1;
+    const lo = Math.min(si,ei), hi = Math.max(si,ei);
+    (data.months||[]).forEach((m,idx)=>{
+      if(idx<lo || idx>hi) return;
+      const list = (m.adgroupsByCampaign && m.adgroupsByCampaign[side.campaign]) || [];
+      const ag = list.find(a=>a.adgroup===side.adgroup);
+      if(!ag) return;
+      agg.impressions+=ag.impressions||0; agg.clicks+=ag.clicks||0; agg.cost+=ag.cost||0; agg.conv+=ag.conv||0; agg.revenue+=ag.revenue||0;
+      unitCount++;
+    });
+  } else {
+    const lo = dateKey(side.start||'');
+    const hi = dateKey(side.end||'99999999');
+    (data.months||[]).forEach(m=>{
+      const rows = side.campaign ? (m.dailyByCampaign||[]).filter(r=>r.campaign===side.campaign) : (m.daily||[]);
+      rows.forEach(r=>{
+        const dk = dateKey(r.date);
+        if(side.start && dk<lo) return;
+        if(side.end && dk>hi) return;
+        agg.impressions+=r.impressions||0; agg.clicks+=r.clicks||0; agg.cost+=r.cost||0; agg.conv+=r.conv||0; agg.revenue+=r.revenue||0;
+        unitCount++;
+      });
+    });
+  }
+  const hasData = unitCount>0 && (agg.impressions>0 || agg.cost>0);
+  return {
+    ...agg,
+    granularity,
+    unitCount, hasData,
+    cpa: agg.conv>0 ? Math.round(agg.cost*10000/agg.conv) : null,
+    ctr: agg.impressions>0 ? (agg.clicks/agg.impressions*100) : 0,
+    cvr: agg.clicks>0 ? (agg.conv/agg.clicks*100) : 0,
+    roas: agg.cost>0 ? (agg.revenue/agg.cost*100) : 0,
+  };
+}
+/* 네이버에서 삭제된 캠페인은 이름 대신 내부 ID('cmp-a001-01-000000010333253')로 내려옴.
+   드롭다운에서 A안/B안을 이름 보고 고르는 화면이라 ID만 보이면 선택 자체가 불가능해서,
+   index.html과 같은 규칙으로 '삭제된 캠페인 (…333253)'처럼 바꿔서 보여줌. */
+function isDeletedCampaignName(name){
+  return /(^|·\s*)cmp-[a-z0-9]+-\d+-\d+\s*$/i.test(String(name||'').trim());
+}
+function displayCampaignName(name){
+  const s = String(name||'').trim();
+  if(!isDeletedCampaignName(s)) return s;
+  const m = s.match(/^(\d+)\s*·/);
+  const idPart = s.replace(/^\d+\s*·\s*/,'');
+  return `${m?m[1]+' · ':''}삭제된 캠페인 (…${idPart.slice(-6)})`;
+}
+const escAb = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* hour='99' = 네이버가 시간을 특정하지 못한 실적. 사용자가 시간 범위를 좁히지 않았을 때(0~23시 전체)는
+   합계에 포함해야 다른 화면과 숫자가 맞음. 범위를 좁혔다면 몇 시인지 모르는 행이라 제외. */
+function isRealHour(h){ return /^([01]?\d|2[0-3])$/.test(String(h).trim()); }
+function sideEntityLabel(side){
+  const axis = side.axis || 'adgroup';
+  const parts = [side.campaign ? displayCampaignName(side.campaign) : '전체 계정'];
+  if(axis==='keyword'){
+    if(side.keyword) parts.push(side.keyword); else parts.push('키워드 전체');
+  } else if(axis==='hour'){
+    const hs = side.hourStart!==null && side.hourStart!==undefined && side.hourStart!=='' ? side.hourStart : '0';
+    const he = side.hourEnd!==null && side.hourEnd!==undefined && side.hourEnd!=='' ? side.hourEnd : '23';
+    parts.push(`${hs}시~${he}시`);
+  } else {
+    if(side.adgroup) parts.push(side.adgroup);
+  }
+  return parts.join(' › ');
+}
+function sideRangeLabel(side){
+  if(!side.start && !side.end) return '기간 미지정';
+  return `${side.start||'?'} ~ ${side.end||'?'}`;
+}
+async function saveAbTests(key, data){
+  try{
+    const id = key.replace(/^client:/,'');
+    await userClientsRef().doc(id).update({ abTests: data.abTests||[] });
+    return true;
+  }catch(e){ console.error(e); alert('저장에 실패했어요: ' + (e.message||e)); return false; }
+}
+function makeTestId(){ return 't' + Math.random().toString(36).slice(2,10); }
+
+/* ---------- 렌더링 ---------- */
+
+const AXIS_LABELS = { adgroup:'광고그룹', keyword:'키워드', hour:'시간대' };
+function buildSideFormHTML(sideKey, side, data){
+  const axis = side.axis || 'adgroup';
+  const campaigns = allCampaignNames(data);
+  let bodyHTML = '';
+  let useMonthLevel, rangeOptions, noDataHint = '';
+
+  if(axis==='keyword'){
+    const keywords = campaignKeywords(data, side.campaign);
+    const hasDaily = side.campaign && campaignHasDailyKeyword(data, side.campaign);
+    useMonthLevel = !hasDaily;
+    rangeOptions = useMonthLevel ? monthLabelOptions(data) : campaignDateOptions(data, side.campaign);
+    bodyHTML = `
+      <div class="field" style="margin-bottom:9px;">
+        <label>키워드 (선택)</label>
+        <select data-side="${sideKey}" data-field="keyword" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;" ${!side.campaign?'disabled':''}>
+          <option value="" ${!side.keyword?'selected':''}>전체(캠페인 합계)</option>
+          ${keywords.map(k=>`<option value="${k.replace(/"/g,'&quot;')}" ${side.keyword===k?'selected':''}>${k}</option>`).join('')}
+        </select>
+        ${!side.campaign ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">캠페인을 먼저 선택해주세요.</div>` : (!keywords.length ? `<div style="font-size:12px;color:var(--down);margin-top:5px;">이 캠페인엔 저장된 키워드 데이터가 없어요.</div>` : '')}
+      </div>`;
+    if(side.campaign && !hasDaily) noDataHint = '이 캠페인엔 일별 키워드 데이터가 없어서 월 단위(캠페인당 상위 25개 키워드 합계)로만 비교돼요.';
+  } else if(axis==='hour'){
+    const hasDaily = campaignHasHourlyDate(data, side.campaign);
+    useMonthLevel = !hasDaily;
+    rangeOptions = useMonthLevel ? monthLabelOptions(data) : campaignDateOptions(data, side.campaign);
+    const hourOpts = Array.from({length:24}, (_,i)=>String(i).padStart(2,'0'));
+    bodyHTML = `
+      <div class="field" style="margin-bottom:9px;">
+        <label>시간대 범위</label>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <select data-side="${sideKey}" data-field="hourStart" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 6px;color:var(--text);font-size:12px;">
+            ${hourOpts.map(h=>`<option value="${h}" ${(side.hourStart||'00')===h?'selected':''}>${h}시</option>`).join('')}
+          </select>
+          <span style="color:var(--muted);font-size:12px;">~</span>
+          <select data-side="${sideKey}" data-field="hourEnd" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 6px;color:var(--text);font-size:12px;">
+            ${hourOpts.map(h=>`<option value="${h}" ${(side.hourEnd||'23')===h?'selected':''}>${h}시</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    if(!hasDaily) noDataHint = '일별 시간대 데이터가 없어서 월 단위(그 달 시간대 합계)로만 비교돼요.';
+  } else {
+    const adgroups = side.campaign ? campaignAdgroups(data, side.campaign) : [];
+    useMonthLevel = !!side.adgroup;
+    rangeOptions = useMonthLevel ? monthLabelOptions(data) : campaignDateOptions(data, side.campaign);
+    bodyHTML = `
+      ${side.campaign ? `
+      <div class="field" style="margin-bottom:9px;">
+        <label>광고그룹 (선택)</label>
+        <select data-side="${sideKey}" data-field="adgroup" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;">
+          <option value="" ${!side.adgroup?'selected':''}>전체(캠페인 합계)</option>
+          ${adgroups.map(a=>`<option value="${a}" ${side.adgroup===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+      </div>` : ''}`;
+  }
+
+  return `
+    <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px;">${sideKey==='A'?'A안':'B안'}</div>
+      <div class="field" style="margin-bottom:9px;">
+        <label>구분 기준</label>
+        <select data-side="${sideKey}" data-field="axis" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;">
+          ${Object.keys(AXIS_LABELS).map(a=>`<option value="${a}" ${axis===a?'selected':''}>${AXIS_LABELS[a]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label>캠페인${axis==='keyword'?'':' (선택)'}</label>
+        <select data-side="${sideKey}" data-field="campaign" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;">
+          <option value="" ${!side.campaign?'selected':''}>${axis==='keyword'?'캠페인을 선택하세요':'전체 계정'}</option>
+          ${campaigns.map(c=>`<option value="${escAb(c)}" ${side.campaign===c?'selected':''}>${escAb(displayCampaignName(c))}</option>`).join('')}
+        </select>
+      </div>
+      ${bodyHTML}
+      <div class="field" style="margin-bottom:0;">
+        <label>${useMonthLevel ? '기간 (월 단위)' : '기간 (일 단위)'}</label>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <select data-side="${sideKey}" data-field="start" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 6px;color:var(--text);font-size:12px;">
+            <option value="">시작</option>
+            ${rangeOptions.map(o=>`<option value="${o}" ${side.start===o?'selected':''}>${o}</option>`).join('')}
+          </select>
+          <span style="color:var(--muted);font-size:12px;">~</span>
+          <select data-side="${sideKey}" data-field="end" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 6px;color:var(--text);font-size:12px;">
+            <option value="">종료</option>
+            ${rangeOptions.map(o=>`<option value="${o}" ${side.end===o?'selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        ${!rangeOptions.length ? `<div style="font-size:12px;color:var(--down);margin-top:5px;">이 대상엔 아직 데이터가 없어요.</div>` : ''}
+        ${noDataHint ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">ℹ️ ${noDataHint}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+/* crownable=false면 👑와 색 강조를 빼고 숫자만 보여줌. 전환 표본이 적을 때 CTR이 0.01%p 높다고
+   왕관을 씌우면 실제보다 확실해 보여서, 표본이 충분할 때만 승자 표시를 하도록 함. */
+function metricRowHTML(label, aVal, bVal, aBetter, unit, higherIsBetter, crownable){
+  let aWin=false, bWin=false;
+  if(aBetter!==null && crownable!==false){
+    if(higherIsBetter){ aWin = aBetter>0; bWin = aBetter<0; }
+    else { aWin = aBetter<0; bWin = aBetter>0; }
+  }
+  return `<tr>
+    <td style="color:var(--muted);">${label}</td>
+    <td style="font-weight:${aWin?800:500};color:${aWin?'var(--up)':'var(--text)'};">${aVal}${aWin?' 👑':''}</td>
+    <td style="font-weight:${bWin?800:500};color:${bWin?'var(--up)':'var(--text)'};">${bVal}${bWin?' 👑':''}</td>
+  </tr>`;
+}
+function renderTestComparisonHTML(test, data, isDB){
+  const mA = computeSideMetrics(data, test.sideA);
+  const mB = computeSideMetrics(data, test.sideB);
+  if(!mA.hasData || !mB.hasData){
+    return `<div style="color:var(--muted);font-size:12px;padding:8px 0;">${!mA.hasData?'A안':'B안'}에 해당하는 기간의 데이터가 아직 없어요.</div>`;
+  }
+  const pctDiff = (a,b)=> (a===null||b===null||b===0) ? null : (a-b)/b*100;
+  const cpaDiff = pctDiff(mA.cpa, mB.cpa); // 음수면 A가 더 낮음(좋음)
+  const roasDiff = pctDiff(mA.roas, mB.roas);
+  const ctrDiff = pctDiff(mA.ctr, mB.ctr);
+  const cvrDiff = pctDiff(mA.cvr, mB.cvr);
+  const effDiff = isDB ? cpaDiff : roasDiff;
+
+  /* 표본 크기 확인 — A안 전환 1건, B안 2건이어도 "40% 더 효율적"이라고 단언하던 문제.
+     전환이 몇 건 안 되면 차이는 대부분 우연이라, 승자를 못박는 대신 "판단하기 이르다"로 바꿈.
+     기준(3건)은 index.html의 '표본 적음' 규칙과 같게 맞춤. hourly.html도 같은 이유로 최소 표본을 두고 있음. */
+  const MIN_CONV_AB = 3;
+  const lowSample = (mA.conv < MIN_CONV_AB) || (mB.conv < MIN_CONV_AB);
+  const zeroConvSide = (mA.conv === 0 || mB.conv === 0);
+
+  let verdict = '';
+  if(zeroConvSide && !(mA.conv===0 && mB.conv===0)){
+    // 한쪽 전환이 0건이면 CPA가 null이 되어 예전엔 "차이가 뚜렷하지 않아요"로 빠졌는데, 이건 완전히 반대되는 결론임.
+    const zeroSide = mA.conv===0 ? 'A안' : 'B안';
+    const otherSide = mA.conv===0 ? 'B안' : 'A안';
+    const otherConv = mA.conv===0 ? mB.conv : mA.conv;
+    verdict = `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,93,122,.1);font-size:12px;color:var(--down);font-weight:600;">
+      ${zeroSide}은 전환이 0건이에요 (비용 ${fmtWon(mA.conv===0?mA.cost:mB.cost)}원). ${otherSide}은 ${otherConv}건${otherConv<MIN_CONV_AB?' — 이쪽도 표본이 적어 확신하긴 일러요':''}.
+    </div>`;
+  } else if(lowSample){
+    verdict = `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,184,77,.1);font-size:12px;color:#ffb84d;font-weight:600;">
+      아직 판단하기 일러요 — 전환이 A안 ${mA.conv}건, B안 ${mB.conv}건뿐이라 이 정도 차이는 우연일 수 있어요. 양쪽 다 ${MIN_CONV_AB}건 이상 쌓인 뒤에 보는 걸 권해요.
+    </div>`;
+  } else if(effDiff!==null && Math.abs(effDiff)>=5){
+    const aBetterOverall = isDB ? effDiff<0 : effDiff>0;
+    verdict = `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(74,222,154,.1);font-size:12px;color:var(--up);font-weight:600;">
+      ${aBetterOverall?'A안':'B안'}이 ${isDB?'CPA 기준':'ROAS 기준'}으로 ${Math.abs(effDiff).toFixed(0)}% 더 효율적이에요.
+      <span style="display:block;margin-top:4px;font-weight:400;color:var(--muted);font-size:12px;">근거: 전환 A안 ${mA.conv}건 · B안 ${mB.conv}건, 비용 A안 ${fmtWon(mA.cost)}원 · B안 ${fmtWon(mB.cost)}원</span>
+    </div>`;
+  } else {
+    verdict = `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--panel);font-size:12px;color:var(--muted);">두 안의 효율 차이가 뚜렷하지 않아요 (5% 미만).</div>`;
+  }
+  return `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th></th><th>A안 · ${sideEntityLabel(test.sideA)}<br><span style="font-weight:400;color:var(--muted);font-size:12px;">${sideRangeLabel(test.sideA)}</span></th><th>B안 · ${sideEntityLabel(test.sideB)}<br><span style="font-weight:400;color:var(--muted);font-size:12px;">${sideRangeLabel(test.sideB)}</span></th></tr></thead>
+      <tbody>
+        ${metricRowHTML('노출수', mA.impressions.toLocaleString('ko-KR'), mB.impressions.toLocaleString('ko-KR'), null)}
+        ${metricRowHTML('클릭수', mA.clicks.toLocaleString('ko-KR'), mB.clicks.toLocaleString('ko-KR'), null)}
+        ${metricRowHTML('클릭률', mA.ctr.toFixed(2)+'%', mB.ctr.toFixed(2)+'%', ctrDiff, null, true, !lowSample)}
+        ${metricRowHTML('비용', fmtWon(mA.cost)+'원', fmtWon(mB.cost)+'원', null)}
+        ${metricRowHTML('전환수', mA.conv+'건', mB.conv+'건', null)}
+        ${metricRowHTML('전환율', mA.cvr.toFixed(2)+'%', mB.cvr.toFixed(2)+'%', cvrDiff, null, true, !lowSample)}
+        ${isDB
+          ? metricRowHTML('CPA', mA.cpa!==null?mA.cpa.toLocaleString('ko-KR')+'원':'-', mB.cpa!==null?mB.cpa.toLocaleString('ko-KR')+'원':'-', cpaDiff, null, false, !lowSample)
+          : metricRowHTML('ROAS', mA.roas.toFixed(0)+'%', mB.roas.toFixed(0)+'%', roasDiff, null, true, !lowSample)}
+      </tbody>
+    </table>
+    </div>
+    ${verdict}
+    <div style="margin-top:6px;font-size:12px;color:var(--muted);">${mA.granularity==='month'||mB.granularity==='month' ? '월 단위 데이터만 있는 쪽은 월 단위로 집계돼요(광고그룹 지정, 또는 일별 키워드·시간대 데이터가 없는 경우).' : ''} ${(mA.granularity!==mB.granularity)?'⚠️ A안과 B안의 집계 단위(일/월)가 달라요 — 참고용으로만 봐주세요.':''}</div>
+  `;
+}
+function renderAbTestPage(data){
+  const key = 'client:' + slugify(data.name);
+  document.documentElement.style.setProperty('--accent', data.color);
+  const isDB = data.bizType === 'DB';
+  const tests = data.abTests || [];
+  const form = ensureNewTestForm(key);
+  if(!(key in expandedNewForm)) expandedNewForm[key] = tests.length===0;
+
+  const initial = (data.name||'?').trim().charAt(0);
+  const textColor = contrastText(data.color);
+  window.__currentClientData = data;
+  window.__pageAIContext = null; // A/B 테스트 페이지는 별도 총평 없이 챗봇 전체요약만 사용
+
+  const card = document.getElementById('card');
+  card.innerHTML = `
+    <header class="rep">
+      <div class="idn">
+        <div class="icon" style="background:${data.color};color:${textColor}">${initial}</div>
+        <div>
+          <div class="idn-name">${data.name} <span class="badge">A/B 테스트</span></div>
+          <div class="period">캠페인·광고그룹·키워드·시간대 중 원하는 기준으로 두 기간/대상을 비교해요</div>
+        </div>
+      </div>
+      <button class="btn btn-accent" id="newTestToggleBtn" style="width:auto;margin-top:0;padding:11px 18px;">${expandedNewForm[key] ? '접기' : '+ 새 테스트 만들기'}</button>
+    </header>
+
+    ${expandedNewForm[key] ? `
+    <div class="panel" style="margin-bottom:18px;">
+      <div class="panel-title">✏️ 새 A/B 테스트</div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>테스트 이름</label>
+        <input id="newTestName" type="text" value="${form.name.replace(/"/g,'&quot;')}" placeholder="예: 랜딩페이지 A/B, 소재 문구 테스트" style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>가설/메모 (선택)</label>
+        <input id="newTestHypothesis" type="text" value="${form.hypothesis.replace(/"/g,'&quot;')}" placeholder="예: 랜딩페이지를 바꾸면 전환율이 오를 것이다" style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        ${buildSideFormHTML('A', form.A, data)}
+        ${buildSideFormHTML('B', form.B, data)}
+      </div>
+      <button class="btn btn-accent" id="saveNewTestBtn" style="margin-top:14px;">테스트 저장</button>
+      <div id="newTestStatus" style="font-size:12px;color:var(--down);margin-top:6px;"></div>
+    </div>
+    ` : ''}
+
+    ${!tests.length ? `<div class="empty-state"><div style="font-size:28px;">🧪</div><div>아직 등록된 A/B 테스트가 없어요.<br>"+ 새 테스트 만들기"로 시작해보세요.</div></div>` : tests.map(t=>`
+      <div class="panel" style="margin-bottom:18px;">
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>🧪 ${t.name}</span>
+          <button class="btn btn-ghost delete-test-btn" data-id="${t.id}" style="width:auto;margin-top:0;padding:6px 12px;font-size:12px;">삭제</button>
+        </div>
+        ${t.hypothesis ? `<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">💭 ${t.hypothesis}</div>` : ''}
+        ${renderTestComparisonHTML(t, data, isDB)}
+      </div>
+    `).join('')}
+  `;
+
+  document.getElementById('newTestToggleBtn').onclick = ()=>{
+    expandedNewForm[key] = !expandedNewForm[key];
+    renderAbTestPage(data);
+  };
+  if(expandedNewForm[key]){
+    document.getElementById('newTestName').oninput = (e)=>{ form.name = e.target.value; };
+    document.getElementById('newTestHypothesis').oninput = (e)=>{ form.hypothesis = e.target.value; };
+    card.querySelectorAll('select[data-side]').forEach(sel=>{
+      sel.onchange = (e)=>{
+        const sideKey = sel.dataset.side, field = sel.dataset.field;
+        const side = form[sideKey];
+        side[field] = e.target.value || null;
+        // 구분 기준(축)을 바꾸면 축별 전용 필드(광고그룹, 키워드, 시간대)와 기간은 더 이상
+        // 유효하지 않을 수 있어서 초기화. 캠페인을 바꿔도 마찬가지.
+        if(field==='axis'){ side.campaign = null; side.adgroup = null; side.keyword = null; side.hourStart = null; side.hourEnd = null; side.start = null; side.end = null; }
+        if(field==='campaign'){ side.adgroup = null; side.keyword = null; side.start = null; side.end = null; }
+        if(field==='adgroup'){ side.start = null; side.end = null; }
+        if(field==='keyword'){ side.start = null; side.end = null; }
+        renderAbTestPage(data);
+      };
+    });
+    document.getElementById('saveNewTestBtn').onclick = async ()=>{
+      const statusEl = document.getElementById('newTestStatus');
+      if(!form.name.trim()){ statusEl.textContent = '테스트 이름을 입력해주세요.'; return; }
+      if(form.A.axis==='keyword' && !form.A.campaign){ statusEl.textContent = 'A안: 키워드 기준으로 비교하려면 캠페인을 먼저 선택해주세요.'; return; }
+      if(form.B.axis==='keyword' && !form.B.campaign){ statusEl.textContent = 'B안: 키워드 기준으로 비교하려면 캠페인을 먼저 선택해주세요.'; return; }
+      if(!form.A.start || !form.A.end){ statusEl.textContent = 'A안의 기간을 선택해주세요.'; return; }
+      if(!form.B.start || !form.B.end){ statusEl.textContent = 'B안의 기간을 선택해주세요.'; return; }
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = '저장 중...';
+      const newTest = { id: makeTestId(), name: form.name.trim(), hypothesis: form.hypothesis.trim(), sideA: { ...form.A }, sideB: { ...form.B } };
+      const prevAbTests = data.abTests || [];
+      data.abTests = [...prevAbTests, newTest];
+      const ok = await saveAbTests(key, data);
+      if(ok){
+        newTestFormState[key] = { name:'', hypothesis:'', A: defaultSideState(), B: defaultSideState() };
+        expandedNewForm[key] = false;
+        renderAbTestPage(data);
+      } else {
+        data.abTests = prevAbTests; // Firestore 저장 실패 시 화면에 낙관적으로 추가했던 항목을 되돌림
+        statusEl.style.color = 'var(--down)';
+        statusEl.textContent = '저장에 실패했어요. 다시 시도해주세요.';
+      }
+    };
+  }
+  card.querySelectorAll('.delete-test-btn').forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(!confirm('이 테스트를 삭제할까요?')) return;
+      const prevAbTests = data.abTests || [];
+      data.abTests = prevAbTests.filter(t=>t.id!==btn.dataset.id);
+      const ok = await saveAbTests(key, data);
+      if(ok) renderAbTestPage(data);
+      else { data.abTests = prevAbTests; alert('삭제에 실패했어요. 다시 시도해주세요.'); }
+    };
+  });
+}
+
+
+auth.onAuthStateChanged(async (user)=>{
+  if(user){
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'grid';
+    document.getElementById('authUserEmail').textContent = user.email;
+    currentUserEmail = user.email;
+    isAdminUser = await checkIsAdmin(user.email);
+    const inputLink = document.querySelector('a[href="input.html"]');
+    if(inputLink) inputLink.style.display = isAdminUser ? '' : 'none';
+    await refreshTabs();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+  }
+});
+
+if(FIREBASE_CONFIG.apiKey.includes('여기에')){
+  document.getElementById('authScreen').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:28px;">⚠️</div>
+      <div style="color:#ff5d7a;font-weight:600;">Firebase 설정이 아직 입력되지 않았어요.</div>
+      <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
+    </div>`;
+}
+</script>
+</body>
+</html>
