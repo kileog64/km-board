@@ -339,6 +339,13 @@ table tbody tr:hover td{background:#1b1e2c}
 .dc-scroll::-webkit-scrollbar{width:9px;height:9px}
 .dc-scroll::-webkit-scrollbar-thumb{background:#3f4468;border-radius:5px}
 .dc-scroll::-webkit-scrollbar-track{background:transparent}
+
+/* 카드·패널이 안쪽 표 때문에 늘어나지 않게 (안 그러면 화면 오른쪽이 잘림) */
+.wrap,.main-layout,.card,.panel,.chart-box{min-width:0}
+.card,.panel{overflow-x:hidden}
+.dc-scroll{overflow-x:auto}
+.dc-scroll-x{max-height:none;overflow-y:visible}
+.hr-scroll{overflow-x:auto}
 </style>
 </head>
 <body>
@@ -1519,11 +1526,18 @@ function dcCompactTables(root){
   scope.querySelectorAll('table').forEach(tb=>{
     if(tb.dataset.dcCompact) return;
     const body = tb.tBodies && tb.tBodies[0];
-    if(!body || body.rows.length < 16) return;
+    if(!body) return;
     if(tb.closest('.hr-scroll, .dc-scroll')) { tb.dataset.dcCompact='1'; return; }
+    const parent = tb.parentElement;
+    if(!parent) return;
+    // 줄이 많아서 세로로 길거나(16줄↑), 칸이 많아서 가로로 넓은(부모보다 큰) 표를 상자에 넣는다.
+    // 가로로 넓은 표를 그냥 두면 카드 전체가 늘어나서 화면 오른쪽이 잘림.
+    const tooTall = body.rows.length >= 16;
+    const tooWide = tb.scrollWidth > parent.clientWidth + 4;
+    if(!tooTall && !tooWide) return;
     const wrap = document.createElement('div');
-    wrap.className = 'dc-scroll';
-    tb.parentNode.insertBefore(wrap, tb);
+    wrap.className = tooTall ? 'dc-scroll' : 'dc-scroll dc-scroll-x';
+    parent.insertBefore(wrap, tb);
     wrap.appendChild(tb);
     tb.dataset.dcCompact = '1';
   });
