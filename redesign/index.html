@@ -16,6 +16,31 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 <script>
+/* ── 업체 색(accent)이 업체마다 달라서 글씨 대비가 들쭉날쭉해지는 걸 막는 보정기 ──
+   --accent        : 업체 색 그대로 (선·아이콘·그래프용)
+   --accent-text   : 어두운 배경 위에서 읽히도록 밝기를 올린 글씨용 색
+   --accent-solid  : 흰 글씨를 얹어도 읽히도록 밝기를 낮춘 채움 배경용 색
+   두 값 모두 대비 4.5:1을 넘을 때까지 자동으로 조정한다. */
+function applyAccentColor(hex){
+  const root = document.documentElement.style;
+  root.setProperty('--accent', hex);
+  const H = String(hex||'').trim().replace('#','');
+  if(H.length !== 6){ return; }
+  const toRgb = h => [0,2,4].map(i=>parseInt(h.slice(i,i+2),16));
+  const toHex = a => '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+  const lum = ([r,g,b]) => { const f=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)};
+    return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
+  const ratio = (a,b)=>{ const l1=lum(a),l2=lum(b),hi=Math.max(l1,l2),lo=Math.min(l1,l2); return (hi+0.05)/(lo+0.05); };
+  const base = toRgb(H);
+  const PANEL=[23,26,39], WHITE=[255,255,255];
+  let text = base.slice();
+  for(let i=0;i<24 && ratio(text,PANEL)<4.5;i++) text = text.map(v=>v+(255-v)*0.10);
+  let solid = base.slice();
+  for(let i=0;i<24 && ratio(solid,WHITE)<4.5;i++) solid = solid.map(v=>v*0.92);
+  root.setProperty('--accent-text', toHex(text));
+  root.setProperty('--accent-solid', toHex(solid));
+}
+
   // ▼▼▼ Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성 후,
   // 프로젝트 설정 > 일반 > "내 앱" 웹앱 추가 시 나오는 값을 그대로 붙여넣으세요.
   const FIREBASE_CONFIG = {
@@ -34,7 +59,7 @@
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -47,7 +72,7 @@
   .field{margin-bottom:13px;}
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
-  .section-title{font-size:12px;color:var(--accent);font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
+  .section-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
   .file-drop{border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;background:var(--panel-2);margin-bottom:10px;transition:border-color .15s,background .15s;}
   .file-drop.dragover{border-color:var(--accent);background:rgba(139,124,255,.1);}
   .file-drop label{display:block;font-size:14px;color:var(--text);font-weight:600;margin-bottom:7px;}
@@ -59,12 +84,12 @@
   .preview-box .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);}
   .preview-box .row b{color:var(--text);}
   .col-ref{background:rgba(139,124,255,.08);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin:-4px 0 10px;}
-  .col-ref-title{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:3px;}
+  .col-ref-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin-bottom:3px;}
   .col-ref-list{font-family:'Pretendard',monospace;font-size:12px;color:var(--muted);line-height:1.6;word-break:break-all;}
   .col-ref-list b{color:var(--text);}
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
-  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
   .status-msg.ok{color:var(--up);}
@@ -84,10 +109,10 @@
   .client-switcher-search{width:100%;box-sizing:border-box;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:14px;outline:none;position:sticky;top:0;background:var(--panel-2);}
   .client-switcher-biztabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:37px;background:var(--panel-2);z-index:1;}
   .client-switcher-biztab{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 0;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
-  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent);background:rgba(139,124,255,.12);}
+  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent-text,var(--accent));background:rgba(139,124,255,.03);}
   .client-switcher-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:14px;color:var(--text);}
   .client-switcher-item:hover{background:var(--panel);}
-  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent);font-weight:700;}
+  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));font-weight:700;}
   .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
   .ai-chat-toggle{position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a89aff);border:none;font-size:28px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100;}
@@ -99,12 +124,12 @@
   .ai-chat-setup.show{display:block;}
   .ai-chat-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;min-height:320px;}
   .ai-chat-msg{font-size:14px;line-height:1.65;padding:11px 14px;border-radius:10px;max-width:90%;white-space:pre-wrap;}
-  .ai-chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff;}
+  .ai-chat-msg.user{align-self:flex-end;background:var(--accent-solid);color:#fff;}
   .ai-chat-msg.assistant{align-self:flex-start;background:var(--panel);color:var(--text);}
   .ai-chat-msg.system{align-self:center;color:var(--muted);font-size:12px;text-align:center;}
   .ai-chat-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);}
   .ai-chat-input-row textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;max-height:140px;min-height:44px;}
-  .ai-chat-input-row button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;}
+  .ai-chat-input-row button{background:var(--accent-solid);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;}
   @media (max-width:640px){
     .ai-chat-panel{right:10px;left:10px;width:auto;bottom:84px;}
     .ai-chat-toggle{right:16px;bottom:16px;}
@@ -122,7 +147,7 @@
   .totals{display:flex;gap:56px;text-align:right;flex-wrap:wrap;justify-content:flex-end;}
   .totals .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500;}
   .totals .val{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:5px;letter-spacing:-.02em;white-space:nowrap;font-variant-numeric:tabular-nums;}
-  .totals .val.accent{color:var(--accent);}
+  .totals .val.accent{color:var(--accent-text,var(--accent));}
 
   .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
   .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between;gap:14px;}
@@ -150,7 +175,7 @@
   .improve-side .m{font-size:12px;color:var(--muted);font-weight:500;}
   .improve-side .v{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:4px;}
   .improve-side.right{text-align:right;}
-  .improve-side.right .v{color:var(--accent);}
+  .improve-side.right .v{color:var(--accent-text,var(--accent));}
   .arrow{color:var(--muted);font-size:20px;}
   .divider{height:1px;background:var(--border);margin:14px 0;}
   .sub-metric{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);}
@@ -334,7 +359,7 @@ header.rep .totals{display:none}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
 table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
-  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
 table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
@@ -402,7 +427,7 @@ table tbody tr:hover td{background:#1b1e2c}
       </div>
     </div>
     <div class="alert-bell" id="alertBell" style="position:relative;">
-      <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#fff;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
+      <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#2b0a12;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
       <div id="alertBellDropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:340px;max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:50;padding:8px;"></div>
     </div>
     <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
@@ -436,9 +461,9 @@ table tbody tr:hover td{background:#1b1e2c}
     </div>
   </div>
   <div id="aiChatSetup" class="ai-chat-setup">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Google Gemini API 키를 입력해주세요 (무료 요금제로 계속 쓸 수 있어요). 이 키는 이 브라우저에만 저장되고 서버로 전송되지 않아요.<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">키 발급받기 →</a></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Google Gemini API 키를 입력해주세요 (무료 요금제로 계속 쓸 수 있어요). 이 키는 이 브라우저에만 저장되고 서버로 전송되지 않아요.<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent-text,var(--accent));">키 발급받기 →</a></div>
     <input id="aiApiKeyInput" type="password" placeholder="AIza..." style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:8px;">
-    <button id="aiApiKeySaveBtn" class="btn" style="margin-top:0;background:var(--accent);color:#fff;">저장하고 시작</button>
+    <button id="aiApiKeySaveBtn" class="btn" style="margin-top:0;background:var(--accent-solid);color:#fff;">저장하고 시작</button>
   </div>
   <div id="aiChatBody" class="ai-chat-body"></div>
   <div id="aiChatInputRow" class="ai-chat-input-row" style="display:none;">
@@ -1808,7 +1833,7 @@ function buildCollectorAlertsHTML(data, key){
     <div>
       ${high.map(row).join('')}
       ${warnHead.map(row).join('')}
-      ${warnRest.length?`<details><summary style="font-size:12.5px;color:var(--accent);cursor:pointer;padding:11px 16px;">주의 ${warnRest.length}건 더 보기</summary>${warnRest.map(row).join('')}</details>`:''}
+      ${warnRest.length?`<details><summary style="font-size:12.5px;color:var(--accent-text,var(--accent));cursor:pointer;padding:11px 16px;">주의 ${warnRest.length}건 더 보기</summary>${warnRest.map(row).join('')}</details>`:''}
     </div>
   </div>`;
 }
@@ -2072,7 +2097,7 @@ function buildCrossAnalysisHTML(data, months, isDB){
         <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">${campaignStatusBadge(c)}${esc(displayCampaignName(c.campaign))} <span style="font-weight:500;color:var(--muted);font-size:12px;">· ${headline}</span></div>
         ${hourSignal ? `<div style="font-size:12px;color:var(--text);padding:3px 0;">${hourSignal.text}</div>` : ''}
         ${kwSignal ? `<div style="font-size:12px;color:var(--text);padding:3px 0;">${kwSignal.text}</div>` : ''}
-        ${actionText ? `<div style="font-size:12px;color:var(--accent);font-weight:600;padding:3px 0;">${actionText}</div>` : ''}
+        ${actionText ? `<div style="font-size:12px;color:var(--accent-text,var(--accent));font-weight:600;padding:3px 0;">${actionText}</div>` : ''}
       </div>`;
   }).filter(Boolean);
 
@@ -2314,7 +2339,7 @@ async function loadAlerts(){
   if(unread.length){ badge.textContent = unread.length>99?'99+':String(unread.length); badge.style.display = 'block'; }
   else badge.style.display = 'none';
   if(!alerts.length){
-    dropdown.innerHTML = `<div style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;">🔔 이상 징후가 없어요.${snoozedCount ? `<div style="margin-top:8px;"><button id="alertSnoozeManageBtnEmpty" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;">🔕 스누즈 중인 알림 ${snoozedCount}개 관리</button></div>` : ''}</div>`;
+    dropdown.innerHTML = `<div style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;">🔔 이상 징후가 없어요.${snoozedCount ? `<div style="margin-top:8px;"><button id="alertSnoozeManageBtnEmpty" style="background:none;border:none;color:var(--accent-text,var(--accent));font-size:12px;cursor:pointer;">🔕 스누즈 중인 알림 ${snoozedCount}개 관리</button></div>` : ''}</div>`;
     const mgBtn0 = document.getElementById('alertSnoozeManageBtnEmpty');
     if(mgBtn0) mgBtn0.onclick = (e)=>{ e.stopPropagation(); openSnoozeManagePanel(); };
     return;
@@ -2324,7 +2349,7 @@ async function loadAlerts(){
       <span style="font-size:12px;font-weight:700;color:var(--text);">이상 징후 알림 (${alerts.length})</span>
       <div style="display:flex;gap:10px;">
         ${snoozedCount ? `<button id="alertSnoozeManageBtn" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;">🔕 ${snoozedCount}</button>` : ''}
-        <button id="alertMarkAllReadBtn" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;">모두 읽음</button>
+        <button id="alertMarkAllReadBtn" style="background:none;border:none;color:var(--accent-text,var(--accent));font-size:12px;cursor:pointer;">모두 읽음</button>
       </div>
     </div>
     ${alerts.map((a,idx)=>{
@@ -2336,7 +2361,7 @@ async function loadAlerts(){
       return `<div class="alert-item" data-key="${a.key}" data-id="${a.id.replace(/"/g,'&quot;')}" style="display:flex;gap:8px;padding:9px 6px;border-radius:8px;cursor:pointer;${isUnread?'background:rgba(139,124,255,.08);':''}">
         <span style="font-size:14px;flex-shrink:0;">${a.icon}</span>
         <div style="min-width:0;flex:1;">
-          <div style="font-size:12px;font-weight:700;color:var(--text);">${a.name}${isUnread?' <span style="color:var(--accent);">●</span>':''}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${a.name}${isUnread?' <span style="color:var(--accent-text,var(--accent));">●</span>':''}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;">${a.text}</div>
           <button class="alert-applied-btn" data-idx="${idx}" data-applied="${isApplied?'1':'0'}" style="margin-top:6px;background:${isApplied?'rgba(74,222,154,.12)':'var(--panel-2)'};border:1px solid ${isApplied?'rgba(74,222,154,.4)':'var(--border)'};color:${isApplied?'var(--up)':'var(--muted)'};border-radius:6px;padding:2px 8px;font-size:12px;font-weight:${isApplied?'600':'400'};cursor:pointer;">${isApplied?'✓ 조치함':'조치 표시'}</button>
         </div>
@@ -2388,7 +2413,7 @@ function openSnoozeManagePanel(){
   dropdown.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;">
       <span style="font-size:12px;font-weight:700;color:var(--text);">🔕 스누즈 중인 알림 (${types.length})</span>
-      <button id="alertSnoozeBackBtn" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;">← 뒤로</button>
+      <button id="alertSnoozeBackBtn" style="background:none;border:none;color:var(--accent-text,var(--accent));font-size:12px;cursor:pointer;">← 뒤로</button>
     </div>
     ${types.length ? types.map(t=>{
       const info = snoozed[t];
@@ -2621,7 +2646,7 @@ function buildAnomalyPanelHTML(key, dailyAll, hasRealDailyData){
   const selected = anomalyMetricState[key];
   const metricBtns = Object.entries(ANOMALY_METRICS).map(([k,cfg])=>{
     const active = selected.includes(k);
-    return `<button class="anomaly-metric-btn" data-metric="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${cfg.label}</button>`;
+    return `<button class="anomaly-metric-btn" data-metric="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent-solid)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${cfg.label}</button>`;
   }).join('');
   const anomalies = detectDailyAnomalies(dailyAll, selected);
   return `
@@ -2901,7 +2926,7 @@ const wasteDimState = {}; // key -> 분석 축
 function buildDimensionButtons(cls, selected){
   return Object.entries(BREAKDOWN_DIMENSIONS).map(([k,dim])=>{
     const active = selected===k;
-    return `<button class="${cls}" data-dim="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${dim.label}</button>`;
+    return `<button class="${cls}" data-dim="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent-solid)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${dim.label}</button>`;
   }).join('');
 }
 
@@ -3042,7 +3067,7 @@ function buildBreakdownPanelHTML(key, months, fstate, dayRange, data, isDB){
   const selected = breakdownMetricState[key];
   const metricBtns = metricEntries.map(([k,cfg])=>{
     const active = selected===k;
-    return `<button class="breakdown-metric-btn" data-metric="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${cfg.label}</button>`;
+    return `<button class="breakdown-metric-btn" data-metric="${k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent-solid)':'var(--panel-2)'};color:${active?'#fff':'var(--muted)'};cursor:pointer;">${cfg.label}</button>`;
   }).join('');
   const body = campaignAgg.length
     ? buildBreakdownListHTML(campaignAgg, selected, dimKey)
@@ -3059,7 +3084,7 @@ function buildBreakdownPanelHTML(key, months, fstate, dayRange, data, isDB){
   `;
 }
 /* ================= 신규 디자인 섹션 (목업 Main.dc.html 구조) ================= */
-const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#8f94ab', mut2:'#a9adc2', line:'#262a3b',
              card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
 
 // 선택 기간 / 직전 동일길이 기간을 캠페인 단위로 합산
@@ -3386,7 +3411,7 @@ function renderCard(data){
   window.__currentClientData = data;
   const key = 'client:' + slugify(data.name);
   const fstate = ensureFilterState(key, data);
-  document.documentElement.style.setProperty('--accent', data.color);
+  applyAccentColor(data.color);
   const allMonths = data.months || [];
   ensureMonthRange(key, allMonths);
   const months = monthsInRange(allMonths, monthRangeState[key]);
@@ -3743,9 +3768,9 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
               const active = dayBoundsMin && !dayRangeCustomOpen[key] && (dayPresetChoice[key]
                 ? dayPresetChoice[key]===pk
                 : isPresetActive(pk, dayRangeState[key], dayBoundsMin, dayBoundsMax));
-              return `<button class="day-preset-pill-idx" data-preset="${pk}" ${dayBoundsMin?'':'disabled'} style="background:${active?'var(--accent)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
+              return `<button class="day-preset-pill-idx" data-preset="${pk}" ${dayBoundsMin?'':'disabled'} style="background:${active?'var(--accent-solid)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
             }).join('')}
-            <button id="dayRangeCustomToggle" ${dayBoundsMin?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};">📆 직접 선택</button>
+            <button id="dayRangeCustomToggle" ${dayBoundsMin?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent-solid)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};">📆 직접 선택</button>
           </div>
       </div>
       <div class="fb-g">
@@ -3824,7 +3849,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
             {k:'cost',label:'비용'}, {k:'conv',label:'전환수'}, {k:'impressions',label:'노출수'}, {k:'clicks',label:'클릭수'}
           ] : [
             {k:'cost',label:'비용'}, {k:'revenue',label:'매출'}, {k:'conv',label:'전환수'}, {k:'impressions',label:'노출수'}
-          ]).map((m,i)=>`<button class="compare-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 11px;border-radius:14px;border:1px solid var(--border);background:${i===0?'var(--accent)':'var(--panel)'};color:${i===0?'#fff':'var(--muted)'};cursor:pointer;">${m.label}</button>`).join('')}
+          ]).map((m,i)=>`<button class="compare-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 11px;border-radius:14px;border:1px solid var(--border);background:${i===0?'var(--accent-solid)':'var(--panel)'};color:${i===0?'#fff':'var(--muted)'};cursor:pointer;">${m.label}</button>`).join('')}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:12px;color:var(--muted);">
@@ -3856,7 +3881,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
     <div class="panel" style="margin-top:18px;">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
         <span>⏰ 시간대별 성과 미리보기 (클릭률·전환율)</span>
-        <a href="hourly.html" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:700;white-space:nowrap;">전체 보기 →</a>
+        <a href="hourly.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;font-weight:700;white-space:nowrap;">전체 보기 →</a>
       </div>
       ${hourlyFilterLimited ? '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">⚠️ 이 기간은 캠페인별 시간대 정보가 없어 필터가 적용되지 않았어요 (전체 기준).</div>' : ''}
       <div class="chart-box" style="height:180px;"><canvas id="chartHour"></canvas></div>
@@ -3867,7 +3892,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
       <div class="panel">
         <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
           <span>🔑 TOP 키워드/검색어 미리보기</span>
-          <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:700;white-space:nowrap;">전체 보기 →</a>
+          <a href="keywords.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;font-weight:700;white-space:nowrap;">전체 보기 →</a>
         </div>
         <table>
           <thead>${isDB ? '<tr><th>키워드/검색어</th><th>비용</th><th>전환수</th><th>CPA</th></tr>' : '<tr><th>키워드/검색어</th><th>비용</th><th>전환매출</th><th>ROAS</th></tr>'}</thead>
@@ -4920,7 +4945,7 @@ header.rep{display:flex;align-items:center;justify-content:space-between;padding
 .totals{display:flex;gap:28px;text-align:right;}
 .totals .lbl{font-size:12px;color:var(--muted);}
 .totals .val{font-family:'Pretendard',sans-serif;font-size:20px;font-weight:700;margin-top:2px;}
-.totals .val.accent{color:var(--accent);}
+.totals .val.accent{color:var(--accent-text,var(--accent));}
 .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
 .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
 .kpi-label{font-size:12px;color:var(--muted);margin-bottom:6px;}
@@ -4957,7 +4982,7 @@ function renderTabs(){
 }
 function renderCard(){
   const data = CLIENTS[activeIdx];
-  document.documentElement.style.setProperty('--accent', data.color);
+  applyAccentColor(data.color);
   const months = data.months||[];
   const labels = months.map(m=>m.label);
   const revs = months.map(m=>m.revenue), costs = months.map(m=>m.cost), convs = months.map(m=>m.conv);

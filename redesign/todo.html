@@ -25,7 +25,7 @@
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -34,7 +34,7 @@
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
-  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
@@ -64,7 +64,7 @@
   .todo-title{font-size:14px;font-weight:600;color:var(--text);word-break:break-word;}
   .todo-memo{font-size:12px;color:var(--muted);margin-top:3px;word-break:break-word;}
   .todo-tag{font-size:12px;padding:3px 9px;border-radius:10px;white-space:nowrap;font-weight:600;}
-  .todo-tag-client{background:rgba(139,124,255,.15);color:var(--accent);}
+  .todo-tag-client{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));}
   .todo-tag-owner{background:rgba(255,255,255,.08);color:var(--muted);}
   .todo-due{font-size:12px;color:var(--muted);white-space:nowrap;}
   .todo-due.overdue{color:var(--down);font-weight:700;}
@@ -215,7 +215,7 @@ header.rep .totals{display:none}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
 table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
-  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
 table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
@@ -457,7 +457,7 @@ function todoRowHTML(t){
 }
 
 /* ================= 공통 디자인 조각 (목업 기준) ================= */
-const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#8f94ab', mut2:'#a9adc2', line:'#262a3b',
              card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
 const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
 const dcWon = man => dcNum((man||0)*10000)+'원';

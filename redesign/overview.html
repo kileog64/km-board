@@ -28,7 +28,7 @@
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -37,7 +37,7 @@
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
-  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
   .status-msg.err{color:var(--down);}
@@ -55,7 +55,7 @@
   /* ---- 필터바 ---- */
   .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
   .biz-tab{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;}
-  .biz-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(139,124,255,.12);}
+  .biz-tab.active{border-color:var(--accent);color:var(--accent-text,var(--accent));background:rgba(139,124,255,.12);}
   .search-input{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);min-width:200px;}
   .search-input:focus{outline:none;border-color:var(--accent);}
   .sort-select{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);}
@@ -73,7 +73,7 @@
   .client-card-metric .m{font-size:12px;color:var(--muted);}
   .client-card-metric .v{font-size:16px;font-weight:700;margin-top:3px;}
   .client-card-badge{position:absolute;top:16px;right:44px;font-size:16px;}
-  .client-card-alert-badge{position:absolute;top:14px;left:16px;font-size:12px;font-weight:800;color:#fff;background:var(--down);border-radius:10px;padding:3px 8px;display:flex;align-items:center;gap:2px;}
+  .client-card-alert-badge{position:absolute;top:14px;left:16px;font-size:12px;font-weight:800;color:#2b0a12;background:var(--down);border-radius:10px;padding:3px 8px;display:flex;align-items:center;gap:2px;}
   .client-card-trend{font-weight:700;margin-left:4px;}
   .client-card-trend.up{color:var(--up);}
   .client-card-trend.down{color:var(--down);}
@@ -84,7 +84,7 @@
   .client-card-goal.goal-met{color:var(--up);}
   .client-card-goal.goal-miss{color:var(--down);}
   .client-card-goal-empty{color:var(--muted);}
-  .client-card-goal-edit{font-size:12px;color:var(--accent);font-weight:700;white-space:nowrap;}
+  .client-card-goal-edit{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;white-space:nowrap;}
   .client-card-pin{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px;z-index:2;}
   .client-card-pin:hover{color:#f5c542;}
   .client-card-pin.pinned{color:#f5c542;}
@@ -233,7 +233,7 @@ header.rep .totals{display:none}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
 table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
-  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
 table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
@@ -290,7 +290,7 @@ table tbody tr:hover td{background:#1b1e2c}
     <h1 style="font-size:20px;margin:0;">🗂️ 전체 업체 개요</h1>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span class="nv-logo"><span class="nv-mark"></span>km-board</span><span class="nv nv-on">전체 업체</span><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><a class="nv" href="shopping.html">쇼핑검색 상품</a><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a><div class="alert-bell" id="alertBell" style="position:relative;">
-        <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#fff;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
+        <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#2b0a12;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
         <div id="alertBellDropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:340px;max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:50;padding:8px;"></div>
       </div>
       <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
@@ -607,7 +607,7 @@ function momBadgeHTML(curr, prev, goodDir){
   return `<span style="font-size:12px;font-weight:700;margin-left:8px;color:${good?'var(--up)':'var(--down)'};">${isUp?'▲':'▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
 /* ================= 공통 디자인 조각 (목업 기준) ================= */
-const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#8f94ab', mut2:'#a9adc2', line:'#262a3b',
              card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
 const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
 const dcWon = man => dcNum((man||0)*10000)+'원';
@@ -1058,7 +1058,7 @@ function renderPermOverviewPanel(){
   const rowsHtml = rows.map(r=>{
     const restricted = r.allowedUsers && r.allowedUsers.length>0;
     const statusHtml = restricted
-      ? `<span style="color:var(--accent);font-weight:700;">제한: ${r.allowedUsers.length}명</span>`
+      ? `<span style="color:var(--accent-text,var(--accent));font-weight:700;">제한: ${r.allowedUsers.length}명</span>`
       : `<span style="color:var(--muted);">전체 공개</span>`;
     const emailsHtml = restricted
       ? `<div style="font-size:12px;color:var(--muted);margin-top:3px;">${r.allowedUsers.map(e=>e.replace(/</g,'&lt;')).join(', ')}</div>`
@@ -1249,14 +1249,14 @@ async function loadAlerts(){
   dropdown.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;">
       <span style="font-size:12px;font-weight:700;color:var(--text);">이상 징후 알림 (${alerts.length})</span>
-      <button id="alertMarkAllReadBtn" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;">모두 읽음</button>
+      <button id="alertMarkAllReadBtn" style="background:none;border:none;color:var(--accent-text,var(--accent));font-size:12px;cursor:pointer;">모두 읽음</button>
     </div>
     ${alerts.map(a=>{
       const isUnread = !seen.has(a.id);
       return `<div class="alert-item" data-key="${a.key}" data-id="${a.id.replace(/"/g,'&quot;')}" style="display:flex;gap:8px;padding:9px 6px;border-radius:8px;cursor:pointer;${isUnread?'background:rgba(139,124,255,.08);':''}">
         <span style="font-size:14px;flex-shrink:0;">${a.icon}</span>
         <div style="min-width:0;">
-          <div style="font-size:12px;font-weight:700;color:var(--text);">${a.name}${isUnread?' <span style="color:var(--accent);">●</span>':''}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${a.name}${isUnread?' <span style="color:var(--accent-text,var(--accent));">●</span>':''}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;">${a.text}</div>
         </div>
       </div>`;

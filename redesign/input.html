@@ -103,7 +103,7 @@ function dcCompactTables(root){
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -117,7 +117,7 @@ function dcCompactTables(root){
   .manage-group{border:1px solid var(--border);border-radius:16px;margin-bottom:16px;overflow:hidden;background:rgba(139,124,255,.03);}
   .manage-group>summary{cursor:pointer;padding:16px 20px;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;}
   .manage-group>summary::-webkit-details-marker{display:none;}
-  .manage-group>summary::before{content:'▸';color:var(--accent);font-size:14px;transition:transform .15s;flex-shrink:0;}
+  .manage-group>summary::before{content:'▸';color:var(--accent-text,var(--accent));font-size:14px;transition:transform .15s;flex-shrink:0;}
   .manage-group[open]>summary::before{transform:rotate(90deg);}
   .manage-group>summary .manage-group-count{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px;}
   .manage-group-body{padding:0 16px 16px;display:grid;grid-template-columns:1fr;gap:14px;}
@@ -133,7 +133,7 @@ function dcCompactTables(root){
   .field{margin-bottom:13px;}
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
-  .section-title{font-size:12px;color:var(--accent);font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
+  .section-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
   .file-drop{border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;background:var(--panel-2);margin-bottom:10px;transition:border-color .15s,background .15s;}
   .file-drop.dragover{border-color:var(--accent);background:rgba(139,124,255,.1);}
   .file-drop label{display:block;font-size:14px;color:var(--text);font-weight:600;margin-bottom:7px;}
@@ -145,7 +145,7 @@ function dcCompactTables(root){
   .preview-box .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);}
   .preview-box .row b{color:var(--text);}
   .col-ref{background:rgba(139,124,255,.08);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin:-4px 0 10px;}
-  .col-ref-title{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:3px;}
+  .col-ref-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin-bottom:3px;}
   .col-ref-list{font-family:'Pretendard',monospace;font-size:12px;color:var(--muted);line-height:1.6;word-break:break-all;}
   .col-ref-list b{color:var(--text);}
   .biz-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
@@ -163,7 +163,7 @@ function dcCompactTables(root){
   }
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
-  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
   .status-msg.ok{color:var(--up);}
@@ -187,7 +187,7 @@ function dcCompactTables(root){
   .totals{display:flex;gap:32px;text-align:right;}
   .totals .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500;}
   .totals .val{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:3px;letter-spacing:-.01em;}
-  .totals .val.accent{color:var(--accent);}
+  .totals .val.accent{color:var(--accent-text,var(--accent));}
 
   .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
   .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between;gap:14px;}
@@ -215,7 +215,7 @@ function dcCompactTables(root){
   .improve-side .m{font-size:12px;color:var(--muted);font-weight:500;}
   .improve-side .v{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:4px;}
   .improve-side.right{text-align:right;}
-  .improve-side.right .v{color:var(--accent);}
+  .improve-side.right .v{color:var(--accent-text,var(--accent));}
   .arrow{color:var(--muted);font-size:20px;}
   .divider{height:1px;background:var(--border);margin:14px 0;}
   .sub-metric{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);}
@@ -392,7 +392,7 @@ header.rep .totals{display:none}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
 table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
-  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
 table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
@@ -452,7 +452,7 @@ table tbody tr:hover td{background:#1b1e2c}
 
 
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-    <button class="input-tab-btn" data-tab="main" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--accent);color:#fff;cursor:pointer;">📋 데이터 입력</button>
+    <button class="input-tab-btn" data-tab="main" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--accent-solid);color:#fff;cursor:pointer;">📋 데이터 입력</button>
     <button class="input-tab-btn" data-tab="extra" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">➕ 추가 데이터</button>
     <button class="input-tab-btn" data-tab="manage" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">🗑️ 관리</button>
   </div>
@@ -835,7 +835,7 @@ table tbody tr:hover td{background:#1b1e2c}
             <button class="btn" id="runAllBtn" style="font-size:12px;padding:9px 16px;">전체 업체 어제치 수집</button>
             <button class="btn btn-ghost" id="runBackfillBtn" style="font-size:12px;padding:9px 16px;">신규 업체 과거 12개월 수집</button>
             <button class="export-btn" id="collectorRunStatusBtn" style="font-size:12px;">상태 새로고침</button>
-            <a id="collectorActionsLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);">GitHub에서 진행 상황 보기 ↗</a>
+            <a id="collectorActionsLink" href="#" target="_blank" style="font-size:12px;color:var(--accent-text,var(--accent));">GitHub에서 진행 상황 보기 ↗</a>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:10px;border:1px solid var(--border);border-radius:8px;">
             <div class="field" style="margin:0;min-width:180px;">
@@ -909,7 +909,7 @@ table tbody tr:hover td{background:#1b1e2c}
     <div style="font-size:28px;margin-bottom:10px;">🔒</div>
     <h2 style="margin:0 0 8px;font-size:16px;">관리자만 접근할 수 있어요</h2>
     <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:16px;">데이터 입력·관리 페이지는 관리자 계정만 볼 수 있어요. 업체 성과는 대시보드에서 확인해주세요.</div>
-    <a href="index.html" style="display:inline-block;background:var(--accent);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:10px;">대시보드로 이동</a>
+    <a href="index.html" style="display:inline-block;background:var(--accent-solid);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:10px;">대시보드로 이동</a>
     <div><button class="export-btn" id="accessDeniedLogoutBtn" style="margin-top:8px;">로그아웃</button></div>
   </div>
 </div>
@@ -1302,7 +1302,7 @@ async function handleReportFile(files, forcedBiz){
       <div class="row"><span>매출 합계</span><b>${fmtMan(totalRevAll)}원</b></div>
       <div class="row"><span>비용 합계</span><b>${fmtMan(totalCostAll)}원</b></div>
       <div class="row"><span>전환수 합계</span><b>${totalConvAll.toLocaleString('ko-KR')}건</b></div>
-      ${monthLabels.length>1 ? `<div class="row" style="color:var(--accent);font-size:12px;">📅 ${monthLabels.length}개월치 데이터가 감지돼서, 저장하면 월별로 자동 분리 저장돼요 (${monthLabels.join(', ')}).</div>` : ''}
+      ${monthLabels.length>1 ? `<div class="row" style="color:var(--accent-text,var(--accent));font-size:12px;">📅 ${monthLabels.length}개월치 데이터가 감지돼서, 저장하면 월별로 자동 분리 저장돼요 (${monthLabels.join(', ')}).</div>` : ''}
       ${hasNoDateRows ? `<div class="row" style="color:var(--down);font-size:12px;">⚠️ 날짜를 인식 못한 행이 있어요. 아래 "기간 라벨"에 입력한 값으로 별도 저장돼요.</div>` : ''}
       ${adgroupCol ? `<div class="row" style="color:var(--up);font-size:12px;">🖼️ 광고그룹 열이 인식돼서, 저장하면 광고그룹별 성과가 함께 저장돼요.</div>` : ''}
       <div class="row" style="color:#a8abc4;font-size:11px;">인식된 열: 매출=${revCol||'-'} · 비용=${costCol||'-'} · 전환수=${convCol||'-'}</div>`;
@@ -2966,11 +2966,11 @@ async function handleCollectorBulkFile(file){
     });
     const newCount = ok.filter(o=>o.isNew).length;
     prev.innerHTML = `
-      <div style="font-size:12px;color:var(--text);margin-bottom:6px;">읽은 결과: 적용 <b>${ok.length}</b>건${newCount?` (신규 업체 <b style="color:var(--accent);">${newCount}</b>개 생성)`:''}${skipped.length?` · 건너뜀 <b style="color:var(--down);">${skipped.length}</b>건`:''}</div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:6px;">읽은 결과: 적용 <b>${ok.length}</b>건${newCount?` (신규 업체 <b style="color:var(--accent-text,var(--accent));">${newCount}</b>개 생성)`:''}${skipped.length?` · 건너뜀 <b style="color:var(--down);">${skipped.length}</b>건`:''}</div>
       ${ok.length?`<div style="max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:8px;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <tbody>${ok.map(o=>`<tr>
-            <td style="padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;">${esc(o.name)}${o.isNew?' <span style="font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;">신규</span>':''}${o.accounts.length>1?` <span style="font-size:11px;color:var(--muted);">계정 ${o.accounts.length}개</span>`:''}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;">${esc(o.name)}${o.isNew?' <span style="font-size:11px;color:var(--accent-text,var(--accent));border:1px solid var(--accent);border-radius:4px;padding:0 4px;">신규</span>':''}${o.accounts.length>1?` <span style="font-size:11px;color:var(--muted);">계정 ${o.accounts.length}개</span>`:''}</td>
             <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${o.accounts.length? o.accounts.map(a=>`${esc(a.customerId)}${a.label?` <span style="color:var(--muted);">(${esc(a.label)})</span>`:''}${a.enabled?'':' <span style="color:var(--muted);">OFF</span>'}`).join('<br>') : '<span style="color:var(--muted);">(없음)</span>'}</td>
             <td style="padding:4px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;">${esc(o.bizType||(o.isNew?'DB':''))}</td>
           </tr>`).join('')}</tbody>
@@ -3282,7 +3282,7 @@ async function refreshCollectorRunStatus(){
     const runs = (data && data.workflow_runs) || [];
     if(!runs.length){ box.innerHTML = '<div style="font-size:12px;color:var(--muted);">아직 실행 기록이 없어요.</div>'; return; }
     const badge = (r)=>{
-      if(r.status !== 'completed') return '<span style="color:var(--accent);">● 진행 중</span>';
+      if(r.status !== 'completed') return '<span style="color:var(--accent-text,var(--accent));">● 진행 중</span>';
       if(r.conclusion === 'success') return '<span style="color:var(--up);">✓ 성공</span>';
       if(r.conclusion === 'cancelled') return '<span style="color:var(--muted);">중단됨</span>';
       return '<span style="color:var(--down);">✕ 실패</span>';
@@ -3291,7 +3291,7 @@ async function refreshCollectorRunStatus(){
       <div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
         <span style="min-width:66px;">${badge(r)}</span>
         <span style="color:var(--muted);">${new Date(r.created_at).toLocaleString('ko-KR')}</span>
-        <a href="${esc(r.html_url)}" target="_blank" style="color:var(--accent);margin-left:auto;">로그 ↗</a>
+        <a href="${esc(r.html_url)}" target="_blank" style="color:var(--accent-text,var(--accent));margin-left:auto;">로그 ↗</a>
       </div>`).join('')}</div>`;
   }catch(e){ console.error(e); box.innerHTML = `<div style="font-size:12px;color:var(--down);">상태 조회 실패: ${esc(e.message)}</div>`; }
 }

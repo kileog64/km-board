@@ -16,6 +16,31 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 <script>
+/* ── 업체 색(accent)이 업체마다 달라서 글씨 대비가 들쭉날쭉해지는 걸 막는 보정기 ──
+   --accent        : 업체 색 그대로 (선·아이콘·그래프용)
+   --accent-text   : 어두운 배경 위에서 읽히도록 밝기를 올린 글씨용 색
+   --accent-solid  : 흰 글씨를 얹어도 읽히도록 밝기를 낮춘 채움 배경용 색
+   두 값 모두 대비 4.5:1을 넘을 때까지 자동으로 조정한다. */
+function applyAccentColor(hex){
+  const root = document.documentElement.style;
+  root.setProperty('--accent', hex);
+  const H = String(hex||'').trim().replace('#','');
+  if(H.length !== 6){ return; }
+  const toRgb = h => [0,2,4].map(i=>parseInt(h.slice(i,i+2),16));
+  const toHex = a => '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+  const lum = ([r,g,b]) => { const f=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)};
+    return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
+  const ratio = (a,b)=>{ const l1=lum(a),l2=lum(b),hi=Math.max(l1,l2),lo=Math.min(l1,l2); return (hi+0.05)/(lo+0.05); };
+  const base = toRgb(H);
+  const PANEL=[23,26,39], WHITE=[255,255,255];
+  let text = base.slice();
+  for(let i=0;i<24 && ratio(text,PANEL)<4.5;i++) text = text.map(v=>v+(255-v)*0.10);
+  let solid = base.slice();
+  for(let i=0;i<24 && ratio(solid,WHITE)<4.5;i++) solid = solid.map(v=>v*0.92);
+  root.setProperty('--accent-text', toHex(text));
+  root.setProperty('--accent-solid', toHex(solid));
+}
+
   // ▼▼▼ Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성 후,
   // 프로젝트 설정 > 일반 > "내 앱" 웹앱 추가 시 나오는 값을 그대로 붙여넣으세요.
   const FIREBASE_CONFIG = {
@@ -34,7 +59,7 @@
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -47,7 +72,7 @@
   .field{margin-bottom:13px;}
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
-  .section-title{font-size:12px;color:var(--accent);font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
+  .section-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
   .file-drop{border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;background:var(--panel-2);margin-bottom:10px;transition:border-color .15s,background .15s;}
   .file-drop.dragover{border-color:var(--accent);background:rgba(139,124,255,.1);}
   .file-drop label{display:block;font-size:14px;color:var(--text);font-weight:600;margin-bottom:7px;}
@@ -59,12 +84,12 @@
   .preview-box .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);}
   .preview-box .row b{color:var(--text);}
   .col-ref{background:rgba(139,124,255,.08);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin:-4px 0 10px;}
-  .col-ref-title{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:3px;}
+  .col-ref-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin-bottom:3px;}
   .col-ref-list{font-family:'Pretendard',monospace;font-size:12px;color:var(--muted);line-height:1.6;word-break:break-all;}
   .col-ref-list b{color:var(--text);}
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
-  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
   .status-msg.ok{color:var(--up);}
@@ -84,10 +109,10 @@
   .client-switcher-search{width:100%;box-sizing:border-box;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-size:14px;outline:none;position:sticky;top:0;background:var(--panel-2);}
   .client-switcher-biztabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:37px;background:var(--panel-2);z-index:1;}
   .client-switcher-biztab{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 0;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
-  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent);background:rgba(139,124,255,.12);}
+  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent-text,var(--accent));background:rgba(139,124,255,.03);}
   .client-switcher-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:14px;color:var(--text);}
   .client-switcher-item:hover{background:var(--panel);}
-  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent);font-weight:700;}
+  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));font-weight:700;}
   .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
   .ai-chat-toggle{position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a89aff);border:none;font-size:28px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100;}
@@ -99,12 +124,12 @@
   .ai-chat-setup.show{display:block;}
   .ai-chat-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;min-height:320px;}
   .ai-chat-msg{font-size:14px;line-height:1.65;padding:11px 14px;border-radius:10px;max-width:90%;white-space:pre-wrap;}
-  .ai-chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff;}
+  .ai-chat-msg.user{align-self:flex-end;background:var(--accent-solid);color:#fff;}
   .ai-chat-msg.assistant{align-self:flex-start;background:var(--panel);color:var(--text);}
   .ai-chat-msg.system{align-self:center;color:var(--muted);font-size:12px;text-align:center;}
   .ai-chat-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);}
   .ai-chat-input-row textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;max-height:140px;min-height:44px;}
-  .ai-chat-input-row button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;}
+  .ai-chat-input-row button{background:var(--accent-solid);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;}
   @media (max-width:640px){
     .ai-chat-panel{right:10px;left:10px;width:auto;bottom:84px;}
     .ai-chat-toggle{right:16px;bottom:16px;}
@@ -122,7 +147,7 @@
   .totals{display:flex;gap:32px;text-align:right;}
   .totals .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500;}
   .totals .val{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:3px;letter-spacing:-.01em;}
-  .totals .val.accent{color:var(--accent);}
+  .totals .val.accent{color:var(--accent-text,var(--accent));}
 
   .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
   .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between;gap:14px;}
@@ -150,7 +175,7 @@
   .improve-side .m{font-size:12px;color:var(--muted);font-weight:500;}
   .improve-side .v{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:4px;}
   .improve-side.right{text-align:right;}
-  .improve-side.right .v{color:var(--accent);}
+  .improve-side.right .v{color:var(--accent-text,var(--accent));}
   .arrow{color:var(--muted);font-size:20px;}
   .divider{height:1px;background:var(--border);margin:14px 0;}
   .sub-metric{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);}
@@ -337,7 +362,7 @@ header.rep .totals{display:none}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
 table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
-  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
 table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
@@ -391,7 +416,7 @@ table tbody tr:hover td{background:#1b1e2c}
 
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
   <div class="topbar">
-    <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
+    <a href="index.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;">📊 대시보드</a>
     <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><span class="nv nv-on">쇼핑검색 상품</span><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
@@ -433,9 +458,9 @@ table tbody tr:hover td{background:#1b1e2c}
     </div>
   </div>
   <div id="aiChatSetup" class="ai-chat-setup">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Google Gemini API 키를 입력해주세요 (무료 요금제로 계속 쓸 수 있어요). 이 키는 이 브라우저에만 저장되고 서버로 전송되지 않아요.<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">키 발급받기 →</a></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Google Gemini API 키를 입력해주세요 (무료 요금제로 계속 쓸 수 있어요). 이 키는 이 브라우저에만 저장되고 서버로 전송되지 않아요.<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent-text,var(--accent));">키 발급받기 →</a></div>
     <input id="aiApiKeyInput" type="password" placeholder="AIza..." style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:8px;">
-    <button id="aiApiKeySaveBtn" class="btn" style="margin-top:0;background:var(--accent);color:#fff;">저장하고 시작</button>
+    <button id="aiApiKeySaveBtn" class="btn" style="margin-top:0;background:var(--accent-solid);color:#fff;">저장하고 시작</button>
   </div>
   <div id="aiChatBody" class="ai-chat-body"></div>
   <div id="aiChatInputRow" class="ai-chat-input-row" style="display:none;">
@@ -1410,7 +1435,7 @@ const INSIGHT_THRESHOLDS = {
   WASTE_MIN_IMPRESSIONS: 50, // 낭비 키워드 진단 — 이 미만이면 "판단하기엔 이르다"로 처리
 };
 /* ================= 공통 디자인 조각 (목업 기준) ================= */
-const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#8f94ab', mut2:'#a9adc2', line:'#262a3b',
              card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
 const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
 const dcWon = man => dcNum((man||0)*10000)+'원';
@@ -1544,7 +1569,7 @@ function syncMonthRangeToDays(key, allMonths, dr){
 function renderKeywordsPage(data){
   const key = 'client:' + slugify(data.name);
   const fstate = ensureFilterState(key, data);
-  document.documentElement.style.setProperty('--accent', data.color);
+  applyAccentColor(data.color);
   const allMonths = data.months || [];
   ensureMonthRange(key, allMonths);
   const months = monthsInRange(allMonths, monthRangeState[key]);
@@ -1850,7 +1875,7 @@ function renderKeywordsPage(data){
         </tr></thead>
         <tbody>
           ${SR.length ? SR.slice(0, VIS).map(k=>{
-            const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;">NEW</span>' : '';
+            const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#12131c;font-weight:700;">NEW</span>' : '';
             const typeBadge = searchTypeBadgeHTML(k.searchType);
             // 수집기가 쇼핑상품 ID를 채워주면 상품명 아래에 작게 표시됨(없으면 아무것도 안 나옴)
             const kindBadge = '';
@@ -1924,9 +1949,9 @@ function renderKeywordsPage(data){
               const active = dayBoundsMinKw && !dayRangeCustomOpen[key] && (dayPresetChoice[key]
                 ? dayPresetChoice[key]===pk
                 : isPresetActive(pk, dayRangeState[key], dayBoundsMinKw, dayBoundsMaxKw));
-              return `<button class="day-preset-pill-kw" data-preset="${pk}" ${dayBoundsMinKw?'':'disabled'} style="background:${active?'var(--accent)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
+              return `<button class="day-preset-pill-kw" data-preset="${pk}" ${dayBoundsMinKw?'':'disabled'} style="background:${active?'var(--accent-solid)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
             }).join('')}
-            <button id="kwDayRangeCustomToggle" ${dayBoundsMinKw?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};">📆 직접 선택</button>
+            <button id="kwDayRangeCustomToggle" ${dayBoundsMinKw?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent-solid)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinKw?'pointer':'not-allowed'};">📆 직접 선택</button>
           </div>
       </div>
       <div class="fb-g">
