@@ -256,6 +256,19 @@ table tbody tr:hover td{background:#1b1e2c}
 .dc-scroll{overflow-x:auto}
 .dc-scroll-x{max-height:none;overflow-y:visible}
 .hr-scroll{overflow-x:auto}
+
+/* ---- 상단 메뉴바 ---- */
+.topbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;row-gap:6px;
+  margin:0 0 14px;padding:7px 12px;background:#12131c;border:1px solid #262a3b;border-radius:11px}
+.nv-logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;
+  letter-spacing:-.01em;color:#e8e9f2;margin-right:14px;white-space:nowrap}
+.nv-mark{width:20px;height:20px;border-radius:6px;background:#8b7cff;display:inline-block;flex-shrink:0}
+.nv{padding:5px 11px;border-radius:7px;font-size:12.5px;color:#a9adc2;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
+.nv:hover{background:#1b1e2c;color:#e8e9f2}
+.nv-on{background:#232640;color:#e8e9f2;font-weight:500}
+.nv-b{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;
+  margin-left:5px;border-radius:8px;background:#f5a524;color:#12131c;font-size:10px;font-weight:700;vertical-align:1px}
+.topbar .client-switcher{margin-left:auto}
 </style>
 </head>
 <body>
@@ -276,14 +289,7 @@ table tbody tr:hover td{background:#1b1e2c}
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;row-gap:10px;">
     <h1 style="font-size:20px;margin:0;">🗂️ 전체 업체 개요</h1>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
-      <a href="todo.html" style="font-size:12px;color:var(--accent);text-decoration:none;">✅ 할 일 목록</a>
-      <a href="campaigns.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📣 캠페인 비교 전용 보기</a>
-      <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🔑 키워드 전용 보기</a>
-      <a href="ab-test.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🧪 A/B 테스트</a>
-      <a href="hourly.html" style="font-size:12px;color:var(--accent);text-decoration:none;">⏰ 시간대별 전용 보기</a>
-        <a href="input.html" style="font-size:12px;color:var(--accent);text-decoration:none;">+ 데이터 입력하기</a>
-      <div class="alert-bell" id="alertBell" style="position:relative;">
+      <span class="nv-logo"><span class="nv-mark"></span>km-board</span><span class="nv nv-on">전체 업체</span><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">키워드</a><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a><div class="alert-bell" id="alertBell" style="position:relative;">
         <button id="alertBellBtn" type="button" title="알림" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;position:relative;color:var(--text);">🔔<span id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--down);color:#fff;font-size:11px;font-weight:800;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;"></span></button>
         <div id="alertBellDropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:340px;max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:50;padding:8px;"></div>
       </div>
@@ -613,6 +619,12 @@ const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
 
 /* 표에서 숫자 칸만 오른쪽 정렬 — 페이지마다 표 구조가 달라서 CSS로는 못 잡고, 그린 뒤에 내용을 보고 판단한다.
    (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
+
+// 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
+function setNavTodoBadge(n){
+  const el=document.getElementById('navTodoBadge'); if(!el) return;
+  if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
+}
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{

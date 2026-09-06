@@ -359,6 +359,29 @@ table tbody tr:hover td{background:#1b1e2c}
 .dc-scroll{overflow-x:auto}
 .dc-scroll-x{max-height:none;overflow-y:visible}
 .hr-scroll{overflow-x:auto}
+
+.hr-unknown td{background:#191b28!important;color:#a9adc2!important}
+.hr-unknown td:first-child{color:#e8e9f2!important}
+.hr-unknown td{border-top:1px solid #3a3350!important}
+
+/* 세 덩어리 중 비는 게 있으면 남은 것들이 폭을 채우도록 flex 사용 */
+.hr-reco{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.hr-reco > div{flex:1 1 220px;min-width:0}
+/* 숫자 칸이 두 줄로 접히면 표가 쓸데없이 길어짐 */
+.hr-scroll td,.dc-scroll td{white-space:nowrap}
+
+/* ---- 상단 메뉴바 ---- */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:3px;flex-wrap:wrap;row-gap:6px;
+  margin:0 0 14px;padding:7px 12px;background:#12131c;border:1px solid #262a3b;border-radius:11px}
+.nv-logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;
+  letter-spacing:-.01em;color:#e8e9f2;margin-right:14px;white-space:nowrap}
+.nv-mark{width:20px;height:20px;border-radius:6px;background:#8b7cff;display:inline-block;flex-shrink:0}
+.nv{padding:5px 11px;border-radius:7px;font-size:12.5px;color:#a9adc2;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
+.nv:hover{background:#1b1e2c;color:#e8e9f2}
+.nv-on{background:#232640;color:#e8e9f2;font-weight:500}
+.nv-b{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;
+  margin-left:5px;border-radius:8px;background:#f5a524;color:#12131c;font-size:10px;font-weight:700;vertical-align:1px}
+.topbar .client-switcher{margin-left:auto}
 </style>
 </head>
 <body>
@@ -376,14 +399,9 @@ table tbody tr:hover td{background:#1b1e2c}
 </div>
 
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
-  <div style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:-8px;flex-wrap:wrap;row-gap:6px;">
+  <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드</a>
-    <a href="overview.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🗂️ 전체 업체 개요</a>
-    <a href="todo.html" style="font-size:12px;color:var(--accent);text-decoration:none;">✅ 할 일 목록</a>
-    <a href="campaigns.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📣 캠페인 비교 전용 보기</a>
-    <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🔑 키워드 전용 보기</a>
-    <a href="ab-test.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🧪 A/B 테스트</a>
-    <a href="input.html" style="font-size:12px;color:var(--accent);text-decoration:none;">+ 데이터 입력하기</a>
+    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">키워드</a><span class="nv nv-on">시간대</span><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
       <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
@@ -457,6 +475,9 @@ function monthsInRange(allMonths, range){
 }
 // 캘린더 날짜(일 단위) 필터 — hourlyByCampaignDate가 있는 달에서만 동작(daily.html/keywords.html과 동일한 방식)
 const dayRangeState = {}; // key -> { start: 'YYYY-MM-DD'|null, end: 'YYYY-MM-DD'|null }
+// 사용자가 실제로 누른 날짜 버튼을 기억한다. 범위만 보고 되짚으면 '이번달'과 '최근 7일'이
+// 같은 범위로 겹칠 때 엉뚱한 버튼에 색이 들어감.
+const dayPresetChoice = {};
 const dayRangeCustomOpen = {}; // key -> bool (직접 선택 입력창 펼침 여부)
 function presetDayRange(presetKey, boundsMin, boundsMax){
   if(!boundsMin || !boundsMax) return null;
@@ -1178,6 +1199,12 @@ const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
 
 /* 표에서 숫자 칸만 오른쪽 정렬 — 페이지마다 표 구조가 달라서 CSS로는 못 잡고, 그린 뒤에 내용을 보고 판단한다.
    (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
+
+// 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
+function setNavTodoBadge(n){
+  const el=document.getElementById('navTodoBadge'); if(!el) return;
+  if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
+}
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{
@@ -1357,13 +1384,18 @@ function renderHourlyPage(data){
   // 있는 달에서만 정확한 날짜 필터링이 가능함. 필터가 꺼져있으면(기본) 기존과 동일하게 월 전체를 씀.
   const dayBoundsMinHr = (()=>{ const all=[]; months.forEach(m=>(m.hourlyByCampaignDate||[]).forEach(r=>all.push(r.date))); return all.length ? toDateInputValue(all.sort((a,b)=>dateKey(a).localeCompare(dateKey(b)))[0]) : null; })();
   const dayBoundsMaxHr = (()=>{ const all=[]; months.forEach(m=>(m.hourlyByCampaignDate||[]).forEach(r=>all.push(r.date))); return all.length ? toDateInputValue(all.sort((a,b)=>dateKey(a).localeCompare(dateKey(b)))[all.length-1]) : null; })();
-  if(!(key in dayRangeState)) dayRangeState[key] = { start: null, end: null };
+  if(!(key in dayRangeState)){ dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null; }
   if(!(key in dayRangeCustomOpen)) dayRangeCustomOpen[key] = false;
   {
     const dr = dayRangeState[key];
     if(dayBoundsMinHr && dayBoundsMaxHr){
-      if(dr.start && (dr.start < dayBoundsMinHr || dr.start > dayBoundsMaxHr)) dr.start = null;
-      if(dr.end && (dr.end < dayBoundsMinHr || dr.end > dayBoundsMaxHr)) dr.end = null;
+      // 데이터 범위를 벗어나면 통째로 지우지 말고 범위 안으로 당긴다.
+      // (통째로 지우면 '최근 7일' 같은 버튼이 눌린 걸로 인식이 안 돼서 색이 안 들어감)
+      if(dr.start && dr.start < dayBoundsMinHr) dr.start = dayBoundsMinHr;
+      if(dr.start && dr.start > dayBoundsMaxHr) dr.start = null;
+      if(dr.end && dr.end > dayBoundsMaxHr) dr.end = dayBoundsMaxHr;
+      if(dr.end && dr.end < dayBoundsMinHr) dr.end = null;
+      if(dr.start && dr.end && dr.start > dr.end) { dr.start = null; dr.end = null; }
     } else { dr.start = null; dr.end = null; }
   }
   const hasHourlyDayFilter = !!(dayRangeState[key].start || dayRangeState[key].end) && !!dayBoundsMinHr;
@@ -1716,7 +1748,9 @@ function renderHourlyPage(data){
             <span title="" style="font-size:12px;color:var(--muted);cursor:help;">📆 날짜 선택:</span>
             ${['yesterday','last7','thisMonth','lastMonth','all'].map(pk=>{
               const pLabel = {yesterday:'어제',last7:'최근 7일',thisMonth:'이번달',lastMonth:'지난달',all:'전체 기간'}[pk];
-              const active = dayBoundsMinHr && !dayRangeCustomOpen[key] && isPresetActive(pk, dayRangeState[key], dayBoundsMinHr, dayBoundsMaxHr);
+              const active = dayBoundsMinHr && !dayRangeCustomOpen[key] && (dayPresetChoice[key]
+                ? dayPresetChoice[key]===pk
+                : isPresetActive(pk, dayRangeState[key], dayBoundsMinHr, dayBoundsMaxHr));
               return `<button class="day-preset-pill-hr" data-preset="${pk}" ${dayBoundsMinHr?'':'disabled'} style="background:${active?'var(--accent)':'var(--panel-2)'};border:1px solid ${active?'var(--accent)':'var(--border)'};color:${active?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinHr?'pointer':'not-allowed'};font-weight:${active?'600':'400'};">${pLabel}</button>`;
             }).join('')}
             <button id="dayRangeCustomToggle" ${dayBoundsMinHr?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMinHr?'pointer':'not-allowed'};">📆 직접 선택</button>
@@ -1732,26 +1766,47 @@ function renderHourlyPage(data){
     </div>
     ${!hasHourlyData ? `<div class="empty-state"><div style="font-size:28px;">⏰</div><div>표시할 시간대별 데이터가 없어요.<br>input.html에서 시간대별 리포트를 업로드해주세요.</div></div>` : `
 
-    <div class="panel">
-      <div class="panel-title">💡 시간대 운영 추천</div>
-      ${bestHour ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>📈</span><span style="color:var(--up);">가장 효율적인 시간대는 '${bestHour.hour}시'예요 (${isDB ? `CPA ${bestHour.cpa.toLocaleString('ko-KR')}원` : `ROAS ${bestHour.roas.toFixed(0)}%`}, 전환 ${bestHour.conv}건 기준).</span></div>` : ''}
-      ${dowInsight ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>🗓️</span><span style="color:var(--up);">${dowInsight.text}</span></div>` : ''}
-      ${dowWorstInsight ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>🗓️</span><span style="color:var(--down);">${dowWorstInsight.text}</span></div>` : ''}
-      ${dowZeroConvInsight ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>🚫</span><span style="color:var(--down);">${dowZeroConvInsight.text}</span></div>` : ''}
-      ${overallTrendInsight ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;"><span>${overallTrendInsight.good?'📈':'⚠️'}</span><span style="color:${overallTrendInsight.good?'var(--up)':'var(--down)'};">${overallTrendInsight.text}</span></div>` : ''}
-      ${(cutCandidates.length===0 && boostCandidates.length===0) ? '<div style="color:var(--muted);font-size:12px;">아직 추천할 만큼 뚜렷한 시간대 차이가 없어요.</div>' : ''}
-      ${cutCandidates.length ? `<div style="margin-bottom:10px;">
-        <div style="font-size:12px;color:var(--down);font-weight:700;margin-bottom:6px;">🚫 제외 검토 — 비용만 쓰고 전환 0건인 시간대</div>
-        ${cutCandidates.map(h=>`<div style="font-size:12px;padding:4px 0;">‘${h.hour}시’ — 비용 ${fmtWon(h.cost)}원 쓰고 전환 0건 (노출 ${h.impressions.toLocaleString('ko-KR')} · 클릭 ${h.clicks.toLocaleString('ko-KR')})</div>`).join('')}
-      </div>` : ''}
-      ${boostCandidates.length ? `<div>
-        <div style="font-size:12px;color:var(--up);font-weight:700;margin-bottom:6px;">📈 확대 검토 — 평균보다 ${isDB?'CPA가 훨씬 낮은':'ROAS가 훨씬 높은'}(효율 좋은) 시간대</div>
-        ${isDB
-          ? boostCandidates.map(h=>`<div style="font-size:12px;padding:4px 0;">‘${h.hour}시’ — CPA ${h.cpa.toLocaleString('ko-KR')}원 (평균 ${Math.round(avgCpaHour).toLocaleString('ko-KR')}원 대비 ${Math.round((1-h.cpa/avgCpaHour)*100)}% 낮음)</div>`).join('')
-          : boostCandidates.map(h=>`<div style="font-size:12px;padding:4px 0;">‘${h.hour}시’ — ROAS ${h.roas.toFixed(0)}% (평균 ${avgRoasHour.toFixed(0)}% 대비 ${Math.round((h.roas/avgRoasHour-1)*100)}% 높음)</div>`).join('')}
-      </div>` : ''}
-      ${buildAISummaryBoxHTML(key, periodLabel)}
-    </div>
+    ${(() => {
+      // 목업 구조: '더 붙일 시간 / 줄일 시간 / 표본이 부족한 시간' 세 덩어리로 한눈에.
+      // 예전엔 문장이 줄줄이 나열돼서 뭘 먼저 봐야 하는지 안 보였음.
+      const lowSample = realHours(hourlyEnriched).filter(h=>h.cost>0 && h.conv>0 && h.conv<MIN_CONV_HOUR)
+                          .sort((a,b)=>b.cost-a.cost).slice(0,5);
+      const hh = arr => arr.map(h=>h.hour+'시').join(' · ');
+      const won = v => Math.round(v*10000).toLocaleString('ko-KR')+'원';
+      const block = (color, title, hours, detail) => hours ? `
+        <div style="display:flex;flex-direction:column;gap:6px;padding:13px 15px;background:#161823;min-width:0">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="width:6px;height:6px;border-radius:2px;background:${color}"></span>
+            <span style="font-size:12px;color:#7b7f96">${title}</span></div>
+          <div class="m" style="font-size:17px;font-weight:600;color:#e8e9f2;letter-spacing:-.02em">${hours}</div>
+          <div style="font-size:11.5px;color:#7b7f96;line-height:1.55">${detail}</div>
+        </div>` : '';
+      const boostDetail = isDB
+        ? `전환당 비용이 평균(${avgCpaHour?Math.round(avgCpaHour).toLocaleString('ko-KR')+'원':'-'})보다 훨씬 쌈`
+        : `ROAS가 평균(${avgRoasHour?Math.round(avgRoasHour)+'%':'-'})보다 훨씬 높음`;
+      const cutCost = cutCandidates.reduce((a,h)=>a+h.cost,0);
+      const blocks = block('#3ddc97','더 붙일 시간', hh(boostCandidates), boostDetail)
+                   + block('#ff6b85','줄일 시간', hh(cutCandidates), cutCandidates.length?`이 시간에 ${won(cutCost)} 쓰고 전환 0건`:'')
+                   + block('#7b7f96','표본이 부족한 시간', hh(lowSample), `전환 ${MIN_CONV_HOUR}건 미만 — 판단 보류`);
+      if(!blocks) return `<div class="panel"><div class="panel-title">💡 시간대 운영 추천</div>
+        <div style="color:var(--muted);font-size:12px;">아직 추천할 만큼 뚜렷한 시간대 차이가 없어요.</div></div>`;
+      const lines = [
+        bestHour ? `가장 효율적인 시간대는 <b style="color:#e8e9f2">${bestHour.hour}시</b>예요 (${isDB ? `CPA ${bestHour.cpa.toLocaleString('ko-KR')}원` : `ROAS ${bestHour.roas.toFixed(0)}%`}, 전환 ${bestHour.conv}건 기준).` : null,
+        dowInsight ? dowInsight.text : null,
+        dowWorstInsight ? dowWorstInsight.text : null,
+        dowZeroConvInsight ? dowZeroConvInsight.text : null,
+        overallTrendInsight ? overallTrendInsight.text : null
+      ].filter(Boolean);
+      return `
+      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:18px">
+        ${dcSecHead('시간대 운영 추천', isDB?'CPA 기준':'ROAS 기준')}
+        <div class="hr-reco">${blocks}</div>
+        ${lines.length ? `<div style="border:1px solid #262a3b;border-radius:9px;background:#161823;padding:13px 16px;display:flex;flex-direction:column;gap:7px">
+          ${lines.map(t=>`<div style="font-size:12.5px;color:#a9adc2;line-height:1.6">${t}</div>`).join('')}
+        </div>` : ''}
+      </div>`;
+    })()}
+    ${buildAISummaryBoxHTML(key, periodLabel)}
 
     <div class="panel" style="margin-top:18px;">
       <div class="panel-title">⏰ 시간대별 성과 (0~23시)</div>
@@ -1839,7 +1894,16 @@ function renderHourlyPage(data){
     </div>
 
     <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">📋 시간대별 정확한 수치 <span style="font-weight:400;color:var(--muted);font-size:12px;">0~23시 전체</span></div>
+      ${(() => {
+        const missing = months.filter(m=>!(m.hourly&&m.hourly.length) && !(m.hourlyByCampaign&&m.hourlyByCampaign.length));
+        if(!missing.length) return '';
+        // 시간대 리포트를 안 올린 달이 섞여 있으면 이 페이지 합계가 대시보드보다 작다 — 오해하지 않도록 먼저 알림
+        return `<div style="margin-bottom:10px;padding:9px 12px;border:1px solid #3a3350;border-radius:8px;background:#1e1a2b;font-size:12px;color:#c9c3e0;line-height:1.6">
+          ⚠️ 선택한 기간 ${months.length}개 달 중 <b>${missing.length}개 달(${missing.map(m=>m.label).join(', ')})</b>은 시간대별 리포트가 없어요.
+          그래서 이 페이지 합계는 대시보드 합계보다 그만큼 적습니다.</div>`;
+      })()}
+      <div class="panel-title">📋 시간대별 정확한 수치 <span style="font-weight:400;color:var(--muted);font-size:12px;">${(()=>{ const u = hourlyWithTrend.find(h=>h.unknown && (h.impressions>0||h.cost>0||h.conv>0));
+        return u ? `0~23시 + 시간 미상 1줄` : '0~23시'; })()}</span></div>
       <div class="hr-scroll"><table>
         <thead><tr><th>시간대</th><th style="text-align:right">비용 비중</th><th style="text-align:right">노출수</th><th style="text-align:right">클릭수</th><th style="text-align:right">클릭률</th><th style="text-align:right">비용</th><th style="text-align:right">전환수</th><th style="text-align:right">${isDB?'CPA':'매출'}</th>${isDB?'':'<th style="text-align:right">ROAS</th>'}<th style="text-align:right">전환율</th><th style="text-align:right">평균노출순위</th></tr></thead>
         <tbody>
@@ -1853,8 +1917,8 @@ function renderHourlyPage(data){
             return shown.map(h=>{
               const t = h.trends || {};
               const share = Math.round((h.cost||0)/totCost*100);
-              return `<tr>
-              <td class="kw-name">${hourLabel(h)}</td>
+              return `<tr${h.unknown?' class="hr-unknown" title="네이버가 시간을 특정하지 못한 실적이에요. 몇 시인지 알 수 없어서 그래프와 시간대 추천에서는 빠지지만, 합계에는 들어갑니다."':''}>
+              <td class="kw-name">${hourLabel(h)}${h.unknown?'<span style="margin-left:5px;font-size:10.5px;padding:1px 6px;border-radius:4px;background:#2a2130;color:#a9adc2;font-weight:400">시각 불명</span>':''}</td>
               <td style="${R}"><span style="display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;width:100%">
                 <span style="flex:0 1 54px;height:4px;border-radius:2px;background:#242840;overflow:hidden"><span style="display:block;height:100%;background:#8b7cff;opacity:.9;width:${Math.max(3,Math.round((h.cost||0)/maxCost*100))}%"></span></span>
                 <span class="m" style="font-size:11.5px;color:var(--muted);min-width:26px;text-align:right">${share}%</span></span></td>
@@ -1956,7 +2020,7 @@ function renderHourlyPage(data){
     const allLabels = allMonths.map(m=>m.label);
     if(allLabels.indexOf(r.start) > allLabels.indexOf(r.end)) r.end = r.start;
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null };
+    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
     renderHourlyPage(data);
   };
   document.getElementById('monthRangeEndSelect').onchange = (e)=>{
@@ -1965,22 +2029,23 @@ function renderHourlyPage(data){
     const allLabels = allMonths.map(m=>m.label);
     if(allLabels.indexOf(r.end) < allLabels.indexOf(r.start)) r.start = r.end;
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null };
+    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
     renderHourlyPage(data);
   };
   document.getElementById('monthRangeAllBtn').onclick = ()=>{
     monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
     compareMonthState[key] = 'AUTO';
-    dayRangeState[key] = { start: null, end: null };
+    dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
     renderHourlyPage(data);
   };
 document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     btn.onclick = ()=>{
       const pk = btn.dataset.preset;
+      dayPresetChoice[key] = pk;
       if(pk === 'all'){
         monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
         if(typeof compareMonthState !== 'undefined') compareMonthState[key] = 'AUTO';
-        dayRangeState[key] = { start: null, end: null };
+        dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
         dayRangeCustomOpen[key] = false;
         renderHourlyPage(data);
         return;
@@ -2003,6 +2068,7 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
   const hrDayStartInput = document.getElementById('dayRangeStartInput');
   if(hrDayStartInput) hrDayStartInput.onchange = (e)=>{
     const dr = dayRangeState[key];
+    dayPresetChoice[key] = null;
     dr.start = e.target.value || null;
     if(dr.start && dr.end && dr.start > dr.end) dr.end = dr.start;
     renderHourlyPage(data);
@@ -2010,12 +2076,13 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
   const hrDayEndInput = document.getElementById('dayRangeEndInput');
   if(hrDayEndInput) hrDayEndInput.onchange = (e)=>{
     const dr = dayRangeState[key];
+    dayPresetChoice[key] = null;
     dr.end = e.target.value || null;
     if(dr.start && dr.end && dr.end < dr.start) dr.start = dr.end;
     renderHourlyPage(data);
   };
   const hrDayResetBtn = document.getElementById('dayRangeResetBtn');
-  if(hrDayResetBtn) hrDayResetBtn.onclick = ()=>{ dayRangeState[key] = { start:null, end:null }; dayRangeCustomOpen[key] = false; renderHourlyPage(data); };
+  if(hrDayResetBtn) hrDayResetBtn.onclick = ()=>{ dayRangeState[key] = { start:null, end:null }; dayPresetChoice[key] = null; dayRangeCustomOpen[key] = false; renderHourlyPage(data); };
   document.getElementById('monthPrevBtn').onclick = ()=>{
     const allLabels = allMonths.map(m=>m.label);
     const r = monthRangeState[key];
