@@ -257,6 +257,77 @@ table td, table th{ padding-top:10px !important; padding-bottom:10px !important;
 
 /* 작은 글씨들 살짝 키움 */
 .lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+
+/* 목표 대비 KPI — 4칸 + 진행 막대 */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
+.kpi-cell{background:var(--panel-2);padding:15px 17px}
+.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
+.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
+.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
+.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
+.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
+.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
+.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
+.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- 상단 필터 바 ---- */
+.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
+.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
+.filterbar .fb-g:last-child{border-right:0}
+.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
+.filterbar button{border-radius:7px!important}
+.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
+header.rep .totals{display:none}
+.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
+.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
+@media(max-width:900px){.filterbar .fb-g{border-right:0}}
+
+/* ---- 성과 인사이트 2단 ---- */
+.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
+.ins-col-good{border-left:3px solid var(--up)}
+.ins-col-warn{border-left:3px solid var(--down)}
+.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
+.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
+.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
+.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
+.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ins-neutral .ins-li{color:var(--muted)}
+#insightsPanel{border-left:0!important}
+@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
+
+.dc-two{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.dc-two{grid-template-columns:1fr}}
+
+/* ---- 큰 숫자 줄 ----
+   칸 수가 6개(DB)/7개(B2C)로 달라지고 화면 폭에 따라 줄바꿈되는데, grid로 하면 마지막 줄에 빈칸이 남는다.
+   flex + flex-grow 로 두면 남은 칸들이 늘어나 폭을 꽉 채운다. */
+.dc-kpi{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-kpi > div{flex:1 1 142px;min-width:0}
+
+.dc-kpi2{display:flex;flex-direction:column;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-k-top,.dc-k-bot{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b}
+.dc-k-top > div,.dc-k-bot > div{flex:1 1 160px;min-width:0}
+
+/* ---- 표: 목업과 같은 모양으로 통일 ---- */
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+table thead tr{background:#1d2030}
+table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  text-transform:none!important;white-space:nowrap}
+table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table tbody tr:hover td{background:#1b1e2c}
+.panel table,.card table{border-radius:0}
 </style>
 </head>
 <body>
@@ -1392,6 +1463,50 @@ function renderTestComparisonHTML(test, data, isDB){
     <div style="margin-top:6px;font-size:12px;color:var(--muted);">${mA.granularity==='month'||mB.granularity==='month' ? '월 단위 데이터만 있는 쪽은 월 단위로 집계돼요(광고그룹 지정, 또는 일별 키워드·시간대 데이터가 없는 경우).' : ''} ${(mA.granularity!==mB.granularity)?'⚠️ A안과 B안의 집계 단위(일/월)가 달라요 — 참고용으로만 봐주세요.':''}</div>
   `;
 }
+/* ================= 공통 디자인 조각 (목업 기준) ================= */
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+             card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
+const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
+const dcWon = man => dcNum((man||0)*10000)+'원';
+const dcSecHead = (title, sub, right) => `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+  <span style="font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:${DC.txt}">${title}</span>
+  ${sub?`<span style="font-size:11.5px;color:${DC.mut}">${sub}</span>`:''}
+  <div style="flex-grow:1"></div>${right||''}</div>`;
+const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
+// 큰 숫자 줄 — 윗줄은 결과(크게), 아랫줄은 과정(작게). 칸이 모자라면 남은 칸이 늘어나 폭을 채운다.
+function dcCellHTML(lab, val, delta, big){
+  const L = String(val).length;
+  const fs = big ? (L>17?21:L>13?24:27) : (L>17?15:L>13?17:19);
+  return `<div style="padding:${big?'16px 20px':'13px 20px'};background:${DC.card};min-width:0">
+    <div style="font-size:11.5px;color:${DC.mut};margin-bottom:${big?'7px':'5px'}">${lab}</div>
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap"><span class="m" style="font-size:${fs}px;font-weight:600;letter-spacing:-.025em;color:${DC.txt};white-space:nowrap">${val}</span>${delta||''}</div>
+  </div>`;
+}
+function dcDelta(now, prev, inv){
+  if(prev===null||prev===undefined||!isFinite(prev)||prev===0||now===null||!isFinite(now)) return '';
+  const p = (now/prev-1)*100, good = inv ? p<0 : p>0;
+  return `<span class="m" style="font-size:12px;color:${good?DC.up:DC.dn};margin-left:8px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}</span>`;
+}
+function dcKpi2HTML(top, bottom){
+  const r = arr => arr.filter(Boolean).map(c=>dcCellHTML(c[0], c[1], c[2], c[3])).join('');
+  return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
+}
+// 표 조각
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
+const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
+  <thead><tr style="background:${DC.head}">${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div></div>`;
+// 미니 스파크라인 (비용 추이)
+function dcSpark(vals, w, h){
+  const v = (vals||[]).filter(x=>isFinite(x));
+  if(v.length < 2) return '';
+  const W = w||84, H = h||22, max = Math.max(...v), min = Math.min(...v), span = (max-min)||1;
+  const pts = v.map((x,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(H - (x-min)/span*(H-2) - 1).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:middle;overflow:visible">
+    <polyline points="${pts}" fill="none" stroke="${DC.acc}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/></svg>`;
+}
+
 function renderAbTestPage(data){
   const key = 'client:' + slugify(data.name);
   document.documentElement.style.setProperty('--accent', data.color);

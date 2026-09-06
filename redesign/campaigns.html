@@ -266,6 +266,79 @@ table td, table th{ padding-top:10px !important; padding-bottom:10px !important;
 
 /* 작은 글씨들 살짝 키움 */
 .lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+
+/* 목표 대비 KPI — 4칸 + 진행 막대 */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
+.kpi-cell{background:var(--panel-2);padding:15px 17px}
+.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
+.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
+.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
+.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
+.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
+.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
+.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
+.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- 상단 필터 바 ---- */
+.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
+.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
+.filterbar .fb-g:last-child{border-right:0}
+.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
+.filterbar button{border-radius:7px!important}
+.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
+header.rep .totals{display:none}
+.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
+.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
+@media(max-width:900px){.filterbar .fb-g{border-right:0}}
+
+/* ---- 성과 인사이트 2단 ---- */
+.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
+.ins-col-good{border-left:3px solid var(--up)}
+.ins-col-warn{border-left:3px solid var(--down)}
+.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
+.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
+.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
+.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
+.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ins-neutral .ins-li{color:var(--muted)}
+#insightsPanel{border-left:0!important}
+@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
+
+.dc-two{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.dc-two{grid-template-columns:1fr}}
+
+/* ---- 큰 숫자 줄 ----
+   칸 수가 6개(DB)/7개(B2C)로 달라지고 화면 폭에 따라 줄바꿈되는데, grid로 하면 마지막 줄에 빈칸이 남는다.
+   flex + flex-grow 로 두면 남은 칸들이 늘어나 폭을 꽉 채운다. */
+.dc-kpi{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-kpi > div{flex:1 1 142px;min-width:0}
+
+.dc-kpi2{display:flex;flex-direction:column;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-k-top,.dc-k-bot{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b}
+.dc-k-top > div,.dc-k-bot > div{flex:1 1 160px;min-width:0}
+
+.ov-row:hover td{background:#1b1e2c}
+
+/* ---- 표: 목업과 같은 모양으로 통일 ---- */
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+table thead tr{background:#1d2030}
+table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+  color:#7b7f96!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  text-transform:none!important;white-space:nowrap}
+table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table tbody tr:hover td{background:#1b1e2c}
+.panel table,.card table{border-radius:0}
 </style>
 </head>
 <body>
@@ -1256,6 +1329,70 @@ const INSIGHT_THRESHOLDS = {
   ZERO_CONV_HIGH_CLICKS: 20, // 전환 0건 캠페인 진단 — 이 이상 클릭이 있으면 "클릭은 있는데 전환 없음"으로 판단
   ZERO_CONV_LOW_CTR_RATIO: 0.5, // 전환 0건 캠페인 진단 — 전체 평균 CTR의 이 비율 미만이면 "CTR 낮음"으로 판단
 };
+/* ================= 공통 디자인 조각 (목업 기준) ================= */
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#7b7f96', mut2:'#a9adc2', line:'#262a3b',
+             card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
+const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
+const dcWon = man => dcNum((man||0)*10000)+'원';
+const dcSecHead = (title, sub, right) => `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+  <span style="font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:${DC.txt}">${title}</span>
+  ${sub?`<span style="font-size:11.5px;color:${DC.mut}">${sub}</span>`:''}
+  <div style="flex-grow:1"></div>${right||''}</div>`;
+const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
+// 큰 숫자 줄 — 윗줄은 결과(크게), 아랫줄은 과정(작게). 칸이 모자라면 남은 칸이 늘어나 폭을 채운다.
+function dcCellHTML(lab, val, delta, big){
+  const L = String(val).length;
+  const fs = big ? (L>17?21:L>13?24:27) : (L>17?15:L>13?17:19);
+  return `<div style="padding:${big?'16px 20px':'13px 20px'};background:${DC.card};min-width:0">
+    <div style="font-size:11.5px;color:${DC.mut};margin-bottom:${big?'7px':'5px'}">${lab}</div>
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap"><span class="m" style="font-size:${fs}px;font-weight:600;letter-spacing:-.025em;color:${DC.txt};white-space:nowrap">${val}</span>${delta||''}</div>
+  </div>`;
+}
+function dcDelta(now, prev, inv){
+  if(prev===null||prev===undefined||!isFinite(prev)||prev===0||now===null||!isFinite(now)) return '';
+  const p = (now/prev-1)*100, good = inv ? p<0 : p>0;
+  return `<span class="m" style="font-size:12px;color:${good?DC.up:DC.dn};margin-left:8px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}</span>`;
+}
+function dcKpi2HTML(top, bottom){
+  const r = arr => arr.filter(Boolean).map(c=>dcCellHTML(c[0], c[1], c[2], c[3])).join('');
+  return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
+}
+// 표 조각
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
+const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
+  <thead><tr style="background:${DC.head}">${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div></div>`;
+// 미니 스파크라인 (비용 추이)
+function dcSpark(vals, w, h){
+  const v = (vals||[]).filter(x=>isFinite(x));
+  if(v.length < 2) return '';
+  const W = w||84, H = h||22, max = Math.max(...v), min = Math.min(...v), span = (max-min)||1;
+  const pts = v.map((x,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(H - (x-min)/span*(H-2) - 1).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:middle;overflow:visible">
+    <polyline points="${pts}" fill="none" stroke="${DC.acc}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/></svg>`;
+}
+
+/* 날짜 프리셋을 누르면 위쪽 '기간(월)' 위젯도 그 날짜가 속한 달로 같이 옮긴다.
+   안 그러면 KPI/그래프는 좁혀진 날짜로, 월 단위 표는 전체 기간으로 계산돼 한 화면에서 숫자가 안 맞음. */
+function monthFirstDay(label){ const t=String(label||'').replace('.','-'); return t?`${t}-01`:null; }
+function monthLastDay(label){ const t=String(label||'').split('.'); if(t.length<2) return null;
+  const y=+t[0], m=+t[1]; return `${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`; }
+function dayToMonthLabel(d){ return String(d||'').slice(0,7).replace('-','.'); }
+function syncMonthRangeToDays(key, allMonths, dr){
+  if(!dr || !dr.start || !dr.end) return false;
+  const labels = (allMonths||[]).map(m=>m.label);
+  const si = labels.indexOf(dayToMonthLabel(dr.start));
+  const ei = labels.indexOf(dayToMonthLabel(dr.end));
+  if(si<0 || ei<0) return false;
+  const a = Math.min(si,ei), b = Math.max(si,ei);
+  const cur = monthRangeState[key] || {};
+  if(cur.start===labels[a] && cur.end===labels[b]) return false;
+  monthRangeState[key] = { start: labels[a], end: labels[b] };
+  if(typeof compareMonthState !== 'undefined') compareMonthState[key] = 'AUTO';
+  return true;
+}
+
 function renderCampaignsPage(data){
   const key = 'client:' + slugify(data.name);
   const fstate = ensureFilterState(key, data);
@@ -1669,6 +1806,19 @@ function renderCampaignsPage(data){
           <div class="idn-name">${data.name} <span class="badge">캠페인 비교 전용 보기</span></div>
           <div class="period" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span>${isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} (${months.length}개 기간) 누적` : (months[0] ? months[0].label : '-')} 기준${hasDayFilter ? ` · 📆 ${dayRangeState[key].start||dayBoundsMin} ~ ${dayRangeState[key].end||dayBoundsMax} 날짜 필터 적용 중(캠페인 표에도 반영됨, 평균노출순위는 일별 데이터엔 없어서 표시 안 됨)` : ''}</span>
+          </div>
+          ${dayBoundsMin && dayRangeCustomOpen[key] ? `
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
+            <input type="date" id="dayRangeStartInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].start || dayBoundsMin || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
+            <span style="color:var(--muted);font-size:12px;">~</span>
+            <input type="date" id="dayRangeEndInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].end || dayBoundsMax || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
+            ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
+          </div>` : ''}
+        </div>
+      </div>
+    </header>
+    <div class="filterbar">
+      <div class="fb-g"><span class="fb-lab">기간</span>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
               <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">◀</button>
               <select id="monthRangeStartSelect" title="시작 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
@@ -1681,9 +1831,10 @@ function renderCampaignsPage(data){
               <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">▶</button>
               <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">전체</button>
             </div>
-          </div>
+      </div>
+      <div class="fb-g">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;${dayBoundsMin?'':'opacity:.5;'}" title="${dayBoundsMin?'':'이 기간엔 일별 데이터가 없어서 날짜를 좁혀도 결과가 바뀌지 않아요.'}">
-            <span style="font-size:12px;color:var(--muted);">📆 날짜 선택 (위 캠페인 표 + 아래 일별 비교 그래프 모두에 적용):</span>
+            <span title="위 캠페인 표 + 아래 일별 비교 그래프 모두에 적용" style="font-size:12px;color:var(--muted);cursor:help;">📆 날짜 선택 ⓘ:</span>
             ${['yesterday','last7','thisMonth','lastMonth','all'].map(pk=>{
               const pLabel = {yesterday:'어제',last7:'최근 7일',thisMonth:'이번달',lastMonth:'지난달',all:'전체 기간'}[pk];
               const active = dayBoundsMin && !dayRangeCustomOpen[key] && isPresetActive(pk, dayRangeState[key], dayBoundsMin, dayBoundsMax);
@@ -1691,23 +1842,15 @@ function renderCampaignsPage(data){
             }).join('')}
             <button id="dayRangeCustomToggle" ${dayBoundsMin?'':'disabled'} style="background:${dayRangeCustomOpen[key]?'var(--accent)':'transparent'};border:1px dashed ${dayRangeCustomOpen[key]?'var(--accent)':'var(--border)'};color:${dayRangeCustomOpen[key]?'#fff':'var(--muted)'};border-radius:14px;padding:4px 11px;font-size:12px;cursor:${dayBoundsMin?'pointer':'not-allowed'};">📆 직접 선택</button>
           </div>
-          ${dayBoundsMin && dayRangeCustomOpen[key] ? `
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
-            <input type="date" id="dayRangeStartInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].start || dayBoundsMin || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-            <span style="color:var(--muted);font-size:12px;">~</span>
-            <input type="date" id="dayRangeEndInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].end || dayBoundsMax || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-            ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
-          </div>` : ''}
-          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+      </div>
+      <div class="fb-g">
             <span style="font-size:12px;color:var(--muted);">▲▼ 비교 기준:</span>
             <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">
               <option value="AUTO" ${compareMonthState[key]==='AUTO'?'selected':''}>직전 기간 자동</option>
               ${allMonths.filter(m=>!months.some(mm=>mm.label===m.label)).map(m=>`<option value="${m.label}" ${compareMonthState[key]===m.label?'selected':''}>${m.label} 과 비교</option>`).join('')}
             </select>
-          </div>
-        </div>
       </div>
-    </header>
+    </div>
 
     ${goalGapInfo ? `
     <div class="panel" style="margin-bottom:18px;border-left:3px solid ${goalGapInfo.totalMissing?'var(--down)':'var(--up)'};">
@@ -1905,9 +2048,21 @@ function renderCampaignsPage(data){
   };
 document.querySelectorAll('.day-preset-pill-cp').forEach(btn=>{
     btn.onclick = ()=>{
-      const p = presetDayRange(btn.dataset.preset, dayBoundsMin, dayBoundsMax);
+      const pk = btn.dataset.preset;
+      if(pk === 'all'){
+        monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };
+        if(typeof compareMonthState !== 'undefined') compareMonthState[key] = 'AUTO';
+        dayRangeState[key] = { start: null, end: null };
+        dayRangeCustomOpen[key] = false;
+        renderCampaignsPage(data);
+        return;
+      }
+      const fullMin = allMonths.length ? monthFirstDay(allMonths[0].label) : dayBoundsMin;
+      const fullMax = allMonths.length ? monthLastDay(allMonths[allMonths.length-1].label) : dayBoundsMax;
+      const p = presetDayRange(pk, fullMin, fullMax) || presetDayRange(pk, dayBoundsMin, dayBoundsMax);
       if(!p) return;
       dayRangeState[key] = p;
+      syncMonthRangeToDays(key, allMonths, p);
       dayRangeCustomOpen[key] = false;
       renderCampaignsPage(data);
     };
