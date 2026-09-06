@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>km-board · 캠페인 통합 인사이트</title>
+<!--
+  km-board 대시보드 — 섹션 07-campaign-insight
+  캠페인 통합 인사이트 — 시간대 + 키워드를 캠페인 단위로 묶어 제안
+  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결은 되어 있지 않습니다.
+  · 이 파일 하나만 열어도 렌더링되도록 공통 스타일을 포함했습니다.
+  · 실제 페이지에 붙일 때는 <body> 안쪽 마크업만 가져가고, 스타일은 공통 CSS로 합치세요.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+  <style>
+    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
+    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
+    .card{background:#171a27;border:1px solid #2b3044;border-radius:10px}
+    .lbl{font-size:12px;color:#8f94ab}
+    .sec{font-size:15px;font-weight:600;letter-spacing:-.015em}
+    .pill{display:inline-block;padding:2.5px 8px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap}
+    .btn{padding:6px 12px;border:1px solid #343950;border-radius:7px;font-size:12.5px;color:#b5b9cd;white-space:nowrap}
+    .btnA{padding:6px 12px;border-radius:7px;background:#8b7cff;color:#0e0f16;font-size:12.5px;font-weight:600;white-space:nowrap}
+    th{font-size:12px;color:#8f94ab;font-weight:500;text-align:right;padding:9px 12px;border-bottom:1px solid #2b3044;white-space:nowrap}
+    td{padding:11px 12px;text-align:right;font-size:13.5px;border-bottom:1px solid #202434}
+    tr:last-child td{border-bottom:none}
+    .lt{text-align:left!important}
+  </style>
+<style>
+  html,body{margin:0;padding:0;background:#0e0f16}
+  .__wrap{padding:22px 26px;min-width:1280px;display:flex;flex-direction:column;gap:20px}
+  .__label{font-size:12px;color:#6d7288;letter-spacing:.04em;padding:0 26px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="__label">07-campaign-insight · 캠페인 통합 인사이트</div>
+<div class="__wrap">
+<!-- ⑤ 캠페인 통합 인사이트 -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #2b3044">
+        <span class="sec">캠페인 통합 인사이트</span>
+        <span class="lbl">시간대와 키워드 성과를 캠페인 단위로 묶었어요 · 비용 상위 3개</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#2b3044">
+
+        <div style="background:#171a27;padding:16px 17px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-weight:600;font-size:14.5px">브랜드_파워링크</span>
+            <span class="m" style="font-size:12.5px;color:#3ddc97">ROAS 121</span>
+          </div>
+          <div class="m lbl" style="margin-top:2px">비용 50만원 · 매출 60만원</div>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">시간대</span><span><b class="m">15시</b> 가장 효율적 (114) · <b class="m">6시</b> 최악 (0)</span></div>
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">키워드</span><span><b>기름병공방</b>이 매출 17만원 · ROAS 3,686으로 견인</span></div>
+          </div>
+          <div style="margin-top:13px;padding:11px 13px;background:#1a1730;border:1px solid #2f2a52;border-radius:8px;font-size:13px">
+            <b style="color:#b8aeff">제안</b> · 15시에 기름병공방 입찰을 우선 배분
+          </div>
+        </div>
+
+        <div style="background:#171a27;padding:16px 17px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-weight:600;font-size:14.5px">쇼핑_전체상품</span>
+            <span class="m" style="font-size:12.5px;color:#3ddc97">ROAS 224</span>
+          </div>
+          <div class="m lbl" style="margin-top:2px">비용 21만원 · 매출 46만원</div>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">시간대</span><span><b class="m">12시</b> 가장 효율적 (504) · <b class="m">8시</b> 최악 (41)</span></div>
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">상품</span><span><b>녹색 와인병 500ml 40개</b>가 매출 11만원 · ROAS 12,885</span></div>
+          </div>
+          <div style="margin-top:13px;padding:11px 13px;background:#1a1730;border:1px solid #2f2a52;border-radius:8px;font-size:13px">
+            <b style="color:#b8aeff">제안</b> · 12시에 해당 상품 소재를 우선 배분
+          </div>
+        </div>
+
+        <div style="background:#171a27;padding:16px 17px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-weight:600;font-size:14.5px">집중관리키워드</span>
+            <span class="m" style="font-size:12.5px;color:#ff6b85">ROAS 67</span>
+          </div>
+          <div class="m lbl" style="margin-top:2px">비용 15만원 · 매출 10만원</div>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">시간대</span><span><b class="m">6시</b> 가장 효율적 (59) · <b class="m">13시</b> 최악 (0)</span></div>
+            <div style="display:flex;gap:9px;font-size:13px"><span style="color:#8f94ab;width:52px;flex-shrink:0">키워드</span><span><b>유리병</b>이 매출 10만원 · ROAS 81로 견인</span></div>
+          </div>
+          <div style="margin-top:13px;padding:11px 13px;background:#2a1a1f;border:1px solid #4a2b38;border-radius:8px;font-size:13px">
+            <b style="color:#ff6b85">주의</b> · 전체가 손익분기 아래 — 배분 조정보다 구조 점검 먼저
+</div>
+</body>
+</html>

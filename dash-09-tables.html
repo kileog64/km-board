@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>km-board · 캠페인별 성과 · 매체별</title>
+<!--
+  km-board 대시보드 — 섹션 09-tables
+  캠페인별 성과 · 매체별 — 표 2종
+  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결은 되어 있지 않습니다.
+  · 이 파일 하나만 열어도 렌더링되도록 공통 스타일을 포함했습니다.
+  · 실제 페이지에 붙일 때는 <body> 안쪽 마크업만 가져가고, 스타일은 공통 CSS로 합치세요.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+  <style>
+    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
+    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
+    .card{background:#171a27;border:1px solid #2b3044;border-radius:10px}
+    .lbl{font-size:12px;color:#8f94ab}
+    .sec{font-size:15px;font-weight:600;letter-spacing:-.015em}
+    .pill{display:inline-block;padding:2.5px 8px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap}
+    .btn{padding:6px 12px;border:1px solid #343950;border-radius:7px;font-size:12.5px;color:#b5b9cd;white-space:nowrap}
+    .btnA{padding:6px 12px;border-radius:7px;background:#8b7cff;color:#0e0f16;font-size:12.5px;font-weight:600;white-space:nowrap}
+    th{font-size:12px;color:#8f94ab;font-weight:500;text-align:right;padding:9px 12px;border-bottom:1px solid #2b3044;white-space:nowrap}
+    td{padding:11px 12px;text-align:right;font-size:13.5px;border-bottom:1px solid #202434}
+    tr:last-child td{border-bottom:none}
+    .lt{text-align:left!important}
+  </style>
+<style>
+  html,body{margin:0;padding:0;background:#0e0f16}
+  .__wrap{padding:22px 26px;min-width:1280px;display:flex;flex-direction:column;gap:20px}
+  .__label{font-size:12px;color:#6d7288;letter-spacing:.04em;padding:0 26px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="__label">09-tables · 캠페인별 성과 · 매체별</div>
+<div class="__wrap">
+<!-- ⑦ 캠페인 · 매체 -->
+    <div style="display:grid;grid-template-columns:1.4fr .6fr;gap:16px">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #2b3044;display:flex;align-items:center;gap:10px">
+          <span class="sec">캠페인별 성과</span>
+          <div style="flex-grow:1"></div>
+          <span class="btn">엑셀</span><span class="btn">PDF 리포트</span>
+        </div>
+        <table>
+          <tr><th class="lt" style="width:34%">캠페인</th><th>비용</th><th>전환</th><th>매출</th><th>CPA</th><th>ROAS</th><th>비중</th></tr>
+          <tr><td class="lt">브랜드_파워링크</td><td class="m">4,982,400원</td><td class="m">128건</td><td class="m">21,340,000원</td><td class="m">38,925원</td><td class="m" style="color:#3ddc97">428</td><td class="m">38.8</td></tr>
+          <tr><td class="lt">일반_파워링크</td><td class="m">3,410,900원</td><td class="m">74건</td><td class="m">8,904,000원</td><td class="m">46,093원</td><td class="m">261</td><td class="m">26.6</td></tr>
+          <tr><td class="lt">쇼핑_전체상품</td><td class="m">2,884,300원</td><td class="m">88건</td><td class="m">11,240,000원</td><td class="m">32,776원</td><td class="m" style="color:#3ddc97">390</td><td class="m">22.5</td></tr>
+          <tr><td class="lt">집중관리키워드</td><td class="m">1,562,900원</td><td class="m">22건</td><td class="m">1,044,000원</td><td class="m" style="color:#ff6b85">71,041원</td><td class="m" style="color:#ff6b85">67</td><td class="m">12.2</td></tr>
+        </table>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #2b3044;display:flex;align-items:center;gap:9px">
+          <span class="sec">매체별</span>
+          <span class="lbl">노출 지면</span>
+        </div>
+        <table>
+          <tr><th class="lt">매체</th><th>비용</th><th>ROAS</th></tr>
+          <tr><td class="lt">통합검색 PC</td><td class="m">4,982,400원</td><td class="m" style="color:#3ddc97">412</td></tr>
+          <tr><td class="lt">통합검색 모바일</td><td class="m">5,120,300원</td><td class="m">318</td></tr>
+          <tr><td class="lt">네이버 쇼핑</td><td class="m">1,984,200원</td><td class="m" style="color:#3ddc97">390</td></tr>
+          <tr><td class="lt">검색 파트너</td><td class="m">753,600원</td><td class="m" style="color:#ff6b85">88</td></tr>
+        </table>
+</div>
+</body>
+</html>

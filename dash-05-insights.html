@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>km-board · 성과 인사이트</title>
+<!--
+  km-board 대시보드 — 섹션 05-insights
+  성과 인사이트 — 잘되고 있어요 / 확인이 필요해요
+  · 디자인 시안입니다. 숫자는 전부 예시값이며 데이터 연결은 되어 있지 않습니다.
+  · 이 파일 하나만 열어도 렌더링되도록 공통 스타일을 포함했습니다.
+  · 실제 페이지에 붙일 때는 <body> 안쪽 마크업만 가져가고, 스타일은 공통 CSS로 합치세요.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+  <style>
+    body{margin:0;background:#0e0f16;color:#e8e9f2;font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.006em;font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased}
+    .m{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+    .nav{padding:6px 12px;color:#b5b9cd;font-size:13.5px}
+    .card{background:#171a27;border:1px solid #2b3044;border-radius:10px}
+    .lbl{font-size:12px;color:#8f94ab}
+    .sec{font-size:15px;font-weight:600;letter-spacing:-.015em}
+    .pill{display:inline-block;padding:2.5px 8px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap}
+    .btn{padding:6px 12px;border:1px solid #343950;border-radius:7px;font-size:12.5px;color:#b5b9cd;white-space:nowrap}
+    .btnA{padding:6px 12px;border-radius:7px;background:#8b7cff;color:#0e0f16;font-size:12.5px;font-weight:600;white-space:nowrap}
+    th{font-size:12px;color:#8f94ab;font-weight:500;text-align:right;padding:9px 12px;border-bottom:1px solid #2b3044;white-space:nowrap}
+    td{padding:11px 12px;text-align:right;font-size:13.5px;border-bottom:1px solid #202434}
+    tr:last-child td{border-bottom:none}
+    .lt{text-align:left!important}
+  </style>
+<style>
+  html,body{margin:0;padding:0;background:#0e0f16}
+  .__wrap{padding:22px 26px;min-width:1280px;display:flex;flex-direction:column;gap:20px}
+  .__label{font-size:12px;color:#6d7288;letter-spacing:.04em;padding:0 26px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="__label">05-insights · 성과 인사이트</div>
+<div class="__wrap">
+<!-- ③ 성과 인사이트 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="padding:17px 19px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:13px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#3ddc97"></span>
+          <span class="sec">잘되고 있어요</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="background:#12131c;border:1px solid #202434;border-radius:9px;padding:13px 15px">
+            <div style="font-size:13.5px"><b>브랜드검색</b> 캠페인 ROAS <b class="m" style="color:#3ddc97">20,473</b>으로 가장 높아요</div>
+            <div class="lbl" style="margin-top:3px">비용 50만원 기준 · 브랜드 키워드라 원래 높지만, 예산을 더 태울 여지가 있어요</div>
+          </div>
+          <div style="background:#12131c;border:1px solid #202434;border-radius:9px;padding:13px 15px">
+            <div style="font-size:13.5px">일반 캠페인 예산 중 <b class="m">40만원</b>을 <b>브랜드검색</b>으로 옮기면</div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+              <span class="m" style="font-size:20px;font-weight:600;color:#3ddc97">+4,038만원</span>
+              <span class="lbl">매출 증가 (보수적 추정)</span>
+            </div>
+            <div class="lbl" style="margin-top:4px">같은 총예산 기준 · 브랜드 검색량 한계로 실제는 더 낮을 수 있어요</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:17px 19px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:13px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#f5a524"></span>
+          <span class="sec">확인이 필요해요</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="background:#12131c;border:1px solid #202434;border-radius:9px;padding:13px 15px">
+            <div style="font-size:13.5px"><b>일반_파워링크</b> 캠페인 ROAS <b class="m" style="color:#ff6b85">26</b> — 손익분기 아래</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <span class="lbl" style="width:64px">CVR</span>
+              <span class="m" style="font-size:13px;color:#ff6b85">0.23</span>
+              <span class="lbl">vs 브랜드검색</span>
+              <span class="m" style="font-size:13px;color:#3ddc97">13.89</span>
+            </div>
+            <div class="lbl" style="margin-top:6px">클릭은 오는데 전환이 안 돼요 — 타겟팅이나 랜딩페이지 점검</div>
+          </div>
+          <div style="background:#12131c;border:1px solid #202434;border-radius:9px;padding:13px 15px">
+            <div style="font-size:13.5px">비용만 쓰고 전환 <b>0건</b>인 키워드 <b class="m" style="color:#ff6b85">12개</b> · 합계 <b class="m">3,328,000원</b></div>
+            <div class="lbl" style="margin-top:3px">전체 비용의 26 — 제외 후보로 정리했어요</div>
+            <div style="margin-top:9px"><span class="btn">제외 추천 보기</span>
+</div>
+</body>
+</html>
