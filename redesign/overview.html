@@ -395,6 +395,62 @@ async function listClients(){
    월 합계에서도 플레이스 몫을 빼서 다른 페이지 숫자와 어긋나지 않게 한다. */
 const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
   return v === '6' || v.indexOf('플레이스') >= 0; };
+/* ── 브랜드검색 정액제 비용 얹기 ────────────────────────────────────────────
+   브랜드검색광고는 정액제라 네이버 일별 리포트의 비용이 0원으로 온다. input.html에서
+   등록한 계약(brandContracts: 캠페인·시작월·종료월·계약금액)을 읽어, 계약 금액을 계약
+   기간의 각 달에 일수 비율로 나눠 그 달 그 캠페인의 비용으로 채운다. 월 합계(cost)에도
+   같은 금액을 더해서 대시보드 어디서 보든 숫자가 어긋나지 않게 한다.
+   금액 단위: 저장은 '원', 월/캠페인 데이터는 '만원' 단위라 10000으로 나눠서 넣는다.
+   이미 비용이 잡혀 있으면(정액제가 아닌 경우) 건드리지 않는다. */
+function __bcMonthDays(y,m){ return new Date(y,m,0).getDate(); }
+function __bcParseYM(v){ const mm=String(v||'').match(/^(\d{4})-(\d{2})$/); return mm?{y:+mm[1],m:+mm[2]}:null; }
+function __bcSplit(start,end,amount){
+  const s=__bcParseYM(start), e=__bcParseYM(end);
+  if(!s||!e||!(amount>0)) return {};
+  if(e.y*12+e.m < s.y*12+s.m) return {};
+  const spans=[]; let y=s.y,m=s.m,total=0;
+  while(y*12+m <= e.y*12+e.m){
+    const d=__bcMonthDays(y,m);
+    spans.push({label:y+'.'+String(m).padStart(2,'0'), days:d}); total+=d;
+    m++; if(m>12){ m=1; y++; }
+  }
+  if(!total) return {};
+  const out={}; let acc=0;
+  spans.forEach((sp,i)=>{
+    const c = (i===spans.length-1) ? (amount-acc) : Math.round(amount*sp.days/total);
+    if(i<spans.length-1) acc+=c;
+    out[sp.label]=(out[sp.label]||0)+c;
+  });
+  return out;
+}
+function applyBrandContracts(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  const contracts = data.brandContracts;
+  if(!Array.isArray(contracts) || !contracts.length) return data;
+  // 캠페인 → { 'YYYY.MM': 원 } 로 펼쳐둔다(계약이 여러 건이면 같은 달끼리 합산).
+  const byCamp = {};
+  contracts.forEach(ct=>{
+    if(!ct || !ct.campaign) return;
+    const split = __bcSplit(ct.start, ct.end, Number(ct.amount)||0);
+    const bucket = byCamp[ct.campaign] || (byCamp[ct.campaign]={});
+    Object.keys(split).forEach(lab=>{ bucket[lab]=(bucket[lab]||0)+split[lab]; });
+  });
+  data.months.forEach(m=>{
+    const lab = String(m.label||'');
+    let added = 0;
+    (m.campaigns||[]).forEach(c=>{
+      const won = byCamp[c.campaign] && byCamp[c.campaign][lab];
+      if(!won) return;
+      if(Number(c.cost)>0) return;   // 이미 실비용이 있으면 덮어쓰지 않는다
+      const man = won/10000;
+      c.cost = man;
+      c.__brandContractCost = true;  // 화면에서 '계약금액 기준'임을 표시할 때 쓴다
+      added += man;
+    });
+    if(added>0 && typeof m.cost==='number') m.cost = m.cost + added;
+  });
+  return data;
+}
 function stripPlaceCampaigns(data){
   if(!data || !Array.isArray(data.months)) return data;
   data.months.forEach(m=>{
@@ -420,7 +476,7 @@ async function getClient(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = stripPlaceCampaigns(doc.data());
+    const data = applyBrandContracts(stripPlaceCampaigns(doc.data()));
     // 개요 페이지는 마지막 월 요약 수치만 필요해서, 무거운 상세데이터(detailData 하위컬렉션)는 굳이 안 불러옴 — 로딩 속도 최적화.
     return data;
   }catch(e){ console.error(e); return null; }
