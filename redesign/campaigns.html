@@ -171,10 +171,16 @@ function applyAccentColor(hex){
   table td:not(.kw-name):not(.camp-name-cell){white-space:nowrap;}
   tr:last-child td{border-bottom:none;}
   .kw-name{color:var(--text);font-weight:600;}
-  .camp-name-cell{max-width:150px;}
-  .camp-name-scroll{display:block;max-width:150px;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;padding-bottom:2px;}
-  .camp-name-scroll::-webkit-scrollbar{height:4px;}
-  .camp-name-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  /* 캠페인명 칸: 예전엔 150px로 묶고 칸마다 가로 스크롤바를 달았는데,
+     이름마다 막대가 하나씩 생겨서 표가 지저분했음. 이제는 넓게 주고
+     두 줄까지 줄바꿈, 그래도 넘치면 말줄임(…)으로 처리한다. */
+  .camp-name-cell{max-width:none;min-width:210px;}
+  .camp-name-scroll{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;white-space:normal;word-break:break-all;line-height:1.35;}
+  .camp-acct{display:inline-block;font-size:11px;font-weight:600;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:4px;
+    padding:0 5px;margin-right:5px;vertical-align:1px;}
+  .camp-type-sub{display:block;font-size:11px;color:var(--muted);margin-top:2px;}
 
   .improve-box{margin-bottom:16px;}
   .improve-row{display:flex;align-items:center;justify-content:space-between;}
@@ -763,6 +769,31 @@ function applyBrandContracts(data){
   });
   return data;
 }
+/* ── 광고비 기준 통일(부가세 제외) ──────────────────────────────────────────
+   네이버가 시기에 따라 부가세를 포함한 금액을 주기도 하고 뺀 금액을 주기도 해서,
+   2025.10~2026.03 구간은 캠페인·월 합계가 부가세 포함으로 저장돼 있다.
+   반면 하루치(daily)는 전 기간 부가세 제외로 통일돼 있다.
+   그래서 하루치를 기준으로 삼아 캠페인·월 합계를 같은 기준으로 낮춘다.
+   (원본은 그대로 두고 화면에 그릴 때만 맞춘다 — 플레이스 제외·브랜드검색 계약과 같은 방식)
+   · 2025.10~2026.02: 모든 캠페인이 정확히 1.1배라 환산이 정확함
+   · 2026.03: 달 중간에 기준이 바뀌어 캠페인마다 1.06~1.10로 제각각 — 월 합계는 정확히 맞고
+     캠페인 개별값은 최대 2% 안쪽 오차가 남음
+   · 2026.04 이후: 이미 같은 기준이라 건드리지 않음 */
+function normalizeCostBasis(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const dailySum = (m.daily||[]).reduce((a,x)=>a+(x.cost||0),0);
+    const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(c.cost||0),0);
+    if(!(dailySum>0) || !(campSum>0)) return;
+    const k = dailySum / campSum;
+    if(k > 0.999) return;   // 이미 같은 기준이면 그대로
+    if(k < 0.85)  return;   // 부가세 차이로 보기엔 너무 큰 격차 — 다른 원인이므로 손대지 않음
+    (m.campaigns||[]).forEach(c=>{ if(typeof c.cost === 'number') c.cost = c.cost * k; });
+    if(typeof m.cost === 'number') m.cost = dailySum;
+    m.__costRebased = true;   // 화면에서 "기준 맞춤" 표시가 필요할 때 쓴다
+  });
+  return data;
+}
 function stripPlaceCampaigns(data){
   if(!data || !Array.isArray(data.months)) return data;
   data.months.forEach(m=>{
@@ -795,7 +826,7 @@ async function getClientLight(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    return applyBrandContracts(stripPlaceCampaigns(doc.data()));
+    return applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
   }catch(e){ console.error(e); return null; }
 }
 async function getClient(key){
@@ -804,7 +835,7 @@ async function getClient(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = applyBrandContracts(stripPlaceCampaigns(doc.data()));
+    const data = applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 월별 하위 컬렉션에 따로 저장돼있어서 여기서 합쳐줌.
     // 아직 하위 컬렉션으로 안 옮겨진(예전 형식) 업체는 month 객체에 그대로 남아있는 값을 그대로 씀(하위호환).
@@ -2164,8 +2195,7 @@ function renderCampaignsPage(data){
       <div style="overflow-x:auto;">
       <table style="min-width:760px;">
         <thead><tr>
-          <th class="camp-name-cell" style="white-space:nowrap;">캠페인</th>
-          <th style="white-space:nowrap;">유형</th>
+          <th class="camp-name-cell" style="white-space:nowrap;">캠페인 · 유형</th>
           ${sortTh('비용','cost')}
           ${isDB ? sortTh('전환수','conv') : sortTh('전환매출','revenue')}
           ${sortTh('CPA','cpa')}
@@ -2180,7 +2210,7 @@ function renderCampaignsPage(data){
             const t = r.trends || {};
             const isPinned = pinnedSet.has(r.campaign);
             const pinBtn = `<button class="pin-star-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="${isPinned?'고정 해제':'상단에 고정'}" style="border:none;background:none;cursor:pointer;font-size:14px;padding:0 4px 0 0;vertical-align:middle;color:var(--muted);">${isPinned?'⭐':'☆'}</button>`;
-            const colCount = isDB ? 8 : 9;
+            const colCount = isDB ? 7 : 8;   // '유형' 열을 캠페인명 칸에 합치면서 하나 줄었음
             const isExpanded = expandedCampaigns.has(r.campaign);
             const expandBtn = `<button class="expand-adgroup-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="광고그룹별 세부 보기" style="border:none;background:none;cursor:pointer;font-size:11px;color:var(--muted);padding:0 4px 0 0;vertical-align:middle;">${isExpanded?'▾':'▸'}</button>`;
             let subRowHtml = '';
@@ -2213,8 +2243,7 @@ function renderCampaignsPage(data){
               </td></tr>`;
             }
             return `<tr>
-              <td class="kw-name camp-name-cell">${expandBtn}${pinBtn}${campaignStatusBadge(r)}<span class="camp-name-scroll" title="${esc(displayCampaignName(r.campaign))}">${esc(displayCampaignName(r.campaign))}</span>${newBadge}</td>
-              <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${campaignTypeLabel(r.type)}</td>
+              <td class="kw-name camp-name-cell">${expandBtn}${pinBtn}${campaignStatusBadge(r)}${campAcctBadge(r.campaign)}<span class="camp-name-scroll" title="${esc(displayCampaignName(r.campaign))}">${esc(campBareName(r.campaign))}</span>${newBadge}<span class="camp-type-sub">${campaignTypeLabel(r.type)}</span></td>
               <td>${fmtWon(r.cost)}원${cellTrend(t.cost,'down')}</td>
               <td>${isDB ? r.conv+'건'+cellTrend(t.conv,'up') : fmtWon(r.revenue)+'원'+cellTrend(t.revenue,'up')}</td>
               <td>${r.cpa!==null?r.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>
@@ -2290,14 +2319,6 @@ function renderCampaignsPage(data){
     });
   }
 
-  // 캠페인명 칸이 길 때 마우스 휠(세로 스크롤)로 좌우 이동되게 함
-  card.querySelectorAll('.camp-name-scroll').forEach(el=>{
-    el.addEventListener('wheel', (e)=>{
-      if(el.scrollWidth <= el.clientWidth) return;
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
-    }, { passive:false });
-  });
   document.getElementById('monthRangeStartSelect').onchange = (e)=>{
     const r = monthRangeState[key];
     r.start = e.target.value;
@@ -2499,6 +2520,16 @@ function accountListOf(campaignList){
    캠페인 기록이 남아 있어, 이름을 못 찾고 원본 ID가 그대로 노출됨. 표시만 알아보기 쉽게 바꾼다. */
 function isDeletedCampaignName(name){
   return /(^|·\s*)cmp-[a-z0-9]+-\d+-\d+\s*$/i.test(String(name||'').trim());
+}
+/* 캠페인 이름은 "1584606 · 실제이름" 형태로 계정번호가 앞에 붙어 있다.
+   표에서는 번호를 작은 뱃지로 빼고 이름만 크게 보여줘야 읽기 쉽다. */
+function campAcctBadge(name){
+  const m = String(name||'').match(/^(\d+)\s*·/);
+  return m ? `<span class="camp-acct">${m[1]}</span>` : '';
+}
+function campBareName(name){
+  const full = displayCampaignName(name);
+  return full.replace(/^\d+\s*·\s*/, '');
 }
 function displayCampaignName(name){
   const s = String(name||'').trim();

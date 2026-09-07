@@ -741,6 +741,31 @@ function applyBrandContracts(data){
   });
   return data;
 }
+/* ── 광고비 기준 통일(부가세 제외) ──────────────────────────────────────────
+   네이버가 시기에 따라 부가세를 포함한 금액을 주기도 하고 뺀 금액을 주기도 해서,
+   2025.10~2026.03 구간은 캠페인·월 합계가 부가세 포함으로 저장돼 있다.
+   반면 하루치(daily)는 전 기간 부가세 제외로 통일돼 있다.
+   그래서 하루치를 기준으로 삼아 캠페인·월 합계를 같은 기준으로 낮춘다.
+   (원본은 그대로 두고 화면에 그릴 때만 맞춘다 — 플레이스 제외·브랜드검색 계약과 같은 방식)
+   · 2025.10~2026.02: 모든 캠페인이 정확히 1.1배라 환산이 정확함
+   · 2026.03: 달 중간에 기준이 바뀌어 캠페인마다 1.06~1.10로 제각각 — 월 합계는 정확히 맞고
+     캠페인 개별값은 최대 2% 안쪽 오차가 남음
+   · 2026.04 이후: 이미 같은 기준이라 건드리지 않음 */
+function normalizeCostBasis(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const dailySum = (m.daily||[]).reduce((a,x)=>a+(x.cost||0),0);
+    const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(c.cost||0),0);
+    if(!(dailySum>0) || !(campSum>0)) return;
+    const k = dailySum / campSum;
+    if(k > 0.999) return;   // 이미 같은 기준이면 그대로
+    if(k < 0.85)  return;   // 부가세 차이로 보기엔 너무 큰 격차 — 다른 원인이므로 손대지 않음
+    (m.campaigns||[]).forEach(c=>{ if(typeof c.cost === 'number') c.cost = c.cost * k; });
+    if(typeof m.cost === 'number') m.cost = dailySum;
+    m.__costRebased = true;   // 화면에서 "기준 맞춤" 표시가 필요할 때 쓴다
+  });
+  return data;
+}
 function stripPlaceCampaigns(data){
   if(!data || !Array.isArray(data.months)) return data;
   data.months.forEach(m=>{
@@ -773,7 +798,7 @@ async function getClientLight(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    return applyBrandContracts(stripPlaceCampaigns(doc.data()));
+    return applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
   }catch(e){ console.error(e); return null; }
 }
 async function getClient(key){
@@ -782,7 +807,7 @@ async function getClient(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = applyBrandContracts(stripPlaceCampaigns(doc.data()));
+    const data = applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 월별 하위 컬렉션에 따로 저장돼있어서 여기서 합쳐줌.
     // 아직 하위 컬렉션으로 안 옮겨진(예전 형식) 업체는 month 객체에 그대로 남아있는 값을 그대로 씀(하위호환).
