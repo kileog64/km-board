@@ -59,6 +59,15 @@
   .search-input{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);min-width:200px;}
   .search-input:focus{outline:none;border-color:var(--accent);}
   .sort-select{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);}
+  .period-nav{display:inline-flex;align-items:center;gap:6px;}
+  .period-arrow{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    height:38px;padding:0 11px;font-size:13px;line-height:1;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;}
+  .period-all{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    height:38px;padding:0 13px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .period-all:hover{background:rgba(139,124,255,.14);border-color:var(--accent-solid,#6354d6);color:var(--text);}
+  .period-arrow:hover:not(:disabled){background:rgba(139,124,255,.14);border-color:var(--accent-solid,#6354d6);}
+  .period-arrow:disabled{opacity:.35;cursor:default;}
 
   /* ---- 카드 그리드 ---- */
   .client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
@@ -311,14 +320,19 @@ table tbody tr:hover td{background:#1b1e2c}
     <button class="biz-tab" data-biztype="DB" type="button">DB만 (상담·전환)</button>
     <button class="biz-tab" data-biztype="B2C" type="button">B2C만 (매출·ROAS)</button>
     <input class="search-input" id="overviewSearch" placeholder="업체명 검색...">
-    <select class="sort-select" id="overviewRangeStartSelect" title="시작 월">
-      <option value="LATEST">최근 기간(자동)</option>
-    </select>
-    <span style="color:var(--muted);font-size:14px;">~</span>
-    <select class="sort-select" id="overviewRangeEndSelect" title="종료 월">
-      <option value="LATEST">최근 기간(자동)</option>
-    </select>
-    <select class="sort-select" id="overviewIndustryFilter">
+    <div class="period-nav">
+      <button class="period-arrow" id="overviewPeriodPrev" type="button" title="이전(더 과거)으로 구간 이동">◀</button>
+      <select class="sort-select" id="overviewRangeStartSelect" title="시작 월">
+        <option value="LATEST">최근 기간(자동)</option>
+      </select>
+      <span style="color:var(--muted);font-size:14px;">~</span>
+      <select class="sort-select" id="overviewRangeEndSelect" title="종료 월">
+        <option value="LATEST">최근 기간(자동)</option>
+      </select>
+      <button class="period-arrow" id="overviewPeriodNext" type="button" title="다음(더 최신)으로 구간 이동">▶</button>
+      <button class="period-all" id="overviewPeriodAll" type="button" title="전체 기간 누적으로 보기">전체</button>
+    </div>
+    <select class="sort-select" id="overviewIndustryFilter" style="display:none;">
       <option value="ALL">전체 업종</option>
     </select>
     <button class="export-btn" id="overviewGroupToggle" type="button" data-active="0" style="white-space:nowrap;">업종별로 묶어보기</button>
@@ -585,6 +599,9 @@ async function applySelectedMonth(){
   industrySel.value = industries.includes(prevIndustryVal) ? prevIndustryVal : 'ALL';
   overviewIndustryFilter = industrySel.value;
 
+  // \uc0c1\ub2e8 \uc22b\uc790\uc5d0 \u300c\ud655\uc778 \ud544\uc694 N\uac74\u300d\uc744 \ub744\uc6b0\ub824\uba74 \uc54c\ub9bc\uc744 \uba3c\uc800 \ub9cc\ub4e4\uc5b4\uc57c \ud568
+  window.__overviewAlerts = alerts || [];
+  if(typeof syncPeriodArrows === 'function') syncPeriodArrows();
   renderStatRow();
   renderOverviewGrid();
   if(isAdminUser){
@@ -1055,6 +1072,65 @@ document.getElementById('overviewRangeEndSelect').onchange = async (e)=>{
   grid.innerHTML = `<div class="empty-state">불러오는 중...</div>`;
   await applySelectedMonth();
 };
+// \uae30\uac04 \u2039 \u203a \ud654\uc0b4\ud45c \u2014 \uc9c0\uae08 \ubcf4\ub294 \uae30\uac04\uc758 \uae38\uc774(\uba87 \uac1c\uc6d4\uc778\uc9c0)\ub97c \uadf8\ub300\ub85c \uc720\uc9c0\ud55c \ucc44 \uc55e/\ub4a4\ub85c \uc774\ub3d9.
+// '\ucd5c\uadfc \uae30\uac04(\uc790\ub3d9)' \uc0c1\ud0dc\uc5d0\uc11c \u2039 \ub97c \ub204\ub974\uba74 \uac00\uc7a5 \ucd5c\uadfc \ub2ec\uc744 \uae30\uc900\uc73c\ub85c \ud55c \ub2ec \uc804\uc73c\ub85c \uac04\ub2e4.
+function overviewMonthOptions(){
+  const sel = document.getElementById('overviewRangeStartSelect');
+  return [].slice.call(sel.options).map(o=>o.value).filter(v=>v!=='LATEST');
+}
+function overviewLatestLabel(){
+  const opts = overviewMonthOptions();
+  return opts.length ? opts[opts.length-1] : null;
+}
+async function shiftOverviewPeriod(dir){
+  const opts = overviewMonthOptions();
+  if(!opts.length) return;
+  const latest = overviewLatestLabel();
+  let s = overviewRangeState.start === 'LATEST' ? latest : overviewRangeState.start;
+  let e = overviewRangeState.end   === 'LATEST' ? latest : overviewRangeState.end;
+  let si = opts.indexOf(s), ei = opts.indexOf(e);
+  if(si < 0) si = opts.length-1;
+  if(ei < 0) ei = opts.length-1;
+  // \uc2dc\uc791\u00b7\uc885\ub8cc\ub97c \uac19\uc740 \uce78\uc218\ub9cc\ud07c \uc62e\uae30\ubbc0\ub85c \uae30\uac04 \uae38\uc774\ub294 \uc790\uc5f0\ud788 \uc720\uc9c0\ub428
+  let nsi = si + dir, nei = ei + dir;
+  if(nsi < 0 || nei > opts.length-1) return;
+  overviewRangeState.start = opts[nsi];
+  overviewRangeState.end   = opts[nei];
+  document.getElementById('overviewRangeStartSelect').value = overviewRangeState.start;
+  document.getElementById('overviewRangeEndSelect').value   = overviewRangeState.end;
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = `<div class="empty-state">\ubd88\ub7ec\uc624\ub294 \uc911...</div>`;
+  await applySelectedMonth();
+}
+function syncPeriodArrows(){
+  const opts = overviewMonthOptions();
+  const prevBtn = document.getElementById('overviewPeriodPrev');
+  const nextBtn = document.getElementById('overviewPeriodNext');
+  if(!prevBtn || !nextBtn || !opts.length) return;
+  const latest = overviewLatestLabel();
+  const s = overviewRangeState.start === 'LATEST' ? latest : overviewRangeState.start;
+  const e = overviewRangeState.end   === 'LATEST' ? latest : overviewRangeState.end;
+  let si = opts.indexOf(s), ei = opts.indexOf(e);
+  if(si < 0) si = opts.length-1;
+  if(ei < 0) ei = opts.length-1;
+  prevBtn.disabled = (si <= 0);
+  nextBtn.disabled = (ei >= opts.length-1);
+}
+document.getElementById('overviewPeriodPrev').onclick = ()=> shiftOverviewPeriod(-1);
+document.getElementById('overviewPeriodNext').onclick = ()=> shiftOverviewPeriod(1);
+// \u300c\uc804\uccb4\u300d \u2014 \uac00\uc7a5 \uacfc\uac70 \ub2ec\ubd80\ud130 \ucd5c\uc2e0 \ub2ec\uae4c\uc9c0 \ub204\uc801\ud574\uc11c \ubcf4\uae30 (\ub2e4\ub978 \ud398\uc774\uc9c0 \ub3d9\uc791\uacfc \ub3d9\uc77c)
+document.getElementById('overviewPeriodAll').onclick = async ()=>{
+  const opts = overviewMonthOptions();
+  if(!opts.length) return;
+  overviewRangeState.start = opts[0];
+  overviewRangeState.end   = opts[opts.length-1];
+  document.getElementById('overviewRangeStartSelect').value = overviewRangeState.start;
+  document.getElementById('overviewRangeEndSelect').value   = overviewRangeState.end;
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = `<div class="empty-state">\ubd88\ub7ec\uc624\ub294 \uc911...</div>`;
+  await applySelectedMonth();
+};
+
 // 눌렀다/뗐다 하는 토글형 필터 버튼 공통 처리 — 업종별 묶기 외에 목표 미달만/즐겨찾기만 필터도 같은 방식으로 동작함.
 function setupToggleBtn(id, getVal, setVal, onLabel, offLabel){
   const btn = document.getElementById(id);
