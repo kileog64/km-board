@@ -974,6 +974,35 @@ const CHAT_OPEN_STORAGE = 'ad_dashboard_chat_open';
 function loadChatHistory(){ try{ return JSON.parse(sessionStorage.getItem(CHAT_HISTORY_STORAGE) || '[]'); }catch(e){ return []; } }
 function saveChatHistory(){ try{ sessionStorage.setItem(CHAT_HISTORY_STORAGE, JSON.stringify(aiChatHistory.slice(-30))); }catch(e){} }
 let aiChatHistory = loadChatHistory();
+
+/* 제미나이 무료 등급은 요청이 몰리면 "high demand"로 자주 막힌다(특히 데이터를 통째로 넣는 총평).
+   같은 모델을 계속 두드리는 대신, 막히면 다른 모델로 바로 넘어간다.
+   앞쪽일수록 답변 품질이 좋고, 뒤쪽(lite)은 4배쯤 빠르고 덜 막힌다. */
+const AI_MODELS = ['gemini-flash-latest','gemini-3.5-flash','gemini-flash-lite-latest','gemini-3.5-flash-lite'];
+async function aiFetchWithFallback(apiKey, bodyObj, onRetry){
+  let lastErr = null;
+  for(let mi=0; mi<AI_MODELS.length; mi++){
+    const model = AI_MODELS[mi];
+    try{
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(bodyObj)
+      });
+      if(res.ok) return await res.json();
+      const errBody = await res.json().catch(()=>({}));
+      const msg = (errBody && errBody.error && errBody.error.message) || `HTTP ${res.status}`;
+      const err = new Error(msg); err.status = res.status; lastErr = err;
+      // 혼잡/과부하/한도면 다음 모델로. 그 외(키 오류 등)는 바꿔봐야 소용없으니 중단.
+      const switchable = res.status===429 || res.status===503 || res.status===500 || /high demand|overloaded|quota|rate/i.test(msg);
+      if(!switchable) throw err;
+      if(onRetry && mi < AI_MODELS.length-1) onRetry(mi+1, AI_MODELS.length, AI_MODELS[mi+1]);
+      await new Promise(r=>setTimeout(r, 600));
+    }catch(e){
+      lastErr = e;
+      if(e.status && e.status!==429 && e.status!==503 && e.status!==500) throw e;
+    }
+  }
+  throw lastErr || new Error('AI 응답 실패');
+}
 function getAIApiKey(){ return localStorage.getItem(AI_KEY_STORAGE) || ''; }
 function setAIApiKey(k){ localStorage.setItem(AI_KEY_STORAGE, k); }
 function extractTopKeywordsFromClientData(data){
@@ -1175,14 +1204,14 @@ async function callGeminiGenerateContent(apiKey, systemPrompt, userText, onRetry
   for(let attempt=0; ; attempt++){
     let res, networkErr = null;
     try{
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role:'user', parts:[{ text:userText }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] }
-        })
-      });
+      // 한 모델이 막히면 다른 모델로 넘어간다(같은 모델 재시도보다 성공률이 훨씬 높음)
+      const _json = await aiFetchWithFallback(apiKey, {
+        contents: [{ role:'user', parts:[{ text:userText }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      }, onRetry ? (i,total,next)=>onRetry(i,total) : null);
+      const _c = (_json.candidates && _json.candidates[0]) || {};
+      const _p = (_c.content && _c.content.parts) || [];
+      return _p.map(p=>p.text||'').join('\n').trim() || '(응답이 없어요)';
     }catch(e){ networkErr = e; }
     if(!networkErr && res.ok){
       const json = await res.json();
