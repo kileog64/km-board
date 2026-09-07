@@ -3550,6 +3550,8 @@ auth.onAuthStateChanged(async (user)=>{
     await populateExistingClientSelect();
     await populateUndoClientSelect();
     await populateGoalClientSelect();
+    await populateBrandContractClientSelect();
+    await populateAuditClientSelect();
     applyGoalHandoff();
     await populatePermClientSelect();
     await populateCompactClientSelect();
