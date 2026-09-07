@@ -1607,6 +1607,11 @@ function renderCampaignsPage(data){
   // 기간을 바꾸면 목록이 달라지므로, 처음 보는 캠페인은 기본으로 켜 둔다(사용자가 끈 건 그대로 유지).
   if(!fstate.seen) fstate.seen = new Set(fstate.campaigns);
   campaignList.forEach(c=>{ if(!fstate.seen.has(c.campaign)){ fstate.seen.add(c.campaign); fstate.campaigns.add(c.campaign); } });
+  // 지금 목록의 캠페인이 하나도 켜져 있지 않으면(예전 선택 상태가 지금 목록과 안 맞는 경우)
+  // 빈 화면이 되어버리므로 전체를 다시 켠다.
+  if(campaignList.length && !campaignList.some(c=>fstate.campaigns.has(c.campaign))){
+    campaignList.forEach(c=>{ fstate.campaigns.add(c.campaign); fstate.seen.add(c.campaign); });
+  }
   campaignList.forEach(c=>{ if(c.type!=null && !fstate.types.has(c.type) && !fstate.seenTypes) fstate.types.add(c.type); });
   const allTypes = [...new Set(campaignList.map(c=>c.type))];
   const isDB = data.bizType === 'DB';
@@ -2470,9 +2475,12 @@ function renderFilterPanel(key, data, campaignList, allTypes, renderFn){
     </div>` : ''}
     <div class="filter-group">
       <div class="filter-group-title">캠페인 유형</div>
-      ${allTypes.map(t=>`
-        <label class="filter-item"><input type="checkbox" data-kind="type" value="${t}" ${fstate.types.has(t)?'checked':''}> ${campaignTypeLabel(t)}</label>
-      `).join('')}
+      ${allTypes.map(t=>{
+        // 체크 표시는 '그 유형의 캠페인이 실제로 하나라도 켜져 있는가'로 판단한다.
+        const typeCamps = campaignList.filter(c=>c.type===t);
+        const anyOn = typeCamps.some(c=>fstate.campaigns.has(c.campaign));
+        return `<label class="filter-item"><input type="checkbox" data-kind="type" value="${t}" ${anyOn?'checked':''}> ${campaignTypeLabel(t)} <span style="color:var(--muted);font-size:12px;">(${typeCamps.length})</span></label>`;
+      }).join('')}
     </div>
     <div class="filter-group campaigns">
       <div class="filter-group-title">캠페인명</div>

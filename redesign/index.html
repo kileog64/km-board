@@ -453,7 +453,7 @@ table tbody tr:hover td{background:#1b1e2c}
 
   <div>
     <div class="tabs" id="tabs" style="justify-content:flex-end;">
-      <button class="export-btn" id="exportMenuToggle" type="button" style="white-space:nowrap;">\u2913 \ub0b4\ub824\ubc1b\uae30 \u25be</button>
+      <button class="export-btn" id="exportMenuToggle" type="button" style="white-space:nowrap;">⇣ 내려받기 ▾</button>
       <div id="exportMenuGroup" style="display:none;gap:8px;flex-wrap:wrap;">
       <button class="export-btn" id="pdfExportBtn">🖼️ 디자인 리포트 다운로드 (PDF)</button><button class="export-btn" id="clientReportBtn">📋 고객 공유용 리포트</button><button class="export-btn" id="excelExportBtn">📊 엑셀 다운로드</button><button class="export-btn" id="rawExcelExportBtn">🧮 원본데이터 연동 보고서</button><button class="export-btn" id="exportBtn">📥 로컬 스냅샷 다운로드</button>
       </div></div>
@@ -1830,7 +1830,7 @@ function renderBudgetSimResult(){
     t.onclick = function(){
       var open = g.style.display !== 'none';
       g.style.display = open ? 'none' : 'flex';
-      t.innerHTML = open ? '\u2913 \ub0b4\ub824\ubc1b\uae30 \u25be' : '\u2913 \ub0b4\ub824\ubc1b\uae30 \u25b4';
+      t.innerHTML = open ? '⇣ 내려받기 ▾' : '⇣ 내려받기 ▴';
     };
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initExportMenu);
@@ -3589,6 +3589,11 @@ function renderCard(data){
   // 기간을 바꾸면 목록이 달라지므로, 처음 보는 캠페인은 기본으로 켜 둔다(사용자가 끈 건 그대로 유지).
   if(!fstate.seen) fstate.seen = new Set(fstate.campaigns);
   campaignList.forEach(c=>{ if(!fstate.seen.has(c.campaign)){ fstate.seen.add(c.campaign); fstate.campaigns.add(c.campaign); } });
+  // 지금 목록의 캠페인이 하나도 켜져 있지 않으면(예전 선택 상태가 지금 목록과 안 맞는 경우)
+  // 빈 화면이 되어버리므로 전체를 다시 켠다.
+  if(campaignList.length && !campaignList.some(c=>fstate.campaigns.has(c.campaign))){
+    campaignList.forEach(c=>{ fstate.campaigns.add(c.campaign); fstate.seen.add(c.campaign); });
+  }
   campaignList.forEach(c=>{ if(c.type!=null && !fstate.types.has(c.type) && !fstate.seenTypes) fstate.types.add(c.type); });
   const allTypes = [...new Set(campaignList.map(c=>c.type))];
 
@@ -4523,9 +4528,13 @@ function renderFilterPanel(key, data, campaignList, allTypes, renderFn){
     </div>` : ''}
     <div class="filter-group">
       <div class="filter-group-title">캠페인 유형</div>
-      ${allTypes.map(t=>`
-        <label class="filter-item"><input type="checkbox" data-kind="type" value="${t}" ${fstate.types.has(t)?'checked':''}> ${campaignTypeLabel(t)}</label>
-      `).join('')}
+      ${allTypes.map(t=>{
+        // 체크 표시는 '그 유형의 캠페인이 실제로 하나라도 켜져 있는가'로 판단한다.
+        // fstate.types만 보면 계정 필터로 캠페인을 다 꺼도 유형은 켜진 것처럼 보인다.
+        const typeCamps = campaignList.filter(c=>c.type===t);
+        const anyOn = typeCamps.some(c=>fstate.campaigns.has(c.campaign));
+        return `<label class="filter-item"><input type="checkbox" data-kind="type" value="${t}" ${anyOn?'checked':''}> ${campaignTypeLabel(t)} <span style="color:var(--muted);font-size:12px;">(${typeCamps.length})</span></label>`;
+      }).join('')}
     </div>
     <div class="filter-group campaigns">
       <div class="filter-group-title">캠페인명</div>
