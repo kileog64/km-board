@@ -216,6 +216,23 @@ function applyAccentColor(hex){
     .chart-box{height:240px!important;}
     table{font-size:12px;}
   }
+
+/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
+   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
+table td, table th { white-space: nowrap; }
+table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
+table td.kw-name { min-width: 150px; }
+
+/* ── 필터 접기: 오른쪽 필터 패널(250px)을 숨겨 표·차트를 넓게 본다 ──
+   접힌 상태는 브라우저에 기억돼서 페이지를 옮겨도 유지된다. */
+body.panel-off .main-layout{grid-template-columns:1fr;}
+body.panel-off .filter-panel{display:none;}
+#panelToggleBtn{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:60;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+  border-radius:10px 0 0 10px;padding:14px 7px;font-size:12px;cursor:pointer;line-height:1.25;
+  writing-mode:vertical-rl;letter-spacing:.06em;box-shadow:-2px 0 10px rgba(0,0,0,.28);}
+#panelToggleBtn:hover{color:var(--text);border-color:var(--accent);}
+@media (max-width:1100px){ #panelToggleBtn{display:none;} }
 </style>
 <style id="km-redesign-skin">
 /* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
@@ -349,10 +366,10 @@ header.rep .totals{display:none}
 /* ---- 표: 목업과 같은 모양으로 통일 ---- */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
-table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
   color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
-table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
@@ -654,13 +671,45 @@ async function listClients(){
 }
 // 상단 탭 목록(refreshTabs)이나 AI 채팅 전체요약처럼 이름·색상·업종·최근월 요약만 필요한 경우를 위한
 // 가벼운 버전 — 매 페이지를 열 때마다 모든 업체의 상세데이터(detailData 하위컬렉션)까지 통째로 읽어오는 낭비를 피함.
+
+/* 플레이스(네이버 캠페인유형 코드 6)는 지도 노출 기반이라 검색광고 지표와 성격이 달라 대시보드에서 제외한다.
+   여기 한 곳에서 걸러내면 필터·표·합계·인사이트·AI까지 전부 자동으로 빠진다.
+   월 합계(cost/revenue/conv/impressions/clicks)에서도 플레이스 몫을 빼서 숫자가 어긋나지 않게 한다. */
+const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
+  return v === '6' || v.indexOf('플레이스') >= 0; };
+function stripPlaceCampaigns(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const camps = m.campaigns || [];
+    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
+    if(!place.length) return;
+    const names = new Set(place.map(c=>c.campaign));
+    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
+    // 월 합계에서 플레이스 몫 차감
+    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+      if(typeof m[k] === 'number'){
+        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
+        m[k] = Math.max(0, m[k] - sub);
+      }
+    });
+    // 캠페인 이름이 붙은 상세 배열에서도 제거
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+    // 캠페인별 지도형 데이터에서도 제거
+    ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
+     'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
+     'wasteSearchTermsByCampaign','expandSearchTermsByCampaign','adgroupsByCampaign']
+      .forEach(f=>{ const o=m[f]; if(o && typeof o==='object'){ names.forEach(n=>{ delete o[n]; }); } });
+  });
+  return data;
+}
 async function getClientLight(key){
   try{
     const id = key.replace(/^client:/,'');
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    return doc.data();
+    return stripPlaceCampaigns(doc.data());
   }catch(e){ console.error(e); return null; }
 }
 async function getClient(key){
@@ -669,7 +718,7 @@ async function getClient(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = doc.data();
+    const data = stripPlaceCampaigns(doc.data());
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 월별 하위 컬렉션에 따로 저장돼있어서 여기서 합쳐줌.
     // 아직 하위 컬렉션으로 안 옮겨진(예전 형식) 업체는 month 객체에 그대로 남아있는 값을 그대로 씀(하위호환).
@@ -1153,22 +1202,33 @@ function buildAISummaryBoxHTML(key, periodLabel){
 }
 
 
+// 이 페이지는 파워링크/브랜드검색 전용 — 쇼핑검색 캠페인은 쇼핑검색 상품 페이지에서 본다.
+const IS_SHOPPING_TYPE = (t) => String(t||'').indexOf('\uc1fc\ud551') >= 0; // '쇼핑'
 function ensureFilterState(key, data){
   if(filterState[key]) return filterState[key];
   const campSet = new Set();
   const typeSet = new Set();
   (data.months||[]).forEach(m=>{
-    (m.campaigns||[]).forEach(c=>{ campSet.add(c.campaign); typeSet.add(c.type); });
+    (m.campaigns||[]).forEach(c=>{ if(IS_PLACE_TYPE(c.type)) return; if(IS_SHOPPING_TYPE(c.type)) return; campSet.add(c.campaign); typeSet.add(c.type); });
   });
   filterState[key] = { types: new Set(typeSet), campaigns: new Set(campSet) };
   return filterState[key];
 }
 
 
-function mergedCampaignList(data){
+// monthsScope를 주면 그 기간에 실제로 돌아간(노출·클릭·비용 중 하나라도 있는) 캠페인만 남긴다.
+// 예전엔 전체 기간 목록을 그대로 뿌려서, 어제 하루를 봐도 몇 달 전에 끝난 캠페인이 필터에 잔뜩 남았음.
+function mergedCampaignList(data, monthsScope){
   const map = {};
-  (data.months||[]).forEach(m=>{
+  const scope = (monthsScope && monthsScope.length) ? monthsScope : (data.months||[]);
+  const active = new Set();
+  scope.forEach(m=>{ (m.campaigns||[]).forEach(c=>{
+    if((c.cost||0)>0 || (c.impressions||0)>0 || (c.clicks||0)>0 || (c.conv||0)>0) active.add(c.campaign);
+  }); });
+  (scope).forEach(m=>{
     (m.campaigns||[]).forEach(c=>{
+      if(IS_PLACE_TYPE(c.type) || IS_SHOPPING_TYPE(c.type)) return;
+      if(active.size && !active.has(c.campaign)) return;
       if(!map[c.campaign]) map[c.campaign] = { type:c.type, campaign:c.campaign };
     });
   });
@@ -1505,7 +1565,7 @@ function dcKpi2HTML(top, bottom){
   return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
 }
 // 표 조각
-const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:12px;font-weight:500;letter-spacing:.04em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
 const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
 const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
   <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
@@ -1548,7 +1608,11 @@ function renderKeywordsPage(data){
   ensureMonthRange(key, allMonths);
   const months = monthsInRange(allMonths, monthRangeState[key]);
   const isMultiMonth = months.length > 1;
-  const campaignList = mergedCampaignList(data);
+  const campaignList = mergedCampaignList(data, months);
+  // 기간을 바꾸면 목록이 달라지므로, 처음 보는 캠페인은 기본으로 켜 둔다(사용자가 끈 건 그대로 유지).
+  if(!fstate.seen) fstate.seen = new Set(fstate.campaigns);
+  campaignList.forEach(c=>{ if(!fstate.seen.has(c.campaign)){ fstate.seen.add(c.campaign); fstate.campaigns.add(c.campaign); } });
+  campaignList.forEach(c=>{ if(c.type!=null && !fstate.types.has(c.type) && !fstate.seenTypes) fstate.types.add(c.type); });
   const allTypes = [...new Set(campaignList.map(c=>c.type))];
   const isDB = data.bizType === 'DB';
   const hasShoppingData = allMonths.some(m=>m.searchTermsByCampaign && Object.keys(m.searchTermsByCampaign).length);
@@ -1832,7 +1896,7 @@ function renderKeywordsPage(data){
             <input type="date" id="kwDayRangeStartInput" min="${dayBoundsMinKw}" max="${dayBoundsMaxKw}" value="${dayRangeState[key].start || dayBoundsMinKw || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
             <span style="color:var(--muted);font-size:12px;">~</span>
             <input type="date" id="kwDayRangeEndInput" min="${dayBoundsMinKw}" max="${dayBoundsMaxKw}" value="${dayRangeState[key].end || dayBoundsMaxKw || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-            ${hasKwTrendDayFilter ? `<button id="kwDayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
+            ${hasKwTrendDayFilter ? `<button id="kwDayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
           </div>` : ''}
         </div>
       </div>
@@ -1840,7 +1904,7 @@ function renderKeywordsPage(data){
     <div class="filterbar">
       <div class="fb-g"><span class="fb-lab">기간</span>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-              <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">◀</button>
+              <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">◀</button>
               <select id="monthRangeStartSelect" title="시작 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
                 ${allMonths.map(m=>`<option value="${m.label}" ${monthRangeState[key].start===m.label?'selected':''}>${m.label}</option>`).join('')}
               </select>
@@ -1848,8 +1912,8 @@ function renderKeywordsPage(data){
               <select id="monthRangeEndSelect" title="종료 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
                 ${allMonths.map(m=>`<option value="${m.label}" ${monthRangeState[key].end===m.label?'selected':''}>${m.label}</option>`).join('')}
               </select>
-              <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">▶</button>
-              <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">전체</button>
+              <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">▶</button>
+              <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;">전체</button>
             </div>
       </div>
       <div class="fb-g">
@@ -1867,7 +1931,7 @@ function renderKeywordsPage(data){
       </div>
       <div class="fb-g">
             <span style="font-size:12px;color:var(--muted);">▲▼ 비교 기준:</span>
-            <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">
+            <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">
               <option value="AUTO" ${compareMonthState[key]==='AUTO'?'selected':''}>직전 기간 자동</option>
               ${allMonths.filter(m=>!months.some(mm=>mm.label===m.label)).map(m=>`<option value="${m.label}" ${compareMonthState[key]===m.label?'selected':''}>${m.label} 과 비교</option>`).join('')}
             </select>
@@ -1913,7 +1977,7 @@ function renderKeywordsPage(data){
             // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
             // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
             const restCamps = (k.campaigns||[]).slice(1);
-            const campCell = `<td style="color:var(--muted);font-size:12px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
+            const campCell = `<td style="color:var(--muted);font-size:12px;white-space:nowrap;min-width:104px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
             if(noConv){
               // 전환 데이터가 없는 검색어 모드 — 비용을 얼마나 쓰는지와 노출 위치만 본다.
               return `
@@ -1927,12 +1991,12 @@ function renderKeywordsPage(data){
         </tbody>
       </table>
       ${rows.length > topVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="top" style="margin-top:10px;width:100%;">더보기 (${rows.length - topVisibleCount[key]}개 더 있음)</button>` : ''}
-      <div style="margin-top:8px;font-size:12px;color:var(--muted);">${noConv
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">${noConv
         ? '💡 네이버 <b>검색어</b> 보고서에는 전환·매출 항목이 아예 없어요. 그래서 이 화면은 성과를 보는 곳이 아니라, <b>돈은 쓰는데 우리 상품과 상관없는 검색어를 찾아 제외어로 거르는 용도</b>예요. 비용이 큰데 클릭률이 낮은 검색어부터 확인해 보세요. 전환·매출·ROAS가 궁금하면 위의 <b>파워링크 키워드</b> 버튼으로 보시면 돼요.'
         : '💡 클릭률은 낮은데 전환율은 정상 → 광고(소재·타겟팅) 점검. 클릭률은 정상인데 전환율만 낮음 → 랜딩페이지 점검. 평균노출순위는 네이버 보고서의 실제 값이며, 파워링크 키워드 리포트에 이 컬럼이 포함된 경우에만 표시돼요.'}</div>
       ${hasPrevForTrend
-        ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 키워드는 NEW로 표시돼요.</div>`
-        : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
+        ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 키워드는 NEW로 표시돼요.</div>`
+        : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
     </div>
 
     <div class="panel" style="margin-top:18px;border-left:3px solid var(--up);">
@@ -2284,6 +2348,35 @@ if(FIREBASE_CONFIG.apiKey.includes('여기에')){
       <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
     </div>`;
 }
+
+/* 필터 접기 버튼 — 어느 페이지에서든 화면 오른쪽 가장자리에 붙는다. */
+(function(){
+  function initPanelToggle(){
+    if(document.getElementById('panelToggleBtn')) return;
+    if(!document.querySelector('.main-layout')) return;
+    var KEY='kmPanelOff';
+    var btn=document.createElement('button');
+    btn.id='panelToggleBtn'; btn.type='button';
+    function paint(){
+      var off=document.body.classList.contains('panel-off');
+      btn.textContent = off ? '필터 펴기 ‹' : '필터 접기 ›';
+      btn.title = off ? '오른쪽 필터를 다시 표시' : '오른쪽 필터를 숨기고 넓게 보기';
+    }
+    try{ if(localStorage.getItem(KEY)==='1') document.body.classList.add('panel-off'); }catch(e){}
+    btn.onclick=function(){
+      document.body.classList.toggle('panel-off');
+      try{ localStorage.setItem(KEY, document.body.classList.contains('panel-off')?'1':'0'); }catch(e){}
+      paint();
+      window.dispatchEvent(new Event('resize')); // 차트가 새 폭에 맞게 다시 그려지도록
+    };
+    paint();
+    document.body.appendChild(btn);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initPanelToggle);
+  else initPanelToggle();
+  setTimeout(initPanelToggle, 1500);
+})();
+
 </script>
 </body>
 </html>

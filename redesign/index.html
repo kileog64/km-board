@@ -223,6 +223,23 @@ function applyAccentColor(hex){
     .chart-box{height:240px!important;}
     table{font-size:12px;}
   }
+
+/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
+   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
+table td, table th { white-space: nowrap; }
+table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
+table td.kw-name { min-width: 150px; }
+
+/* ── 필터 접기: 오른쪽 필터 패널(250px)을 숨겨 표·차트를 넓게 본다 ──
+   접힌 상태는 브라우저에 기억돼서 페이지를 옮겨도 유지된다. */
+body.panel-off .main-layout{grid-template-columns:1fr;}
+body.panel-off .filter-panel{display:none;}
+#panelToggleBtn{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:60;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+  border-radius:10px 0 0 10px;padding:14px 7px;font-size:12px;cursor:pointer;line-height:1.25;
+  writing-mode:vertical-rl;letter-spacing:.06em;box-shadow:-2px 0 10px rgba(0,0,0,.28);}
+#panelToggleBtn:hover{color:var(--text);border-color:var(--accent);}
+@media (max-width:1100px){ #panelToggleBtn{display:none;} }
 </style>
 
 
@@ -358,10 +375,10 @@ header.rep .totals{display:none}
 /* ---- 표: 목업과 같은 모양으로 통일 ---- */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
-table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
   color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
-table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
@@ -595,13 +612,45 @@ async function listClients(){
 // 전체 getClient()는 클라이언트마다 detailData 하위컬렉션(월별 키워드·시간대 상세데이터)까지 통째로 읽어오는데,
 // 알림 계산엔 그 상세데이터가 전혀 안 쓰여서 — 클라이언트 수가 늘어날수록 이 불필요한 읽기가 그대로 배로 늘어남.
 // overview.html의 getClient()와 동일한 최적화.
+
+/* 플레이스(네이버 캠페인유형 코드 6)는 지도 노출 기반이라 검색광고 지표와 성격이 달라 대시보드에서 제외한다.
+   여기 한 곳에서 걸러내면 필터·표·합계·인사이트·AI까지 전부 자동으로 빠진다.
+   월 합계(cost/revenue/conv/impressions/clicks)에서도 플레이스 몫을 빼서 숫자가 어긋나지 않게 한다. */
+const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
+  return v === '6' || v.indexOf('플레이스') >= 0; };
+function stripPlaceCampaigns(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const camps = m.campaigns || [];
+    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
+    if(!place.length) return;
+    const names = new Set(place.map(c=>c.campaign));
+    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
+    // 월 합계에서 플레이스 몫 차감
+    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+      if(typeof m[k] === 'number'){
+        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
+        m[k] = Math.max(0, m[k] - sub);
+      }
+    });
+    // 캠페인 이름이 붙은 상세 배열에서도 제거
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+    // 캠페인별 지도형 데이터에서도 제거
+    ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
+     'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
+     'wasteSearchTermsByCampaign','expandSearchTermsByCampaign','adgroupsByCampaign']
+      .forEach(f=>{ const o=m[f]; if(o && typeof o==='object'){ names.forEach(n=>{ delete o[n]; }); } });
+  });
+  return data;
+}
 async function getClientLight(key){
   try{
     const id = key.replace(/^client:/,'');
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    return doc.data();
+    return stripPlaceCampaigns(doc.data());
   }catch(e){ console.error(e); return null; }
 }
 async function getClient(key){
@@ -610,7 +659,7 @@ async function getClient(key){
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = doc.data();
+    const data = stripPlaceCampaigns(doc.data());
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 월별 하위 컬렉션에 따로 저장돼있어서 여기서 합쳐줌.
     // 아직 하위 컬렉션으로 안 옮겨진(예전 형식) 업체는 month 객체에 그대로 남아있는 값을 그대로 씀(하위호환).
@@ -1201,7 +1250,7 @@ function ensureFilterState(key, data){
   const campSet = new Set();
   const typeSet = new Set();
   (data.months||[]).forEach(m=>{
-    (m.campaigns||[]).forEach(c=>{ campSet.add(c.campaign); typeSet.add(c.type); });
+    (m.campaigns||[]).forEach(c=>{ if(IS_PLACE_TYPE(c.type)) return; campSet.add(c.campaign); typeSet.add(c.type); });
   });
   filterState[key] = { types: new Set(typeSet), campaigns: new Set(campSet) };
   return filterState[key];
@@ -1211,10 +1260,19 @@ function ensureFilterState(key, data){
 /* HTML 이스케이프 — 예전엔 함수마다 지역 변수로 중복 선언돼 있어서, 함수 밖에서 쓰면
    'esc is not defined'로 터졌음. 최상위에 하나 두고 공용으로 씀(지역 선언은 그대로 둬도 가려짐). */
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-function mergedCampaignList(data){
+// monthsScope를 주면 그 기간에 실제로 돌아간(노출·클릭·비용 중 하나라도 있는) 캠페인만 남긴다.
+// 예전엔 전체 기간 목록을 그대로 뿌려서, 어제 하루를 봐도 몇 달 전에 끝난 캠페인이 필터에 잔뜩 남았음.
+function mergedCampaignList(data, monthsScope){
   const map = {};
-  (data.months||[]).forEach(m=>{
+  const scope = (monthsScope && monthsScope.length) ? monthsScope : (data.months||[]);
+  const active = new Set();
+  scope.forEach(m=>{ (m.campaigns||[]).forEach(c=>{
+    if((c.cost||0)>0 || (c.impressions||0)>0 || (c.clicks||0)>0 || (c.conv||0)>0) active.add(c.campaign);
+  }); });
+  (scope).forEach(m=>{
     (m.campaigns||[]).forEach(c=>{
+      if(IS_PLACE_TYPE(c.type)) return;
+      if(active.size && !active.has(c.campaign)) return;
       if(!map[c.campaign]) map[c.campaign] = { type:c.type, campaign:c.campaign };
     });
   });
@@ -3312,7 +3370,7 @@ function dcWhyHTML(data, months, isDB, ctx){
       <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;background:#1d2030">
         <div style="width:${r.cpcShare}%;background:${DC.acc}"></div><div style="width:${r.cvrShare}%;background:${DC.track}"></div></div>
       <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <span class="m" style="font-size:11.5px;color:${DC.acc2}">CPC 요인 ${r.cpcShare} <span style="color:${DC.mut}">(${sgn(r.dCpc)})</span></span>
+        <span class="m" style="font-size:12px;color:${DC.acc2};padding:5px 4px;display:inline-block">CPC 요인 ${r.cpcShare} <span style="color:${DC.mut}">(${sgn(r.dCpc)})</span></span>
         <span class="m" style="font-size:11.5px;color:${DC.mut2}">전환율 요인 ${r.cvrShare} <span style="color:${DC.mut}">(${sgn(r.dCvr)})</span></span>
       </div></div>`;
   }).join(dcHr);
@@ -3345,14 +3403,14 @@ function dcHourHTML(hourlyAgg, isDB){
     <span style="font-size:12.5px;color:${DC.txt}">${lab} <b class="m" style="font-weight:600">${String(hour).padStart(2,'0')}시</b></span>
     <div style="flex-grow:1"></div><span class="m" style="font-size:12px;color:${col}">${fmtV(v)}</span></div>`;
   const inner = `<div style="display:flex;align-items:flex-end;gap:2px;height:104px">${bars}</div>
-    <div style="display:flex;justify-content:space-between">${['00','06','12','18','23'].map(t=>`<span class="m" style="font-size:10px;color:${DC.mut}">${t}</span>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between">${['00','06','12','18','23'].map(t=>`<span class="m" style="font-size:11px;color:${DC.mut}">${t}</span>`).join('')}</div>
     ${dcHr}
     <div style="display:flex;flex-direction:column;gap:6px">
       ${best?line(DC.acc,'가장 좋은 시간',best.i,best.v,DC.up):''}
       ${worst&&(!best||worst.i!==best.i)?line(DC.dn,'가장 나쁜 시간',worst.i,worst.v,DC.dn):''}
     </div>`;
   return `<div style="display:flex;flex-direction:column;gap:9px">
-    ${dcSecHead('시간대', `${unit} 기준`, `<a href="hourly.html" style="font-size:11.5px;color:${DC.acc2}">전체 보기</a>`)}
+    ${dcSecHead('시간대', `${unit} 기준`, `<a href="hourly.html" style="font-size:12px;color:${DC.acc2};padding:5px 4px;display:inline-block">전체 보기</a>`)}
     <div style="border:1px solid ${DC.line};border-radius:9px;background:${DC.card};padding:15px 16px;display:flex;flex-direction:column;gap:13px">${inner}</div>
   </div>`;
 }
@@ -3365,7 +3423,7 @@ function dcCampTableHTML(data, months, isDB, statusMap, ctx){
   const pmap = {}; prv.forEach(c=>pmap[c.campaign]=c);
   cur.sort((a,b)=>b.cost-a.cost);
   const maxCost = cur[0].cost || 1;
-  const th = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+  const th = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:12px;font-weight:500;letter-spacing:.04em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
   const td = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
   const delta = (now, prev, inv) => {
     if(!prev || !now || !isFinite(prev) || !isFinite(now) || prev===0) return '';
@@ -3374,12 +3432,12 @@ function dcCampTableHTML(data, months, isDB, statusMap, ctx){
     const good = inv ? p<0 : p>0;
     return ` <span style="color:${good?DC.up:DC.dn};font-size:11px">${p>=0?'▲':'▼'}${Math.abs(p).toFixed(0)}</span>`;
   };
-  const typeBadge = t => t ? `<span class="m" style="font-size:10.5px;padding:1px 7px;border-radius:4px;background:#221f3d;color:${DC.acc2}">${t}</span>` : '';
+  const typeBadge = t => t ? `<span class="m" style="font-size:11px;padding:1px 7px;border-radius:4px;background:#221f3d;color:${DC.acc2}">${t}</span>` : '';
   const onBadge = name => {
     const st = statusMap ? statusMap[name] : undefined;
     if(st===undefined || st===null) return '';
-    return st ? `<span class="m" style="font-size:10px;padding:1px 6px;border-radius:4px;background:#122b22;color:${DC.up}">ON</span>`
-              : `<span class="m" style="font-size:10px;padding:1px 6px;border-radius:4px;background:#2a2130;color:${DC.mut2}">OFF</span>`;
+    return st ? `<span class="m" style="font-size:11px;padding:1px 6px;border-radius:4px;background:#122b22;color:${DC.up}">ON</span>`
+              : `<span class="m" style="font-size:11px;padding:1px 6px;border-radius:4px;background:#2a2130;color:${DC.mut2}">OFF</span>`;
   };
   // DB 업체는 매출이 없어서 ROAS 칸이 의미가 없다 — 대신 클릭수를 보여준다.
   const secondCol = isDB ? '전환수' : '전환매출';
@@ -3399,7 +3457,7 @@ function dcCampTableHTML(data, months, isDB, statusMap, ctx){
     </tr>`;
   }).join('');
   return `<div style="display:flex;flex-direction:column;gap:9px">
-    ${dcSecHead('캠페인', `${cur.length}개 · 비용순`, `<a href="campaigns.html" style="font-size:11.5px;color:${DC.acc2}">캠페인 페이지에서 자세히</a>`)}
+    ${dcSecHead('캠페인', `${cur.length}개 · 비용순`, `<a href="campaigns.html" style="font-size:12px;color:${DC.acc2};padding:5px 4px;display:inline-block">캠페인 페이지에서 자세히</a>`)}
     <div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
       <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
         <thead><tr style="background:${DC.head}">${th('캠페인')}${th('유형')}${th('비용',1)}${th(secondCol,1)}${th('CPA',1)}${th(thirdCol,1)}${th('전환율',1)}${th('평균순위',1)}</tr></thead>
@@ -3415,7 +3473,11 @@ function renderCard(data){
   const allMonths = data.months || [];
   ensureMonthRange(key, allMonths);
   const months = monthsInRange(allMonths, monthRangeState[key]);
-  const campaignList = mergedCampaignList(data);
+  const campaignList = mergedCampaignList(data, months);
+  // 기간을 바꾸면 목록이 달라지므로, 처음 보는 캠페인은 기본으로 켜 둔다(사용자가 끈 건 그대로 유지).
+  if(!fstate.seen) fstate.seen = new Set(fstate.campaigns);
+  campaignList.forEach(c=>{ if(!fstate.seen.has(c.campaign)){ fstate.seen.add(c.campaign); fstate.campaigns.add(c.campaign); } });
+  campaignList.forEach(c=>{ if(c.type!=null && !fstate.types.has(c.type) && !fstate.seenTypes) fstate.types.add(c.type); });
   const allTypes = [...new Set(campaignList.map(c=>c.type))];
 
   if(fstate.campaigns.size===0){
@@ -3748,7 +3810,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
     <div class="filterbar">
       <div class="fb-g"><span class="fb-lab">기간</span>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-              <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">◀</button>
+              <button id="monthPrevBtn" title="이전(더 과거)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">◀</button>
               <select id="monthRangeStartSelect" title="시작 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
                 ${allMonths.map(m=>`<option value="${m.label}" ${monthRangeState[key].start===m.label?'selected':''}>${m.label}</option>`).join('')}
               </select>
@@ -3756,8 +3818,8 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
               <select id="monthRangeEndSelect" title="종료 월" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;">
                 ${allMonths.map(m=>`<option value="${m.label}" ${monthRangeState[key].end===m.label?'selected':''}>${m.label}</option>`).join('')}
               </select>
-              <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">▶</button>
-              <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">전체</button>
+              <button id="monthNextBtn" title="다음(더 최신)으로 구간 이동" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">▶</button>
+              <button id="monthRangeAllBtn" title="전체 기간 누적으로 보기" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;">전체</button>
             </div>
       </div>
       <div class="fb-g">
@@ -3775,7 +3837,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
       </div>
       <div class="fb-g">
       <span style="font-size:12px;color:var(--muted);">▲▼ 비교 기준:</span>
-      <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer;">
+      <select id="compareFilterSelect" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">
         <option value="AUTO" ${compareMonthState[key]==='AUTO'?'selected':''}>직전 기간 자동</option>
         ${allMonths.filter(m=>!months.some(mm=>mm.label===m.label)).map(m=>`<option value="${m.label}" ${compareMonthState[key]===m.label?'selected':''}>${m.label} 과 비교</option>`).join('')}
       </select>
@@ -3787,7 +3849,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
             <input type="date" id="dayRangeStartInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].start || dayBoundsMin || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
             <span style="color:var(--muted);font-size:12px;">~</span>
             <input type="date" id="dayRangeEndInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].end || dayBoundsMax || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-            ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
+            ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
           </div>` : ''}
     ${dcKpiRowHTML({cost:totalCostMan, rev:totalRevenueMan, conv:totalConv, imp:totalImp, clk:totalClick}, dcPrevTotals, isDB)}
     <div style="height:16px"></div>
@@ -5066,6 +5128,35 @@ if(FIREBASE_CONFIG.apiKey.includes('여기에')){
       <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
     </div>`;
 }
+
+/* 필터 접기 버튼 — 어느 페이지에서든 화면 오른쪽 가장자리에 붙는다. */
+(function(){
+  function initPanelToggle(){
+    if(document.getElementById('panelToggleBtn')) return;
+    if(!document.querySelector('.main-layout')) return;
+    var KEY='kmPanelOff';
+    var btn=document.createElement('button');
+    btn.id='panelToggleBtn'; btn.type='button';
+    function paint(){
+      var off=document.body.classList.contains('panel-off');
+      btn.textContent = off ? '필터 펴기 ‹' : '필터 접기 ›';
+      btn.title = off ? '오른쪽 필터를 다시 표시' : '오른쪽 필터를 숨기고 넓게 보기';
+    }
+    try{ if(localStorage.getItem(KEY)==='1') document.body.classList.add('panel-off'); }catch(e){}
+    btn.onclick=function(){
+      document.body.classList.toggle('panel-off');
+      try{ localStorage.setItem(KEY, document.body.classList.contains('panel-off')?'1':'0'); }catch(e){}
+      paint();
+      window.dispatchEvent(new Event('resize')); // 차트가 새 폭에 맞게 다시 그려지도록
+    };
+    paint();
+    document.body.appendChild(btn);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initPanelToggle);
+  else initPanelToggle();
+  setTimeout(initPanelToggle, 1500);
+})();
+
 </script>
 </body>
 </html>

@@ -80,6 +80,12 @@
   .todo-delete-btn:hover{color:var(--down);}
   .group-title{font-size:14px;font-weight:700;color:var(--muted);margin:20px 0 6px;padding-top:4px;}
   .group-title:first-child{margin-top:0;}
+
+/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
+   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
+table td, table th { white-space: nowrap; }
+table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
+table td.kw-name { min-width: 150px; }
 </style>
 
 <style id="km-redesign-skin">
@@ -214,10 +220,10 @@ header.rep .totals{display:none}
 /* ---- 표: 목업과 같은 모양으로 통일 ---- */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
-table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
   color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
-table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
@@ -553,7 +559,7 @@ function dcKpi2HTML(top, bottom){
   return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
 }
 // 표 조각
-const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:12px;font-weight:500;letter-spacing:.04em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
 const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
 const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
   <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">

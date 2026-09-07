@@ -95,6 +95,12 @@
   .risk-panel-row .name{font-weight:700;min-width:90px;}
   .risk-panel-row .text{color:var(--muted);flex:1;}
   .risk-panel-sev{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+
+/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
+   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
+table td, table th { white-space: nowrap; }
+table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
+table td.kw-name { min-width: 150px; }
 </style>
 
 <style id="km-redesign-skin">
@@ -232,10 +238,10 @@ header.rep .totals{display:none}
 /* ---- 표: 목업과 같은 모양으로 통일 ---- */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table thead tr{background:#1d2030}
-table th{font-size:10.5px!important;font-weight:500!important;letter-spacing:.08em!important;
+table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
   color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
   text-transform:none!important;white-space:nowrap}
-table td{font-size:13px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
 table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
@@ -370,13 +376,37 @@ async function listClients(){
     return snap.docs.map(d=>'client:'+d.id);
   }catch(e){ console.error(e); return []; }
 }
+
+/* 플레이스(캠페인유형 코드 6)는 지도 노출 기반이라 검색광고 지표와 성격이 달라 대시보드에서 제외한다.
+   월 합계에서도 플레이스 몫을 빼서 다른 페이지 숫자와 어긋나지 않게 한다. */
+const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
+  return v === '6' || v.indexOf('플레이스') >= 0; };
+function stripPlaceCampaigns(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const camps = m.campaigns || [];
+    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
+    if(!place.length) return;
+    const names = new Set(place.map(c=>c.campaign));
+    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
+    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+      if(typeof m[k] === 'number'){
+        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
+        m[k] = Math.max(0, m[k] - sub);
+      }
+    });
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+  });
+  return data;
+}
 async function getClient(key){
   try{
     const id = key.replace(/^client:/,'');
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = doc.data();
+    const data = stripPlaceCampaigns(doc.data());
     // 개요 페이지는 마지막 월 요약 수치만 필요해서, 무거운 상세데이터(detailData 하위컬렉션)는 굳이 안 불러옴 — 로딩 속도 최적화.
     return data;
   }catch(e){ console.error(e); return null; }
@@ -703,7 +733,7 @@ function dcKpi2HTML(top, bottom){
   return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
 }
 // 표 조각
-const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:10.5px;font-weight:500;letter-spacing:.08em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:12px;font-weight:500;letter-spacing:.04em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
 const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
 const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
   <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
@@ -813,8 +843,8 @@ function overviewRowHTML(r, bestKeys, worstKeys, pinnedSet){
     ? (r.cpa>0 ? dcNum(r.cpa)+'원' : '-')
     : (r.cost>0 ? Math.round(r.roas)+'%' : '-');
   const biz = r.bizType==='DB'
-    ? `<span class="m" style="font-size:10.5px;padding:1px 7px;border-radius:4px;background:#221f3d;color:${DC.acc2}">DB</span>`
-    : `<span class="m" style="font-size:10.5px;padding:1px 7px;border-radius:4px;background:#1b2c33;color:#6fd3e8">B2C</span>`;
+    ? `<span class="m" style="font-size:11px;padding:1px 7px;border-radius:4px;background:#221f3d;color:${DC.acc2}">DB</span>`
+    : `<span class="m" style="font-size:11px;padding:1px 7px;border-radius:4px;background:#1b2c33;color:#6fd3e8">B2C</span>`;
   const alertCell = r.alertCount>0
     ? `<span class="m" style="font-size:11px;padding:1px 8px;border-radius:20px;background:#33202a;color:${DC.dn};font-weight:600">${r.alertCount}</span>`
     : `<span style="color:${DC.mut}">—</span>`;
