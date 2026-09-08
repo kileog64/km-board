@@ -3508,7 +3508,8 @@ function dcWhyHTML(data, months, isDB, ctx){
   const _hasDay = !!(ctx && ctx.dayRange && (ctx.dayRange.start || ctx.dayRange.end));
   const _pctx = dcPrevCtx(ctx);
   const cur = dcMergeCamps(CMP.cur, ctx);
-  const prv = (_hasDay ? (_pctx ? dcMergeCamps(months, _pctx) : []) : dcMergeCamps(CMP.prev, _pctx));
+  // months(고른 달)만 넘기면 직전 구간이 다른 달에 걸칠 때 빈손이 된다 → 전체 달에서 찾는다.
+  const prv = (_hasDay ? (_pctx ? dcMergeCamps((data.months||months), _pctx) : []) : dcMergeCamps(CMP.prev, _pctx));
   const pmap = {}; prv.forEach(c=>pmap[c.campaign]=c);
   const totalCost = cur.reduce((a,c)=>a+c.cost,0);
   const MIN_SHARE = 0.03;
@@ -3615,7 +3616,8 @@ function dcCampTableHTML(data, months, isDB, statusMap, ctx){
   /* 위와 같은 이유 — 날짜 필터 중엔 같은 길이의 바로 앞 구간과 비교한다. */
   const _hasDay2 = !!(ctx && ctx.dayRange && (ctx.dayRange.start || ctx.dayRange.end));
   const _pctx2 = dcPrevCtx(ctx);
-  const prv = (_hasDay2 ? (_pctx2 ? dcMergeCamps(months, _pctx2) : []) : dcMergeCamps(dcCompare(data, months).prev, _pctx2));
+  // 위와 같은 이유로 전체 달에서 직전 구간을 찾는다.
+  const prv = (_hasDay2 ? (_pctx2 ? dcMergeCamps((data.months||months), _pctx2) : []) : dcMergeCamps(dcCompare(data, months).prev, _pctx2));
   const pmap = {}; prv.forEach(c=>pmap[c.campaign]=c);
   cur.sort((a,b)=>b.cost-a.cost);
   const maxCost = cur[0].cost || 1;
@@ -3835,8 +3837,26 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
   const hasDayFilter = hasRealDailyData && !!(dayRangeState[key].start || dayRangeState[key].end);
   // 새 칸들이 쓰는 공통 조건: 선택된 캠페인 + 날짜 범위
   const dcCtx = { fstate, data, dayRange: hasDayFilter ? dayRangeState[key] : null };
-  // dailyAll 은 아래에서 제자리(in-place)로 잘리므로, 직전 구간 계산용 원본을 따로 보관해 둔다.
-  const dailyAllUnfiltered = dailyAll.slice();
+  /* 직전 구간 계산용 원본.
+     주의: dailyAll 은 '지금 고른 달(months)'만 담는다. 9월만 보고 있으면 8월 하순이 없어서
+     '직전 7일'을 못 찾는다. 그래서 여기서는 data.months 전체에서 다시 만든다.
+     (캠페인 필터는 화면과 동일하게 적용해야 비교가 성립하므로 fstate로 똑같이 거른다.) */
+  const dailyAllUnfiltered = (function(){
+    const out = []; const src = (data.months||[]);
+    src.forEach(m=>{
+      if(!(m.dailyByCampaign && m.dailyByCampaign.length)) return;
+      const byDate = {};
+      m.dailyByCampaign.forEach(r=>{
+        if(!fstate.campaigns.has(r.campaign)) return;
+        if(!byDate[r.date]) byDate[r.date] = {date:r.date, impressions:0, clicks:0, cost:0, revenue:0, conv:0};
+        const b = byDate[r.date];
+        b.impressions += r.impressions||0; b.clicks += r.clicks||0;
+        b.cost += r.cost||0; b.revenue += r.revenue||0; b.conv += r.conv||0;
+      });
+      Object.keys(byDate).forEach(dt=>out.push(byDate[dt]));
+    });
+    return out;
+  })();
   if(hasDayFilter){
     const filtered = filterRowsByDayRange(dailyAll, dayRangeState[key]);
     dailyAll.length = 0;
