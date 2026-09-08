@@ -374,7 +374,8 @@ table tbody tr:hover td{background:#1b1e2c}
 .panel table,.card table{border-radius:0}
 
 /* 시간대 표: 24줄이라 그냥 두면 화면이 너무 길어짐 — 영역을 잘라 안에서만 스크롤되게 하고 줄 간격도 좁힘 */
-.hr-scroll{max-height:430px;overflow-y:auto;border:1px solid #262a3b;border-radius:9px}
+/* 25줄(0~23시 + 시간 미상)이 스크롤 없이 한눈에 들어오도록 넉넉히. 머리줄은 계속 붙어 있음 */
+.hr-scroll{max-height:820px;overflow-y:auto;border:1px solid #262a3b;border-radius:9px}
 .hr-scroll table{margin:0}
 .hr-scroll thead th{position:sticky;top:0;z-index:1;background:#1d2030}
 .hr-scroll td{padding-top:5px!important;padding-bottom:5px!important;font-size:12.5px!important}
@@ -497,7 +498,7 @@ table td.km-bad { color: var(--down); font-weight: 700; }
   </div>
 </div>
 
-<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
+<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1720px;margin:0 auto;">
   <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;">📊 대시보드</a>
     <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><a class="nv" href="shopping.html">쇼핑검색 상품</a><span class="nv nv-on">시간대</span><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a><a class="nv" href="changelog.html">개발 이력</a>
@@ -635,6 +636,9 @@ const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 const hourCompareMetric = {};
 const hourHeatmapMetric = {};
 const hourAdgroupSelectState = {}; // key -> { campaign, adgroup } — 광고그룹별 시간대 분석에서 선택 중인 캠페인·광고그룹
+/* 광고그룹별 시간대 분석은 그래프가 늘 펼쳐져 있어 화면을 많이 먹었다.
+   캠페인별 시간대 비교처럼 평소엔 고르는 줄만 두고, 볼 때만 그래프를 편다. */
+const hourAdgroupOpen = {};        // key -> bool (기본 접힘)
 const hourAdgroupMetricState = {}; // key -> Set of selected metric keys — 광고그룹별 시간대 분석 차트에 표시할 지표(체크박스)
 function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
 const CAMPAIGN_TYPE_LABELS = { WEB_SITE:'파워링크', SHOPPING:'쇼핑검색', POWER_CONTENTS:'파워컨텐츠', BRAND_SEARCH:'브랜드검색광고', PLACE:'플레이스', PLACE_TP:'플레이스', CATEGORY_EDIT:'세부업종', CAMPAIGN_TYPE_UNKNOWN:'기타' };
@@ -2247,6 +2251,8 @@ function renderHourlyPage(data){
   if(!(key in hourAdgroupSelectState) || (hourAdgroupSelectState[key] && !adgroupOptions.some(o=>o.campaign===hourAdgroupSelectState[key].campaign && o.adgroup===hourAdgroupSelectState[key].adgroup))){
     hourAdgroupSelectState[key] = adgroupOptions.length ? { campaign:adgroupOptions[0].campaign, adgroup:adgroupOptions[0].adgroup } : null;
   }
+  if(!(key in hourAdgroupOpen)) hourAdgroupOpen[key] = false;
+  const agOpen = hourAdgroupOpen[key];
   const selectedAdgroup = hourAdgroupSelectState[key];
   let adgroupHourlyEnriched = null;
   if(selectedAdgroup){
@@ -2407,7 +2413,10 @@ function renderHourlyPage(data){
     </div>
 
     <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">🖼️ 광고그룹별 시간대 분석</div>
+      <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>🖼️ 광고그룹별 시간대 분석 ${hasAdgroupHourlyData ? `<span style="font-size:12px;font-weight:400;color:var(--muted);">— ${adgroupOptions.length}개 광고그룹</span>` : ''}</span>
+        ${hasAdgroupHourlyData ? `<button type="button" id="adgroupOpenToggle" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:14px;cursor:pointer;border:1px solid ${agOpen?'var(--accent)':'var(--border)'};background:${agOpen?'var(--accent-solid)':'var(--panel)'};color:${agOpen?'#fff':'var(--muted)'};">${agOpen?'접기':'그래프 보기'}</button>` : ''}
+      </div>
       ${hasHourlyDayFilter && hasAdgroupHourlyData ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">⚠️ 광고그룹 데이터에는 날짜가 없어서 이 표만 <b>고른 기간이 속한 달 전체</b> 기준이에요 — 위쪽 표와 기간이 다릅니다.</div>` : ''}
       ${!hasAdgroupHourlyData ? `<div style="color:var(--muted);font-size:12px;">이 기간엔 광고그룹 단위 시간대 데이터가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 컬럼이 포함돼야 이 분석이 채워져요 (다시 업로드하면 반영돼요).</div>` : `
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -2430,6 +2439,7 @@ function renderHourlyPage(data){
         const agSelectedMetrics = hourAdgroupMetricState[key];
         return `
         ${agBest ? `<div style="display:flex;gap:8px;font-size:12px;color:var(--text);padding:5px 0;margin-bottom:8px;"><span>📈</span><span style="color:var(--up);">이 광고그룹은 '${agBest.hour}시'에 가장 효율이 좋아요 (${isDB ? `CPA ${agBest.cpa.toLocaleString('ko-KR')}원` : `ROAS ${agBest.roas.toFixed(0)}%`}, 전환 ${agBest.conv}건 기준).</span></div>` : ''}
+        ${!agOpen ? '' : `
         <div id="adgroupHourToggle" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
           ${[
             {k:'imp', label:'노출수'},
@@ -2441,7 +2451,7 @@ function renderHourlyPage(data){
             ...(isDB ? [{k:'cpa', label:'CPA'}] : [{k:'revenue', label:'매출'}, {k:'roas', label:'ROAS'}]),
           ].map(m=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);"><input type="checkbox" class="adgroup-hour-metric" value="${m.k}" ${agSelectedMetrics.has(m.k)?'checked':''} style="accent-color:var(--accent);width:12px;height:12px;">${m.label}</label>`).join('')}
         </div>
-        <div class="chart-box" style="height:280px;"><canvas id="chartAdgroupHour"></canvas></div>
+        <div class="chart-box" style="height:280px;"><canvas id="chartAdgroupHour"></canvas></div>`}
         `;
       })()}
       `}
@@ -2662,6 +2672,8 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     if(dr.start && dr.end && dr.end < dr.start) dr.start = dr.end;
     renderHourlyPage(data);
   };
+  const agOpenBtn = document.getElementById('adgroupOpenToggle');
+  if(agOpenBtn) agOpenBtn.onclick = ()=>{ hourAdgroupOpen[key] = !hourAdgroupOpen[key]; renderHourlyPage(data); };
   document.querySelectorAll('.hr-sort-th').forEach(th=>{
     th.onclick = ()=>{
       const f = th.dataset.field;
