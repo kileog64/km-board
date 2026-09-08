@@ -3073,6 +3073,24 @@ function computeCampaignAgg(months, fstate, dayRange, data){
       else if(typeof st === 'object' && 'on' in st) c.on = !!st.on;
     });
   }
+  /* 평균노출순위는 일별 자료(dailyByCampaign)에 없는 업체가 많다(담은 2026.08 = 182줄 전부 없음).
+     그럴 땐 달 단위 캠페인 값으로 보충한다. 단 날짜를 좁혀 보는 중이면 달 전체 순위를 갖다 쓰는 게
+     되므로 보충하지 않는다 — 다른 기간 숫자가 섞이는 것보다 비어 있는 게 낫다. */
+  if(!hasDayFilter){
+    const monthRank = {};
+    months.forEach(m=>(m.campaigns||[]).forEach(c=>{
+      if(c.avgRank===null || c.avgRank===undefined || isNaN(c.avgRank)) return;
+      if((c.impressions||0) <= 0) return;
+      if(!monthRank[c.campaign]) monthRank[c.campaign] = { sum:0, imp:0 };
+      monthRank[c.campaign].sum += Number(c.avgRank)*(c.impressions||0);
+      monthRank[c.campaign].imp += (c.impressions||0);
+    }));
+    Object.values(agg).forEach(c=>{
+      if(c.rankImp > 0) return;
+      const r = monthRank[c.campaign];
+      if(r && r.imp > 0){ c.rankSum = r.sum; c.rankImp = r.imp; }
+    });
+  }
   Object.values(agg).forEach(c=>{ c.avgRank = c.rankImp>0 ? (c.rankSum/c.rankImp) : null; });
   return Object.values(agg);
 }
@@ -3889,7 +3907,7 @@ function dcSplit(curVal, prevVal, curBase, prevBase){
   };
 }
 /* 한 줄 그리기. 왼쪽에 지표 이름, 가운데에 두 원인을 색으로 나눈 막대, 오른쪽에 합계. */
-function dcSplitRowHTML({label, sp, fmt, baseName, rateName, rateFmt, goodUp}){
+function dcSplitRowHTML({label, sp, fmt, baseName, rateName, rateShort, rateFmt, goodUp}){
   if(!isFinite(sp.total)) return '';
   const a = sp.byBase, b = sp.byRate;
   const span = Math.max(Math.abs(a), Math.abs(b), Math.abs(sp.total), 1e-9);
@@ -3915,7 +3933,7 @@ function dcSplitRowHTML({label, sp, fmt, baseName, rateName, rateFmt, goodUp}){
       <span style="text-align:right;font-variant-numeric:tabular-nums;color:${(b>=0)===!!goodUp?DC.up:DC.dn}">${sign(b)}</span>
     </div>
     <div style="font-size:11.5px;color:${DC.mut};margin-top:6px;">
-      ${rateName} ${rateFmt(sp.rPrev)} → ${rateFmt(sp.rCur)}
+      ${rateShort || rateName} ${rateFmt(sp.rPrev)} → ${rateFmt(sp.rCur)}
     </div>
   </div>`;
 }
@@ -3928,21 +3946,21 @@ function dcSplitPanelHTML(cur, prev, isDB, prevLabel){
   // 클릭 = 노출 × 클릭률
   if(cur.imp>0 && prev.imp>0){
     rows.push(dcSplitRowHTML({ label:'클릭수', sp: dcSplit(cur.clk, prev.clk, cur.imp, prev.imp),
-      fmt: v=>Math.round(v).toLocaleString('ko-KR')+'회', baseName:'노출이 늘어', rateName:'클릭률이 변해',
+      fmt: v=>Math.round(v).toLocaleString('ko-KR')+'회', baseName:'노출이 늘어', rateName:'클릭률이 변해', rateShort:'클릭률',
       rateFmt: r=>(r*100).toFixed(2)+'%', goodUp:true }));
   }
   // 전환 = 클릭 × 전환율
   rows.push(dcSplitRowHTML({ label:'전환수', sp: dcSplit(cur.conv, prev.conv, cur.clk, prev.clk),
-    fmt: v=>v.toFixed(1)+'건', baseName:'클릭이 늘어', rateName:'전환율이 변해',
+    fmt: v=>v.toFixed(1)+'건', baseName:'클릭이 늘어', rateName:'전환율이 변해', rateShort:'전환율',
     rateFmt: r=>(r*100).toFixed(2)+'%', goodUp:true }));
   // 비용 = 클릭 × 평균CPC  (비용은 늘면 나쁜 쪽)
   rows.push(dcSplitRowHTML({ label:'비용', sp: dcSplit(cur.cost, prev.cost, cur.clk, prev.clk),
-    fmt: won, baseName:'클릭이 늘어', rateName:'평균CPC가 변해',
+    fmt: won, baseName:'클릭이 늘어', rateName:'평균CPC가 변해', rateShort:'평균CPC',
     rateFmt: r=>Math.round(r*10000).toLocaleString('ko-KR')+'원', goodUp:false }));
   // 매출 = 전환 × 객단가 (B2C만)
   if(!isDB && cur.conv>0 && prev.conv>0){
     rows.push(dcSplitRowHTML({ label:'전환매출', sp: dcSplit(cur.rev, prev.rev, cur.conv, prev.conv),
-      fmt: won, baseName:'전환이 늘어', rateName:'객단가가 변해',
+      fmt: won, baseName:'전환이 늘어', rateName:'객단가가 변해', rateShort:'객단가',
       rateFmt: r=>Math.round(r*10000).toLocaleString('ko-KR')+'원', goodUp:true }));
   }
   const body = rows.filter(Boolean).join('');
