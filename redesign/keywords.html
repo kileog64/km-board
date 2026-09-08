@@ -1754,7 +1754,7 @@ async function downloadKeywordTable(key){
   if(String(filters.minConv).trim()!=='')   cond.push('전환수 ' + filters.minConv + '건 이상');
   if(String(filters.q||'').trim()!=='')     cond.push('키워드에 "' + filters.q + '" 포함');
 
-  ws.addRow([clientName + ' — ' + MODE_LABEL[ctx.mode]]);
+  ws.addRow([clientName + ' — ' + (ctx.modeLabel || '키워드')]);
   ws.getRow(1).font = { name:'맑은 고딕', size:14, bold:true };
   ws.addRow(['기간', periodLabel || '']);
   ws.addRow(['추천 필터', recLabel]);
@@ -2072,7 +2072,7 @@ function renderKeywordsPage(data){
   const periodLabel = isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} 누적` : (months[0] ? months[0].label : '기간 없음');
   /* 내려받기용 — 화면은 '더보기'로 10개씩만 그리지만, 파일에는 지금 조건에 맞는 줄을 전부 담는다.
      보이는 21개만 받으면 조건을 걸어 추린 의미가 없어지기 때문. */
-  kwExportCtx[key] = { rows, mode, isDB, noConv, clientName: data.name, periodLabel,
+  kwExportCtx[key] = { rows, mode, modeLabel: MODE_LABEL[mode], isDB, noConv, clientName: data.name, periodLabel,
     recFilter, filters: { minCost: nf.minCost, minClicks: nf.minClicks, minConv: nf.minConv, q: nf.q } };
 
   // 💡 키워드 성과 인사이트 (현재 모드·기간·필터 기준)
