@@ -820,28 +820,35 @@ function stripPlaceCampaigns(data){
   data.months.forEach(m=>{
     const camps = m.campaigns || [];
     const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
-    if(!place.length) return;
-    const names = new Set(place.map(c=>c.campaign));
-    // 아래에서 dailyByCampaign을 걸러내기 전에, 플레이스 몫 하루치를 미리 뽑아둔다.
+    /* [중요] 플레이스는 두 갈래로 존재한다.
+       ① 캠페인 목록에 유형이 '플레이스'로 남아 있는 경우 → 아래에서 걸러낸다.
+       ② 수집기가 저장할 때 이미 캠페인 목록에서는 빼놨는데 하루치 상세에는 남아 있는 경우
+          → 캠페인 목록에 없으니 ①로는 절대 못 찾는다. 태림이 이 경우였고, 그래서
+            "월 합계 54,717,412 vs 일별 합계 58,723,251"처럼 화면 숫자가 어긋났다.
+            (차액 4,005,839원 = 하루치에만 있는 캠페인 77개의 합)
+       그래서 '캠페인 목록에 없는데 하루치에만 있는 캠페인'도 함께 제외 대상으로 잡는다. */
+    const known = new Set(camps.map(c=>c.campaign));
+    const orphanNames = new Set();
+    if(Array.isArray(m.dailyByCampaign)){
+      m.dailyByCampaign.forEach(r=>{ if(r && r.campaign && !known.has(r.campaign)) orphanNames.add(r.campaign); });
+    }
+    const names = new Set([...place.map(c=>c.campaign), ...orphanNames]);
+    if(!names.size) return;
+
+    // 하루치에서 뺄 몫을 미리 뽑아둔다(아래에서 dailyByCampaign을 걸러내기 전에).
     const placeDailyRows = Array.isArray(m.dailyByCampaign)
       ? m.dailyByCampaign.filter(r=>r && names.has(r.campaign)) : [];
+
     m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
-    // 월 합계에서 플레이스 몫 차감
+    // 월 합계에서 플레이스 몫 차감 (캠페인 목록에 남아 있던 것만 — 나머지는 애초에 월 합계에 없음)
     ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
       if(typeof m[k] === 'number'){
         const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
         m[k] = Math.max(0, m[k] - sub);
       }
     });
-    // 캠페인 이름이 붙은 상세 배열에서도 제거
-    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
-      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
-    /* 하루치 합계(daily)에서도 플레이스 몫을 뺀다.
-       예전엔 월 합계·캠페인에서만 빼고 daily는 그대로 둬서, 화면에서 "월 합계 ≠ 일별 합계"가 됐다
-       (태림 2026.08: 월 54,717,412 vs 일별 58,723,251 — 차이 4,005,839가 정확히 플레이스 금액).
-       daily 자체엔 캠페인 이름이 없으므로, 캠페인 이름이 붙은 dailyByCampaign에서 날짜별 플레이스 몫을
-       구해 같은 날짜에서 빼준다. dailyByCampaign이 없는 달은 손대지 않는다(뺄 근거가 없으므로). */
-    if(Array.isArray(m.daily) && m.daily.length && Array.isArray(placeDailyRows) && placeDailyRows.length){
+    // 하루치 합계(daily)에서도 같은 몫을 뺀다 — daily엔 캠페인 이름이 없으므로 날짜로 맞춘다.
+    if(Array.isArray(m.daily) && m.daily.length && placeDailyRows.length){
       const byDate = {};
       placeDailyRows.forEach(r=>{
         if(!r || !r.date) return;
@@ -858,6 +865,9 @@ function stripPlaceCampaigns(data){
         return out;
       });
     }
+    // 캠페인 이름이 붙은 상세 배열에서도 제거
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
     // 캠페인별 지도형 데이터에서도 제거
     ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
      'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
