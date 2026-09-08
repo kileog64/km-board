@@ -1067,13 +1067,15 @@ function kmFilterBarHTML(st, shown, total, label){
 }
 
 /* 입력 배선 — 글자를 칠 때마다 다시 그리면 커서가 튀므로 Enter 또는 포커스가 빠질 때만 적용 */
-function kmWireFilterBar(st, rerender){
-  document.querySelectorAll('.km-nf').forEach(inp=>{
+/* root: 배선할 범위. 한 화면에 표가 둘 이상이면(쇼핑검색의 상품/검색어) 반드시 넘겨야
+   서로의 입력이 섞이지 않는다. 안 넘기면 화면 전체가 대상. */
+function kmWireFilterBar(st, rerender, root){
+  (root||document).querySelectorAll('.km-nf').forEach(inp=>{
     const apply = ()=>{ if(st[inp.dataset.nf] === inp.value) return; st[inp.dataset.nf] = inp.value; rerender(); };
     inp.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); apply(); } };
     inp.onblur = apply;
   });
-  document.querySelectorAll('.km-nf-reset').forEach(b=>{
+  (root||document).querySelectorAll('.km-nf-reset').forEach(b=>{
     b.onclick = ()=>{ st.minCost=''; st.minClicks=''; st.minConv=''; st.q=''; rerender(); };
   });
 }
@@ -1131,8 +1133,8 @@ async function kmDownloadExcel({ rows, cols, meta, title, sheet, filename }){
 
 /* 내려받기 버튼 배선. getSpec()은 위 kmDownloadExcel 이 받는 객체를 그때그때 만들어 돌려준다
    (버튼을 누르는 시점의 조건·정렬이 반영돼야 하므로 미리 만들어 두지 않는다). */
-function kmWireExcel(getSpec){
-  document.querySelectorAll('.km-xlsx').forEach(btn=>{
+function kmWireExcel(getSpec, root){
+  (root||document).querySelectorAll('.km-xlsx').forEach(btn=>{
     btn.onclick = async ()=>{
       const label = btn.textContent;
       btn.disabled = true; btn.textContent = '만드는 중…';
