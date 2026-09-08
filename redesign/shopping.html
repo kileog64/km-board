@@ -2459,7 +2459,8 @@ function renderKeywordsPage(data){
      검색어 표는 10줄에서 영영 늘어나지 않았다. → shopterm 은 제외하고 잡는다. */
   /* 조건 좁히기 + 엑셀 — 상품/검색어 패널을 각각 따로 배선한다.
      한 화면에 조건 줄이 둘이라 범위를 안 넘기면 서로의 입력이 섞인다. */
-  [['shopprod', kmStProd, ()=>prodRows, prodBefore, '상품', '상품명'],
+  // 패널 이름은 shopPanel 의 MORE 값과 같아야 한다(상품 패널은 'shopprod'이 아니라 'top').
+  [['top', kmStProd, ()=>prodRows, prodBefore, '상품', '상품명'],
    ['shopterm', kmStTerm, ()=>termRows, termBefore, '검색어', '검색어']].forEach(([mk, st, getRows, before, sheetName, label])=>{
     const root = document.querySelector('[data-shop-panel="'+mk+'"]');
     if(!root) return;
