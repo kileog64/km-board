@@ -839,6 +839,9 @@ function stripPlaceCampaigns(data){
     const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
     if(!place.length) return;
     const names = new Set(place.map(c=>c.campaign));
+    // 아래에서 dailyByCampaign을 걸러내기 전에, 플레이스 몫 하루치를 미리 뽑아둔다.
+    const placeDailyRows = Array.isArray(m.dailyByCampaign)
+      ? m.dailyByCampaign.filter(r=>r && names.has(r.campaign)) : [];
     m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
     // 월 합계에서 플레이스 몫 차감
     ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
@@ -850,6 +853,28 @@ function stripPlaceCampaigns(data){
     // 캠페인 이름이 붙은 상세 배열에서도 제거
     ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
       .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+    /* 하루치 합계(daily)에서도 플레이스 몫을 뺀다.
+       예전엔 월 합계·캠페인에서만 빼고 daily는 그대로 둬서, 화면에서 "월 합계 ≠ 일별 합계"가 됐다
+       (태림 2026.08: 월 54,717,412 vs 일별 58,723,251 — 차이 4,005,839가 정확히 플레이스 금액).
+       daily 자체엔 캠페인 이름이 없으므로, 캠페인 이름이 붙은 dailyByCampaign에서 날짜별 플레이스 몫을
+       구해 같은 날짜에서 빼준다. dailyByCampaign이 없는 달은 손대지 않는다(뺄 근거가 없으므로). */
+    if(Array.isArray(m.daily) && m.daily.length && Array.isArray(placeDailyRows) && placeDailyRows.length){
+      const byDate = {};
+      placeDailyRows.forEach(r=>{
+        if(!r || !r.date) return;
+        const b = byDate[r.date] || (byDate[r.date] = {cost:0,revenue:0,conv:0,impressions:0,clicks:0});
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{ b[k] += Number(r[k])||0; });
+      });
+      m.daily = m.daily.map(d=>{
+        const sub = d && d.date ? byDate[d.date] : null;
+        if(!sub) return d;
+        const out = { ...d };
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+          if(typeof out[k] === 'number') out[k] = Math.max(0, out[k] - (sub[k]||0));
+        });
+        return out;
+      });
+    }
     // 캠페인별 지도형 데이터에서도 제거
     ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
      'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
