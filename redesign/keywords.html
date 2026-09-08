@@ -419,7 +419,7 @@ table tbody tr:hover td{background:#1b1e2c}
   </div>
 </div>
 
-<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
+<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1720px;margin:0 auto;">
   <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;">📊 대시보드</a>
     <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><span class="nv nv-on">파워링크 키워드</span><a class="nv" href="shopping.html">쇼핑검색 상품</a><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a>
@@ -1346,6 +1346,7 @@ const kwSortState = {}; // key -> { field, dir }
 const wasteSortState = {}; // key -> { field, dir }
 const expandSortState = {}; // key -> { field, dir }
 const topVisibleCount = {}; // key -> number of rows currently shown
+const kwRecFilter = {};     // key -> 'all' | 'expand' | 'waste' (합친 표의 추천 필터 칩)
 const expandVisibleCount = {};
 const wasteVisibleCount = {};
 
@@ -1434,7 +1435,7 @@ function mergeKwRowsByDayRange(months, fstate, dayRange, mode){
 // 캠페인당 top+waste+expand 합쳐 최대 75개까지만 존재)를 현재 모드(sourceMode)와 날짜로 먼저 자른 뒤,
 // input.html의 buildTopAndWaste/buildSet과 동일한 저효율(제외추천)·고효율(확대추천) 판정 기준을 그 기간
 // 데이터에 대해 다시 계산함. 그 모드에 날짜별 원본 자체가 없으면(호출하는 쪽에서 확인) 호출되지 않음.
-// avgRank·searchType은 일별 원본에 없어 항상 비워둠.
+// searchType은 일별 원본에 없어 비워둠. avgRank는 수집기가 일별 행에 채워주므로 노출수 가중평균으로 계산함.
 function computeWasteExpandByDayRange(months, fstate, dayRange, isDB, mode){
   // camp -> keyword -> {cost,revenue,conv,impressions,clicks}
   const campMap = {};
@@ -1446,9 +1447,14 @@ function computeWasteExpandByDayRange(months, fstate, dayRange, isDB, mode){
       if(!fstate.campaigns.has(r.campaign)) return;
       if(!campMap[r.campaign]) campMap[r.campaign] = {};
       const cm = campMap[r.campaign];
-      if(!cm[r.keyword]) cm[r.keyword] = { keyword:r.keyword, cost:0, revenue:0, conv:0, impressions:0, clicks:0 };
+      if(!cm[r.keyword]) cm[r.keyword] = { keyword:r.keyword, cost:0, revenue:0, conv:0, impressions:0, clicks:0, rankSum:0, rankImp:0 };
       cm[r.keyword].cost += r.cost||0; cm[r.keyword].revenue += r.revenue||0; cm[r.keyword].conv += r.conv||0;
       cm[r.keyword].impressions += r.impressions||0; cm[r.keyword].clicks += r.clicks||0;
+      // 평균노출순위: 일별 행에 순위가 있으면 노출수로 가중합산(TOP 표와 동일한 방식).
+      if(r.avgRank!==null && r.avgRank!==undefined && !isNaN(r.avgRank) && (r.impressions||0)>0){
+        cm[r.keyword].rankSum += Number(r.avgRank)*(r.impressions||0);
+        cm[r.keyword].rankImp += (r.impressions||0);
+      }
     });
   });
   const hasRevenue = !isDB; // input.html의 revCol 유무와 동치: B2C만 매출 컬럼을 쓰고, DB는 CPA 기준으로 판정.
@@ -1469,7 +1475,7 @@ function computeWasteExpandByDayRange(months, fstate, dayRange, isDB, mode){
         return cpa > avgCpaCamp*2;
       }
       return false;
-    }).forEach(a=>waste.push({ ...a, campaign:camp, avgRank:null, sourceMode:mode }));
+    }).forEach(a=>waste.push({ ...a, campaign:camp, avgRank:(a.rankImp>0?a.rankSum/a.rankImp:null), sourceMode:mode }));
     arr.filter(a=>{
       if(a.conv===0 || a.cost<1) return false;
       if(!avgCostCamp || a.cost >= avgCostCamp) return false;
@@ -1481,7 +1487,7 @@ function computeWasteExpandByDayRange(months, fstate, dayRange, isDB, mode){
         return cpa <= avgCpaCamp*0.5;
       }
       return false;
-    }).forEach(a=>expand.push({ ...a, campaign:camp, avgRank:null, sourceMode:mode }));
+    }).forEach(a=>expand.push({ ...a, campaign:camp, avgRank:(a.rankImp>0?a.rankSum/a.rankImp:null), sourceMode:mode }));
   });
   return { waste, expand };
 }
@@ -1550,6 +1556,13 @@ function sourceBadgeHTML(sourceMode){
   return `<span style="font-size:12px;padding:1px 6px;border-radius:8px;background:var(--panel-2);border:1px solid var(--border);color:var(--muted);white-space:nowrap;">${label}</span>`;
 }
 // '검색 유형'(일치/확장) 컬럼이 있는 파일을 올렸을 때만 나타남 — 등록 키워드와 정확히 일치한 클릭이 아니라
+// 네이버가 키워드 칸에 '-'로 주는 줄은 '키워드 확장(자동 매칭)'으로 나간 클릭 묶음이다.
+// 개별 키워드가 아니라 캠페인 설정이라 그대로 '-'만 보이면 무슨 줄인지 알 수 없어 이름을 붙여 보여준다.
+function kwLabelHTML(name){
+  if(name === '-') return '<span title="네이버 키워드 확장(자동 매칭)으로 나간 클릭을 묶은 줄이에요. 개별 키워드가 아니라 캠페인 설정이라 따로 제외할 수 없어요." style="color:var(--muted);">(키워드 확장)</span>';
+  return esc(name);
+}
+function isExpandBucket(name){ return name === '-'; }
 // 네이버 '키워드 확장' 자동 매칭으로 노출된 클릭이 섞여있는 키워드를 한눈에 구분할 수 있게 표시.
 // TOP 키워드 표뿐 아니라 확대추천/제외추천 표에도 동일하게 적용(같은 searchType 필드를 씀).
 function searchTypeBadgeHTML(searchType){
@@ -1798,7 +1811,10 @@ function renderKeywordsPage(data){
     });
   }
   // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
-  rows = applySort(rows, sort, noConv ? 'cost' : (isDB?'conv':'revenue')).slice(0,50);
+  // 예전엔 여기서 50개로 잘랐는데, 표 3개를 하나로 합치면서 확대/제외 추천 후보가
+  // 50위 밖에 있으면 통째로 사라지는 문제가 생긴다. 자르지 않고 넘기고,
+  // 화면에는 topVisibleCount(더보기 버튼)로 10개씩 끊어서 그린다.
+  rows = applySort(rows, sort, noConv ? 'cost' : (isDB?'conv':'revenue'));
 
   // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
   // refMonth = 현재 보고 있는 구간의 마지막 달(단일 월/전체 누적/임의 구간 모두 이 정의 하나로 처리)
@@ -1882,10 +1898,15 @@ function renderKeywordsPage(data){
     ...(dayFilteredWasteExpand ? dayFilteredWasteExpand.waste : mergeKwWaste(months, fstate, MODE_WASTE_FIELD[mode], mode)),
     ...OTHER_MODES.flatMap(m=>mergeKwWaste(months, fstate, MODE_WASTE_FIELD[m], m)),
   ];
+  // '키워드 확장' 묶음('-')은 개별 키워드가 아니라 캠페인 설정이라 따로 제외할 수 없다.
+  // 제외 추천에 올리면 실행 불가능한 조언이 되므로 뺀다(TOP 표에는 그대로 남는다).
+  waste = waste.filter(w=>!isExpandBucket(w.keyword));
   waste = waste.map(w=>({ ...w, cpa: w.conv>0 ? Math.round(w.cost*10000/w.conv) : null, roas: w.cost>0 ? (w.revenue/w.cost*100) : 0,
     ctr: w.impressions>0 ? (w.clicks/w.impressions*100) : 0, cvr: w.clicks>0 ? (w.conv/w.clicks*100) : 0,
     avgCpc: w.clicks>0 ? Math.round(w.cost*10000/w.clicks) : null }));
-  waste = applySort(waste, wsort, 'cost').slice(0,50);
+  // 예전엔 표를 따로 그려서 50개만 잘랐지만, 지금은 합친 표의 '제외' 배지를 다는 근거 집합이라
+  // 자르면 51번째부터 배지가 안 붙는다. 넉넉히 남겨둔다(화면은 더보기로 끊어 그림).
+  waste = applySort(waste, wsort, 'cost').slice(0,2000);
 
   // 확대 추천: 효율은 좋은데 비용이 평균보다 낮은 키워드 (제외추천과 대칭)
   let expand = [
@@ -1899,7 +1920,29 @@ function renderKeywordsPage(data){
   const esort = expandSortState[key];
   expand = applySort(expand, esort, isDB?'cpa':'roas');
   if(esort.field==='default'){ expand.sort((a,b)=> isDB ? a.cpa-b.cpa : b.roas-a.roas); }
-  expand = expand.slice(0,50);
+  expand = expand.slice(0,2000); // waste와 같은 이유로 상한만 크게 둔다(배지 근거 집합)
+
+  /* ── 표 3개(TOP·확대추천·제외추천)를 하나로 합치기 ────────────────────────────
+     같은 키워드가 세 표에 중복으로 나와 스크롤만 길어졌다. 이제 키워드 목록은 하나만
+     두고, 확대/제외 추천 여부는 배지로 표시한 뒤 위쪽 칩으로 걸러 본다.
+     waste/expand는 키워드+캠페인 단위라, 여러 캠페인에 걸친 키워드는 한 곳이라도
+     해당되면 그 배지를 단다. 확대와 제외에 동시에 걸리면 확대를 우선한다. */
+  const wasteKeySet  = new Set(waste.map(w=>w.keyword+'\u0000'+w.campaign));
+  const expandKeySet = new Set(expand.map(e=>e.keyword+'\u0000'+e.campaign));
+  const wasteWhyMap = {};
+  waste.forEach(w=>{ wasteWhyMap[w.keyword+'\u0000'+w.campaign] = w; });
+  rows = rows.map(k=>{
+    const camps = (k.campaigns && k.campaigns.length) ? k.campaigns : (k.campaign ? [k.campaign] : []);
+    let rec = null;
+    for(let i=0;i<camps.length;i++){ if(expandKeySet.has(k.keyword+'\u0000'+camps[i])){ rec='expand'; break; } }
+    if(!rec) for(let i=0;i<camps.length;i++){ if(wasteKeySet.has(k.keyword+'\u0000'+camps[i])){ rec='waste'; break; } }
+    return { ...k, rec };
+  });
+  if(!(key in kwRecFilter)) kwRecFilter[key] = 'all';
+  const recFilter = kwRecFilter[key];
+  const recCounts = { all: rows.length, expand: 0, waste: 0 };
+  rows.forEach(r=>{ if(r.rec==='expand') recCounts.expand++; else if(r.rec==='waste') recCounts.waste++; });
+  if(recFilter !== 'all') rows = rows.filter(r=>r.rec===recFilter);
 
   // 💡 키워드 성과 인사이트 (현재 모드·기간·필터 기준)
   // 원인 추정: 전환 없이 비용만 쓴 키워드 — 클릭은 있는데 전환이 없으면 타겟팅/랜딩페이지 불일치,
@@ -2056,7 +2099,7 @@ function renderKeywordsPage(data){
 
     <div class="panel">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>🔑 TOP ${MODE_LABEL[mode]} (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></span>
+        <span>🔑 ${MODE_LABEL[mode]} <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></span>
         <div style="display:flex;gap:6px;">
           <button class="kw-mode-btn" data-mode="powerlink" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='powerlink'?'var(--accent-solid)':'var(--panel)'};color:${mode==='powerlink'?'#fff':'var(--muted)'};cursor:pointer;">파워링크</button>
           <button class="kw-mode-btn" data-mode="plterm" ${hasPlTermData?'':'disabled title="이 업체는 파워링크 검색어 데이터가 없어요 (쇼핑검색 위주 계정이면 안 나올 수 있어요)"'} style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='plterm'?'var(--accent-solid)':'var(--panel)'};color:${mode==='plterm'?'#fff':'var(--muted)'};cursor:${hasPlTermData?'pointer':'not-allowed'};${hasPlTermData?'':'opacity:.4;'}">파워링크 검색어${hasPlTermData?'':' (없음)'}</button>
@@ -2064,17 +2107,22 @@ function renderKeywordsPage(data){
           <button class="kw-mode-btn" data-mode="brand" ${hasBrandData?'':'disabled title="이 업체는 브랜드검색 키워드 데이터가 없어요"'} style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${mode==='brand'?'var(--accent-solid)':'var(--panel)'};color:${mode==='brand'?'#fff':'var(--muted)'};cursor:${hasBrandData?'pointer':'not-allowed'};${hasBrandData?'':'opacity:.4;'}">브랜드검색${hasBrandData?'':' (없음)'}</button>
         </div>
       </div>
+      <div class="kw-rec-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        ${[['all','전체',recCounts.all],['expand','📈 확대 추천',recCounts.expand],['waste','🚫 제외 추천',recCounts.waste]].map(([v,lbl,n])=>`
+          <button type="button" class="kw-rec-chip" data-rec="${v}" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${recFilter===v?'var(--accent)':'var(--border)'};background:${recFilter===v?'var(--accent)':'var(--panel-2)'};color:${recFilter===v?'#12131c':'var(--muted)'};">${lbl} ${n}</button>`).join('')}
+      </div>
       <table>
         <thead><tr>
-          <th>키워드/검색어</th><th>캠페인</th>
+          <th>키워드/검색어</th><th>캠페인</th><th>추천</th>
           ${sortTh('비용','cost',sort,'top')}
-          ${noConv ? '' : (isDB ? sortTh('전환수','conv',sort,'top') : sortTh('전환매출','revenue',sort,'top'))}
+          ${sortTh('노출수','impressions',sort,'top')}
+          ${sortTh('클릭수','clicks',sort,'top')}
+          ${sortTh('클릭률','ctr',sort,'top')}
+          ${sortTh('평균CPC','avgCpc',sort,'top')}
+          ${noConv ? '' : sortTh('총 전환수','conv',sort,'top')}
+          ${(noConv || isDB) ? '' : sortTh('전환매출','revenue',sort,'top')}
           ${noConv ? '' : sortTh('CPA','cpa',sort,'top')}
           ${(noConv || isDB) ? '' : sortTh('ROAS','roas',sort,'top')}
-          ${noConv ? sortTh('노출수','impressions',sort,'top') : ''}
-          ${noConv ? sortTh('클릭수','clicks',sort,'top') : ''}
-          ${sortTh('클릭률','ctr',sort,'top')}
-          ${noConv ? sortTh('평균CPC','avgCpc',sort,'top') : sortTh('전환율','cvr',sort,'top')}
           ${sortTh('평균노출순위','avgRank',sort,'top')}
         </tr></thead>
         <tbody>
@@ -2082,22 +2130,27 @@ function renderKeywordsPage(data){
             const newBadge = k.isNewKw ? '<span style="margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent);color:#12131c;font-weight:700;">NEW</span>' : '';
             const typeBadge = searchTypeBadgeHTML(k.searchType);
             const t = k.trends || {};
-            const ctrCvr = `<td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>`;
+            // 노출·클릭·클릭률·CPC는 모드와 무관하게 항상 같은 자리에 둔다(보고서 컬럼 순서와 동일).
+            // 전환율(전환÷클릭)은 뺐다 — 네이버가 전환을 '클릭한 날의 키워드'가 아니라 '전환된 시점의 키워드'에
+            // 붙이기 때문에, 키워드 하나로 쪼개면 클릭 1건에 전환 8건 같은 줄이 생겨 전환율이 800%로 나온다.
+            // 캠페인 단위로 합치면 정상이라 데이터는 맞고, 키워드 단위 전환율만 의미가 없는 값이었다.
+            const baseCells = `<td>${(k.impressions||0).toLocaleString('ko-KR')}</td><td>${(k.clicks||0).toLocaleString('ko-KR')}</td><td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.avgCpc!==null&&k.avgCpc!==undefined?k.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>`;
             const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
             // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
             // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
+            const recCell = `<td>${k.rec==='expand'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--up);color:#12131c;white-space:nowrap;">확대</span>':(k.rec==='waste'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--down);color:#fff;white-space:nowrap;">제외</span>':'<span style="color:var(--muted);">-</span>')}</td>`;
             const restCamps = (k.campaigns||[]).slice(1);
             const campCell = `<td style="color:var(--muted);font-size:12px;white-space:nowrap;min-width:104px;">${k.campaign ? esc(k.campaign) : '-'}${restCamps.length?`<button type="button" class="kw-camp-toggle" style="margin-left:4px;font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">외 ${restCamps.length}개 ▾</button><div class="kw-camp-rest" hidden style="margin-top:4px;padding-left:2px;font-size:12px;line-height:1.6;">${restCamps.map(c=>esc(c)).join('<br>')}</div>`:''}</td>`;
             if(noConv){
               // 전환 데이터가 없는 검색어 모드 — 비용을 얼마나 쓰는지와 노출 위치만 본다.
               return `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${(k.impressions||0).toLocaleString('ko-KR')}</td><td>${(k.clicks||0).toLocaleString('ko-KR')}</td><td>${k.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td><td>${k.avgCpc!==null&&k.avgCpc!==undefined?k.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>${rankCell}</tr>
+            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${rankCell}</tr>
           `;}
             return isDB ? `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td>${ctrCvr}${rankCell}</tr>
+            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}<td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>${rankCell}</tr>
           ` : `
-            <tr><td class="kw-name">${esc(k.keyword)}${newBadge}${typeBadge}</td>${campCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td><td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR'):'-'}원${cellTrend(t.cpa,'down')}</td><td>${k.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>${ctrCvr}${rankCell}</tr>
-          `;}).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 8 : 9)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
+            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td>${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}<td>${k.conv}건${cellTrend(t.conv,'up')}</td><td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td><td>${roasCellText(k)}${cellTrend(t.roas,'up')}</td>${rankCell}</tr>
+          `;}).join('') : `<tr><td colspan="${noConv ? 9 : (isDB ? 11 : 13)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
         </tbody>
       </table>
       ${rows.length > topVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="top" style="margin-top:10px;width:100%;">더보기 (${rows.length - topVisibleCount[key]}개 더 있음)</button>` : ''}
@@ -2109,79 +2162,6 @@ function renderKeywordsPage(data){
         : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
     </div>
 
-    <div class="panel" style="margin-top:18px;border-left:3px solid var(--up);">
-      <div class="panel-title">📈 확대 추천 전체 목록 (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${noConv ? '클릭은 잘 나오는데 아직 비용을 적게 쓰고 있는 검색어 (해당 키워드 입찰가·예산 확대 검토)' : '효율은 좋은데 평균보다 비용을 적게 쓰고 있는 키워드 (입찰가·예산 확대 검토)'} · 열 제목을 클릭하면 정렬돼요</span></div>
-      <table>
-        <thead><tr>
-          <th>키워드/검색어</th><th>캠페인</th>
-          ${sortTh('비용','cost',esort,'expand')}
-          ${noConv ? '' : (isDB ? sortTh('전환수','conv',esort,'expand') : sortTh('전환매출','revenue',esort,'expand'))}
-          ${noConv ? '' : sortTh('CPA','cpa',esort,'expand')}
-          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',esort,'expand')}
-          ${noConv ? sortTh('노출수','impressions',esort,'expand') : ''}
-          ${noConv ? sortTh('클릭수','clicks',esort,'expand') : ''}
-          ${sortTh('클릭률','ctr',esort,'expand')}
-          ${noConv ? '' : sortTh('전환율','cvr',esort,'expand')}
-          ${sortTh('평균CPC','avgCpc',esort,'expand')}
-          ${sortTh('평균노출순위','avgRank',esort,'expand')}
-        </tr></thead>
-        <tbody>
-          ${expand.length ? expand.slice(0, expandVisibleCount[key]).map(e=>`
-            <tr>
-              <td class="kw-name">${esc(e.keyword)}${searchTypeBadgeHTML(e.searchType)}</td>
-              <td style="color:var(--muted);font-size:12px;">${e.campaign} ${sourceBadgeHTML(e.sourceMode)}</td>
-              <td>${fmtWon(e.cost)}원</td>
-              ${noConv ? '' : `<td>${isDB ? e.conv+'건' : fmtWon(e.revenue)+'원'}</td>`}
-              ${noConv ? '' : `<td style="color:${isDB?'var(--up)':'inherit'};font-weight:${isDB?700:400};">${e.cpa!==null?e.cpa.toLocaleString('ko-KR')+'원':'-'}</td>`}
-              ${(noConv || isDB) ? '' : `<td style="color:var(--up);font-weight:700;">${e.roas.toFixed(0)}%</td>`}
-              ${noConv ? `<td>${(e.impressions||0).toLocaleString('ko-KR')}</td><td>${(e.clicks||0).toLocaleString('ko-KR')}</td>` : ''}
-              <td>${e.ctr.toFixed(2)}%</td>
-              ${noConv ? '' : `<td>${e.cvr.toFixed(2)}%</td>`}
-              <td>${e.avgCpc!==null?e.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>
-              <td>${e.avgRank!==null?e.avgRank.toFixed(1)+'위':'-'}</td>
-            </tr>
-          `).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 9 : 10)}" style="color:var(--muted);">확대 추천 후보가 없어요.</td></tr>`}
-        </tbody>
-      </table>
-      ${expand.length > expandVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="expand" style="margin-top:10px;width:100%;">더보기 (${expand.length - expandVisibleCount[key]}개 더 있음)</button>` : ''}
-    </div>
-
-    <div class="panel" style="margin-top:18px;border-left:3px solid var(--down);">
-      <div class="panel-title">🚫 제외 추천 전체 목록 (최대 50개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— ${noConv ? '<b>제외어 후보</b> — 비용은 쓰는데 클릭률이 낮은 검색어. 우리 상품과 상관없는 말이 섞여 있으면 제외어로 등록하세요' : '비용만 쓰고 전환 0건, 또는 ROAS가 낮거나(B2C) CPA가 평균의 2배 이상인(DB) 저효율 키워드'} · 열 제목을 클릭하면 정렬돼요</span></div>
-      <table>
-        <thead><tr>
-          <th>키워드/검색어</th><th>캠페인</th>
-          ${sortTh('비용','cost',wsort,'waste')}
-          ${noConv ? '' : (isDB ? sortTh('전환수','conv',wsort,'waste') : sortTh('전환매출','revenue',wsort,'waste'))}
-          ${noConv ? '' : sortTh('CPA','cpa',wsort,'waste')}
-          ${(noConv || isDB) ? '' : sortTh('ROAS','roas',wsort,'waste')}
-          ${noConv ? sortTh('노출수','impressions',wsort,'waste') : ''}
-          ${noConv ? sortTh('클릭수','clicks',wsort,'waste') : ''}
-          ${sortTh('클릭률','ctr',wsort,'waste')}
-          ${noConv ? '' : sortTh('전환율','cvr',wsort,'waste')}
-          ${sortTh('평균CPC','avgCpc',wsort,'waste')}
-          ${sortTh('평균노출순위','avgRank',wsort,'waste')}
-        </tr></thead>
-        <tbody>
-          ${waste.length ? waste.slice(0, wasteVisibleCount[key]).map(w=>`
-            <tr>
-              <td class="kw-name">${esc(w.keyword)}${searchTypeBadgeHTML(w.searchType)}</td>
-              <td style="color:var(--muted);font-size:12px;">${w.campaign} ${sourceBadgeHTML(w.sourceMode)}</td>
-              <td style="color:var(--down);font-weight:700;">${fmtWon(w.cost)}원</td>
-              ${noConv ? '' : `<td>${isDB ? w.conv+'건' : fmtWon(w.revenue)+'원'}</td>`}
-              ${noConv ? '' : `<td>${w.cpa!==null?w.cpa.toLocaleString('ko-KR')+'원':'-'}</td>`}
-              ${(noConv || isDB) ? '' : `<td>${w.roas.toFixed(0)}%</td>`}
-              ${noConv ? `<td>${(w.impressions||0).toLocaleString('ko-KR')}</td><td>${(w.clicks||0).toLocaleString('ko-KR')}</td>` : ''}
-              <td>${w.ctr.toFixed(2)}%</td>
-              ${noConv ? '' : `<td>${w.cvr.toFixed(2)}%</td>`}
-              <td>${w.avgCpc!==null?w.avgCpc.toLocaleString('ko-KR')+'원':'-'}</td>
-              <td>${w.avgRank!==null?w.avgRank.toFixed(1)+'위':'-'}</td>
-            </tr>
-          `).join('') : `<tr><td colspan="${noConv ? 8 : (isDB ? 9 : 10)}" style="color:var(--muted);">제외 추천 후보가 없어요.</td></tr>`}
-        </tbody>
-      </table>
-      ${waste.length > wasteVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="waste" style="margin-top:10px;width:100%;">더보기 (${waste.length - wasteVisibleCount[key]}개 더 있음)</button>` : ''}
-    </div>
   `;
   document.getElementById('monthRangeStartSelect').onchange = (e)=>{
     const r = monthRangeState[key];
@@ -2248,6 +2228,14 @@ function renderKeywordsPage(data){
       if(sortGroup==='top') topVisibleCount[key] = 10;
       else if(sortGroup==='expand') expandVisibleCount[key] = 10;
       else wasteVisibleCount[key] = 10;
+      renderKeywordsPage(data);
+    };
+  });
+  // 추천 필터 칩(전체 / 확대 추천 / 제외 추천) — 표 하나를 걸러서 본다.
+  document.querySelectorAll('.kw-rec-chip').forEach(btn=>{
+    btn.onclick = ()=>{
+      kwRecFilter[key] = btn.dataset.rec;
+      topVisibleCount[key] = 10;
       renderKeywordsPage(data);
     };
   });
