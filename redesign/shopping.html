@@ -2086,6 +2086,16 @@ function renderKeywordsPage(data){
                        prod: rows.filter(r=>r.shopKind==='prod').reduce((a,r)=>a+(r.cost||0),0),
                        term: rows.filter(r=>r.shopKind==='term').reduce((a,r)=>a+(r.cost||0),0) };
 
+  /* 이 표에 잡히는 금액은 쇼핑검색 캠페인 총비용보다 적다 — 쇼핑 홈·카테고리처럼 검색어가 없는
+     지면은 항목 목록에 아예 안 실리기 때문. 표만 보고 "이게 전부"라고 오해하지 않도록,
+     캠페인 총비용과 얼마나 차이 나는지 표 밑에 적어준다. (실측: 담은 전체기간 캠페인 2,374만 vs 표 887만) */
+  let shopCampCost = 0;
+  months.forEach(m=>(m.campaigns||[]).forEach(c=>{
+    if(!fstate.campaigns.has(c.campaign)) return;
+    if(IS_PLACE_TYPE(c.type) || !IS_SHOPPING_TYPE(c.type)) return;
+    shopCampCost += c.cost||0;
+  }));
+
   // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
   const sortKey = noConv ? 'cost' : (isDB?'conv':'revenue');
   /* 예전엔 여기서 50개로 잘랐는데, 제목은 자르기 전 개수(예: "쇼핑상품 300개 · 비용 500만원")를
@@ -2411,13 +2421,17 @@ function renderKeywordsPage(data){
     ${shopPanel({
       SR: shopRows, VIS: topVisibleCount[key], MORE: 'top',
       TITLE: '🛍️ 쇼핑검색 항목별 성과',
-      SUB: `${shopCounts.all}개 · 비용 ${fmtWon(shopCosts.all)}원 — 열 제목을 클릭하면 정렬돼요`,
+      SUB: `${shopKind==='all'
+              ? `${shopCounts.all}개 · 비용 ${fmtWon(shopCosts.all)}원`
+              : `${shopCounts[shopKind]}개 · 비용 ${fmtWon(shopCosts[shopKind])}원 (전체 ${shopCounts.all}개 · ${fmtWon(shopCosts.all)}원 중)`} — 열 제목을 클릭하면 정렬돼요`,
       BAR: kmFilterBarHTML(kmStShop, shopRows.length, shopBefore, '이름'),
       COL1: '상품명 · 검색어',
       RIGHT: [['all','전체',shopCounts.all],['prod','상품으로 추정',shopCounts.prod],['term','검색어로 추정',shopCounts.term]]
         .map(([k2,l,c])=>`<button class="shop-kind-btn" data-kind="${k2}" style="font-size:12px;padding:4px 11px;border-radius:14px;cursor:pointer;border:1px solid ${shopKind===k2?'var(--accent)':'var(--border)'};background:${shopKind===k2?'var(--accent-solid)':'var(--panel)'};color:${shopKind===k2?'#fff':'var(--muted)'};">${l} ${c}</button>`).join(''),
       EMPTY: '이 조건에 맞는 항목이 없어요.',
-      FOOT: '💡 네이버가 상품명과 검색어를 구분해 주지 않아서 한 표에 함께 보여줘요. 위 「상품으로 추정 / 검색어로 추정」은 <b>이름 모양만 보고 짐작한 것</b>이라 틀릴 수 있어요 — 총액은 항상 「전체」를 기준으로 보세요. 같은 이름이 여러 광고그룹에 걸려 있으면 합쳐서 한 줄로 보여줍니다.'
+      FOOT: `${(shopCampCost - shopCosts.all) > 0.01
+        ? `⚠️ 이 표에 잡힌 비용은 <b>${fmtWon(shopCosts.all)}원</b>으로, 쇼핑검색 캠페인 총비용 <b>${fmtWon(shopCampCost)}원</b>의 ${Math.round(shopCosts.all/shopCampCost*100)}%예요. 쇼핑 홈·카테고리처럼 <b>검색어가 없는 지면</b>은 이 목록에 아예 안 실려서 그래요 — 실제 총비용은 캠페인 화면을 보세요.<br>`
+        : ''}💡 네이버가 상품명과 검색어를 구분해 주지 않아서 한 표에 함께 보여줘요. 위 「상품으로 추정 / 검색어로 추정」은 <b>이름 모양만 보고 짐작한 것</b>이라 틀릴 수 있어요. 같은 이름이 여러 광고그룹에 걸려 있으면 합쳐서 한 줄로 보여줍니다.`
     })}
 
 
