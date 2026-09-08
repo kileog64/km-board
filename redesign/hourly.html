@@ -1859,7 +1859,29 @@ function renderHourlyPage(data){
     ? (prevMonths.length>1 ? `${prevMonths[0].label} ~ ${prevMonths[prevMonths.length-1].label}` : prevMonths[0].label)
     : null;
   let prevHourlyAgg = null;
-  if(prevMonths.length){
+  /* 날짜 필터(어제·최근 7일 등)를 켜면 '지금' 값은 그 며칠치인데 비교 대상은 '직전 달 한 달 전체'라,
+     표 전체에 ▼97% 같은 값이 찍혀 추이가 의미를 잃었다(대시보드·캠페인·키워드는 이미 고쳐진 문제).
+     → 바로 앞의 같은 길이 날짜 구간과 비교하고, 그 구간에 데이터가 없으면 ▲▼ 자체를 감춘다. */
+  let hourTrendOff = false;
+  if(hasHourlyDayFilter){
+    const dr = dayRangeState[key];
+    const pr = (function(){
+      if(!dr || !dr.start || !dr.end) return null;
+      const d1=new Date(dr.start+'T00:00:00'), d2=new Date(dr.end+'T00:00:00');
+      if(isNaN(d1)||isNaN(d2)) return null;
+      const len=Math.round((d2-d1)/86400000)+1;
+      if(!(len>0)||!isFinite(len)) return null;
+      const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const pe=new Date(d1.getTime()-86400000), ps=new Date(pe.getTime()-(len-1)*86400000);
+      return { start:ymd(ps), end:ymd(pe) };
+    })();
+    if(pr){
+      // 직전 구간이 다른 달에 걸칠 수 있으므로 전체 달에서 찾는다.
+      const r = aggHourlyByDateRange(allMonths, isFullSelection ? null : fstate.campaigns, pr);
+      const any = (r && r.agg) ? r.agg.some(x=>(x.impressions||0)>0 || (x.cost||0)>0 || (x.conv||0)>0) : false;
+      if(any) prevHourlyAgg = r.agg; else hourTrendOff = true;
+    } else { hourTrendOff = true; }
+  } else if(prevMonths.length){
     let pResult = aggHourly(prevMonths, fstate.campaigns);
     let pAgg = pResult.agg;
     if(isFullSelection || !pResult.hasCampaignData){
@@ -2333,7 +2355,7 @@ function renderHourlyPage(data){
         </tbody>
       </table></div>
       <div style="margin-top:8px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">평균노출순위는 네이버 보고서의 실제 값이며, 시간대별 리포트에 이 컬럼이 포함된 경우에만(전체 캠페인 기준일 때) 표시돼요.</div>
-      ${prevRangeLabel && prevHourlyHasData ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">▲▼는 직전 기간(${prevRangeLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요.</div>` : prevRangeLabel ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">직전 기간(${prevRangeLabel})엔 시간대별 데이터가 없어서 변동률은 표시하지 않아요.</div>` : ''}
+      ${hourTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">고른 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : (prevHourlyAgg && prevHourlyHasData && hasHourlyDayFilter) ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">▲▼는 바로 앞의 같은 길이 날짜 구간 대비 변동(5%이상만 표시)이에요.</div>` : prevRangeLabel && prevHourlyHasData ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">▲▼는 직전 기간(${prevRangeLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요.</div>` : prevRangeLabel ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">직전 기간(${prevRangeLabel})엔 시간대별 데이터가 없어서 변동률은 표시하지 않아요.</div>` : ''}
     </div>
 
     ${hasDowData ? `

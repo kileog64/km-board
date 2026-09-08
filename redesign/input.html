@@ -2307,7 +2307,7 @@ document.getElementById('dailyOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('데이터 보고서 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2390,7 +2390,7 @@ document.getElementById('adsOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('데이터 보고서 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2466,7 +2466,7 @@ document.getElementById('searchTermOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('리포트 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2512,7 +2512,7 @@ document.getElementById('hourlyOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('시간대별 리포트 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2823,13 +2823,20 @@ async function fetchDetailFile(ref){
     return { failed:true };
   }
 }
-async function getClient(key){
+/* forSave=true 면 화면용 보정(플레이스 제외·부가세 기준 통일·브랜드검색 계약금액)을
+   적용하지 않은 '원본 그대로'를 돌려준다.
+
+   [중요] 이 세 보정은 원래 "원본은 그대로 두고 화면에 그릴 때만 맞춘다"는 의도였는데,
+   객체를 그 자리에서 고치는 방식이라 같은 객체가 저장까지 흘러가면 보정값이 DB에 굳어버렸다.
+   특히 플레이스 캠페인은 목록에서 아예 지워지므로(태림 393개·1,730만원) 저장 한 번에
+   원본이 사라진다. 그래서 '읽어서 고쳐서 다시 저장'하는 자리에서는 반드시 forSave=true 로 읽는다. */
+async function getClient(key, forSave){
   try{
     const id = key.replace(/^client:/,'');
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
+    const data = forSave ? doc.data() : applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 Firebase Storage에 업체별 파일로 따로
     // 저장돼있어서 여기서 합쳐줌. 아직 Storage로 안 옮겨진(예전 형식) 업체는 Firestore detailData
@@ -3757,7 +3764,7 @@ document.getElementById('refreshCapacityBtn').onclick = refreshCapacityTable;
 // month 객체 값(가장 구형) 순으로 읽어 병합해주므로, 이미 어떤 형식으로 저장돼있든 getClient로 읽은 뒤
 // setClient로 그대로 다시 저장하기만 하면 상세데이터가 전부 Storage 파일로 옮겨짐(내용은 그대로 유지).
 async function migrateClientToStorage(key){
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data) throw new Error(`업체를 찾을 수 없어요: ${key}`);
   const ok = await setClient(key, data);
   if(!ok) throw new Error(`저장 실패: ${lastStorageError||'알 수 없는 오류'}`);
@@ -3922,7 +3929,7 @@ document.getElementById('deleteMonthBtn').onclick = async ()=>{
   if(!key){ setMsg('삭제할 업체를 선택해주세요.', 'err'); return; }
   if(!mlabel){ setMsg('삭제할 기간 라벨을 입력해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   const before = (data.months||[]).length;
   data.months = (data.months||[]).filter(m=>m.label!==mlabel);
@@ -3952,7 +3959,7 @@ document.getElementById('deleteKeywordsBtn').onclick = async ()=>{
   if(!key){ setMsg('업체를 선택해주세요.', 'err'); return; }
   if(!mlabel){ setMsg('기간 라벨을 입력해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   const idx = (data.months||[]).findIndex(m=>m.label===mlabel);
   if(idx<0){ setMsg(`'${mlabel}' 기간을 찾을 수 없어요.`, 'err'); return; }
@@ -4072,7 +4079,7 @@ document.getElementById('quickAddClientBtn').onclick = async ()=>{
   const name = document.getElementById('quick-add-name').value.trim();
   if(!name){ setMsg('업체명을 입력해주세요.', 'err'); return; }
   const key = 'client:' + slugify(name);
-  const existing = await getClient(key);
+  const existing = await getClient(key, true);
   if(existing){ setMsg(`'${name}' 업체는 이미 등록돼 있어요.`, 'err'); return; }
   setMsg('추가 중...', '');
   const industry = document.getElementById('quick-add-industry').value.trim() || '-';
@@ -4254,13 +4261,13 @@ async function bcRefreshList(){
   if(!box) return;
   if(!key){ box.innerHTML=''; return; }
   try{
-    const d=await getClient(key);
+    const d=await getClient(key, true);
     box.innerHTML=bcContractListHTML((d&&d.brandContracts)||[]);
     box.querySelectorAll('.bc-del').forEach(b=>{
       b.onclick=async ()=>{
         const el=document.getElementById('bcStatusMsg');
         try{
-          const cur=await getClient(key);
+          const cur=await getClient(key, true);
           const list=((cur&&cur.brandContracts)||[]).slice();
           list.splice(+b.dataset.idx,1);
           await userClientsRef().doc(key.replace(/^client:/,'')).update({ brandContracts:list });
@@ -4306,7 +4313,7 @@ async function bcRefreshList(){
     const spans=bcSplitByMonth(start,end,amount);
     if(!spans.length) return setMsg('계약 기간이 올바르지 않아요. (종료가 시작보다 빠른지 확인해주세요)','err');
     try{
-      const cur=await getClient(key);
+      const cur=await getClient(key, true);
       const list=((cur&&cur.brandContracts)||[]).slice();
       // 같은 캠페인+같은 기간이면 덮어쓴다(중복 등록으로 비용이 두 배 잡히는 걸 막는다).
       const dup=list.findIndex(c=>c.campaign===campaign && c.start===start && c.end===end);
@@ -4328,7 +4335,7 @@ document.getElementById('undoLastUploadBtn').onclick = async ()=>{
   const key = sel.value;
   if(!key){ setMsg('되돌릴 업체를 선택해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key);
+  const data = await getClient(key, true);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   if(!data.lastBackup || !data.lastBackup.entries || !data.lastBackup.entries.length){
     setMsg('되돌릴 수 있는 최근 저장 내역이 없어요.', 'err'); return;
@@ -4369,7 +4376,7 @@ document.getElementById('saveBtn').onclick = async ()=>{
   const labelsToSave = monthLabels.length ? monthLabels : [fallbackLabel];
 
   showStatus('저장 중...', '');
-  let data = await getClient(key);
+  let data = await getClient(key, true);
   const isNew = !data;
   if(isNew){
     const color = randomAccentColor();
@@ -4480,7 +4487,9 @@ document.getElementById('saveBtn').onclick = async ()=>{
       if(previewEl) previewEl.style.display = 'none';
       if(statusEl){ statusEl.textContent = '업로드하면 자동으로 분석돼요.'; statusEl.className = 'status'; }
     });
-    parsedReport = null; parsedHourly = null; parsedHourlyByCampaign = null; parsedHourlyByDow = null; parsedHourlyByDowByCampaign = null; parsedHourlyByAdgroup = null; parsedSearchTerms = null; parsedWasteSearchTerms = null; parsedExpandSearchTerms = null;
+    /* parsedHourlyByCampaignDate 가 빠져 있어서, 저장 후 페이지를 새로 안 열고 다른 업체를
+       저장하면 앞 업체의 '날짜×시간대' 데이터가 그대로 딸려 들어갔다. 같이 비운다. */
+    parsedReport = null; parsedHourly = null; parsedHourlyByCampaign = null; parsedHourlyByDow = null; parsedHourlyByDowByCampaign = null; parsedHourlyByAdgroup = null; parsedHourlyByCampaignDate = null; parsedSearchTerms = null; parsedWasteSearchTerms = null; parsedExpandSearchTerms = null;
     if(typeof parsedQueryPowerlink!=='undefined'){ parsedQueryPowerlink = null; parsedQueryBrand = null; }
     // 저장 방식은 매번 명시적으로 골라야 안전해서, 저장 후 항상 기본값("덮어쓰기")으로 되돌림 —
     // "합산"을 고른 채로 깜빡 잊고 다음 번(다른 업체·다른 기간) 저장까지 이어지는 걸 방지.
