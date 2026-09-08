@@ -1347,6 +1347,8 @@ const wasteSortState = {}; // key -> { field, dir }
 const expandSortState = {}; // key -> { field, dir }
 const topVisibleCount = {}; // key -> number of rows currently shown
 const kwRecFilter = {};     // key -> 'all' | 'expand' | 'waste' (합친 표의 추천 필터 칩)
+// 숫자 조건 필터: 이 값 '이상'만 남긴다. 빈칸이면 조건 없음.
+const kwNumFilter = {};     // key -> { minCost, minClicks, minConv, q }
 const expandVisibleCount = {};
 const wasteVisibleCount = {};
 
@@ -1762,6 +1764,7 @@ function renderKeywordsPage(data){
   if(!(key in kwSortState)) kwSortState[key] = { field:'default', dir:'desc' };
   if(!(key in wasteSortState)) wasteSortState[key] = { field:'cost', dir:'desc' };
   if(!(key in topVisibleCount)) topVisibleCount[key] = 10;
+  if(!(key in kwRecFilter)) kwRecFilter[key] = 'all';
   if(!(key in expandVisibleCount)) expandVisibleCount[key] = 10;
   if(!(key in wasteVisibleCount)) wasteVisibleCount[key] = 10;
   const sort = kwSortState[key];
@@ -1797,8 +1800,11 @@ function renderKeywordsPage(data){
   const hasDayFilter = !!dayBoundsMinKw && hasKwTrendDayFilter;
 
   let rows = hasDayFilter ? mergeKwRowsByDayRange(months, fstate, dayRangeState[key], mode) : mergeKwRows(months, fstate, MODE_FIELD[mode]);
+  // avgCpc가 빠져 있어서 평균CPC 열이 전부 '-'로 나왔다(예전엔 검색어 모드에서만 쓰던 값인데
+  // 모든 모드 공통 컬럼으로 올리면서 계산이 누락됨).
   rows = rows.map(r=>({ ...r, cpa: r.conv>0 ? Math.round(r.cost*10000/r.conv) : null, roas: r.cost>0 ? (r.revenue/r.cost*100) : 0,
-    ctr: r.impressions>0 ? (r.clicks/r.impressions*100) : 0, cvr: r.clicks>0 ? (r.conv/r.clicks*100) : 0 }));
+    ctr: r.impressions>0 ? (r.clicks/r.impressions*100) : 0, cvr: r.clicks>0 ? (r.conv/r.clicks*100) : 0,
+    avgCpc: r.clicks>0 ? Math.round(r.cost*10000/r.clicks) : null }));
   function applySort(list, sortState, defaultField){
     const field = sortState.field==='default' ? defaultField : sortState.field;
     const mult = sortState.dir==='asc' ? 1 : -1;
@@ -1814,7 +1820,11 @@ function renderKeywordsPage(data){
   // 예전엔 여기서 50개로 잘랐는데, 표 3개를 하나로 합치면서 확대/제외 추천 후보가
   // 50위 밖에 있으면 통째로 사라지는 문제가 생긴다. 자르지 않고 넘기고,
   // 화면에는 topVisibleCount(더보기 버튼)로 10개씩 끊어서 그린다.
-  rows = applySort(rows, sort, noConv ? 'cost' : (isDB?'conv':'revenue'));
+  /* 기본 정렬 기준. 제외 추천은 전부 전환 0이라 전환수로 정렬하면 순서가 무의미해진다.
+     → 제외 추천을 보고 있을 땐 '돈을 많이 버린 순'인 비용 기준으로 세운다. */
+  const defaultSortField = (kwRecFilter[key]==='waste') ? 'cost'
+    : (noConv ? 'cost' : (isDB?'conv':'revenue'));
+  rows = applySort(rows, sort, defaultSortField);
 
   // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
   // refMonth = 현재 보고 있는 구간의 마지막 달(단일 월/전체 누적/임의 구간 모두 이 정의 하나로 처리)
@@ -1938,11 +1948,25 @@ function renderKeywordsPage(data){
     if(!rec) for(let i=0;i<camps.length;i++){ if(wasteKeySet.has(k.keyword+'\u0000'+camps[i])){ rec='waste'; break; } }
     return { ...k, rec };
   });
-  if(!(key in kwRecFilter)) kwRecFilter[key] = 'all';
   const recFilter = kwRecFilter[key];
   const recCounts = { all: rows.length, expand: 0, waste: 0 };
   rows.forEach(r=>{ if(r.rec==='expand') recCounts.expand++; else if(r.rec==='waste') recCounts.waste++; });
   if(recFilter !== 'all') rows = rows.filter(r=>r.rec===recFilter);
+
+  /* 숫자 조건 필터 — "돈 얼마 이상 쓴 것만", "클릭 몇 건 이상만" 처럼 볼 대상을 좁힌다.
+     키워드가 1만 개가 넘어가면 눈으로 훑는 게 불가능해서, 판단할 가치가 있는 줄만 남기는 용도.
+     비용은 사람이 '원' 단위로 입력하는데 내부 cost는 만원 단위라 10000으로 나눠 비교한다. */
+  if(!(key in kwNumFilter)) kwNumFilter[key] = { minCost:'', minClicks:'', minConv:'', q:'' };
+  const nf = kwNumFilter[key];
+  const numOr = v => { const n = Number(String(v).replace(/[^0-9.]/g,'')); return isFinite(n) && String(v).trim()!=='' ? n : null; };
+  const fCost = numOr(nf.minCost), fClicks = numOr(nf.minClicks), fConv = numOr(nf.minConv);
+  const fq = String(nf.q||'').trim().toLowerCase();
+  const beforeNumFilter = rows.length;
+  if(fCost!==null)   rows = rows.filter(r=>(r.cost||0)*10000 >= fCost);
+  if(fClicks!==null) rows = rows.filter(r=>(r.clicks||0) >= fClicks);
+  if(fConv!==null)   rows = rows.filter(r=>(r.conv||0) >= fConv);
+  if(fq)             rows = rows.filter(r=>String(r.keyword||'').toLowerCase().indexOf(fq)>=0);
+  const numFilterOn = (fCost!==null||fClicks!==null||fConv!==null||!!fq);
 
   // 💡 키워드 성과 인사이트 (현재 모드·기간·필터 기준)
   // 원인 추정: 전환 없이 비용만 쓴 키워드 — 클릭은 있는데 전환이 없으면 타겟팅/랜딩페이지 불일치,
@@ -2111,6 +2135,19 @@ function renderKeywordsPage(data){
         ${[['all','전체',recCounts.all],['expand','📈 확대 추천',recCounts.expand],['waste','🚫 제외 추천',recCounts.waste]].map(([v,lbl,n])=>`
           <button type="button" class="kw-rec-chip" data-rec="${v}" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${recFilter===v?'var(--accent)':'var(--border)'};background:${recFilter===v?'var(--accent)':'var(--panel-2)'};color:${recFilter===v?'#12131c':'var(--muted)'};">${lbl} ${n}</button>`).join('')}
       </div>
+      <div class="kw-numfilter" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 14px;border:1px solid var(--border);border-radius:11px;background:var(--panel-2);">
+        <span style="font-size:12px;font-weight:700;color:var(--text);">조건 좁히기</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">비용
+          <input type="number" min="0" step="10000" class="kw-nf" data-nf="minCost" value="${nf.minCost}" placeholder="예: 100000" style="width:112px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;">원 이상</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">클릭수
+          <input type="number" min="0" step="1" class="kw-nf" data-nf="minClicks" value="${nf.minClicks}" placeholder="예: 10" style="width:78px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;">건 이상</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">전환수
+          <input type="number" min="0" step="1" class="kw-nf" data-nf="minConv" value="${nf.minConv}" placeholder="예: 1" style="width:78px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;">건 이상</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">키워드
+          <input type="text" class="kw-nf" data-nf="q" value="${esc(String(nf.q||''))}" placeholder="이름 일부 검색" style="width:140px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;"></label>
+        ${numFilterOn ? `<button type="button" id="kwNfReset" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);">조건 해제</button>
+        <span style="font-size:12px;color:var(--accent);font-weight:700;">${beforeNumFilter.toLocaleString('ko-KR')}개 중 ${rows.length.toLocaleString('ko-KR')}개</span>` : ''}
+      </div>
       <table>
         <thead><tr>
           <th>키워드/검색어</th><th>캠페인</th><th>추천</th>
@@ -2231,6 +2268,24 @@ function renderKeywordsPage(data){
       renderKeywordsPage(data);
     };
   });
+  // 숫자 조건 필터 — 입력 중에 매번 다시 그리면 포커스가 튀므로 Enter 또는 포커스가 빠질 때만 적용.
+  document.querySelectorAll('.kw-nf').forEach(inp=>{
+    const apply = ()=>{
+      const cur = kwNumFilter[key] || (kwNumFilter[key] = { minCost:'', minClicks:'', minConv:'', q:'' });
+      if(cur[inp.dataset.nf] === inp.value) return;
+      cur[inp.dataset.nf] = inp.value;
+      topVisibleCount[key] = 10;
+      renderKeywordsPage(data);
+    };
+    inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); apply(); } };
+    inp.onblur = apply;
+  });
+  const nfReset = document.getElementById('kwNfReset');
+  if(nfReset) nfReset.onclick = ()=>{
+    kwNumFilter[key] = { minCost:'', minClicks:'', minConv:'', q:'' };
+    topVisibleCount[key] = 10;
+    renderKeywordsPage(data);
+  };
   // 추천 필터 칩(전체 / 확대 추천 / 제외 추천) — 표 하나를 걸러서 본다.
   document.querySelectorAll('.kw-rec-chip').forEach(btn=>{
     btn.onclick = ()=>{
