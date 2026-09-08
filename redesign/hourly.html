@@ -627,6 +627,10 @@ function toDateInputValue(dateStr){
 }
 const hourCompareCampaigns = {};
 const hourCompareSearch = {};   // key -> 캠페인 비교 목록 검색어(캠페인이 많은 업체에서 목록을 좁히는 용도)
+/* 시간대 표 정렬 — 기본은 시간 순(0→23시)이지만 "어느 시간이 제일 비싼가"를 보려면 정렬이 필요하다.
+   다른 표(캠페인·키워드·쇼핑)는 되는데 이 표만 안 돼서 매번 눈으로 훑어야 했다.
+   '시간 미상'은 시간 축 밖의 값이라 어떤 기준으로 정렬하든 항상 맨 아래에 둔다. */
+const hourTableSort = {};       // key -> { field:'hour'|'cost'|..., dir:'asc'|'desc' }
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const hourCompareMetric = {};
 const hourHeatmapMetric = {};
@@ -1634,6 +1638,24 @@ const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
    (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
 
 // 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
+/* 차트에 넣는 비용·매출은 '만원' 단위인데, 예전엔 보기 좋으라고 소수점 한 자리로 반올림해서
+   넣었다. 그래서 같은 화면의 표는 17,750원인데 차트 툴팁은 17,800원으로 떠 숫자가 어긋나 보였다
+   (시간대별 최대 500원). → 값은 반올림하지 않고 그대로 넣고, 툴팁에서만 원으로 바꿔 보여준다.
+   축 눈금은 만원 그대로 둔다(원으로 쓰면 자릿수가 너무 길어져 그래프가 안 읽힌다). */
+function chartTooltipKRW(forceUnit){
+  return { callbacks: { label: (c)=>{
+    const lb = String(c.dataset.label||'');
+    const v = c.parsed.y;
+    if(v===null || v===undefined || isNaN(v)) return lb;
+    // 캠페인 비교 차트처럼 이름이 곧 라벨이라 단위가 안 붙는 경우엔 밖에서 단위를 알려준다
+    const unit = forceUnit || (lb.indexOf('(만원)')>=0 ? '만원' : lb.indexOf('(원)')>=0 ? '원' : '');
+    const name = lb.replace('(만원)','').replace('(원)','');
+    if(unit==='만원') return name + ': ' + Math.round(v*10000).toLocaleString('ko-KR') + '원';
+    if(unit==='원')   return name + ': ' + Math.round(v).toLocaleString('ko-KR') + '원';
+    return name + ': ' + (Math.round(v*100)/100).toLocaleString('ko-KR');
+  } } };
+}
+
 function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
@@ -2167,6 +2189,8 @@ function renderHourlyPage(data){
     }
   }
 
+  if(!(key in hourTableSort)) hourTableSort[key] = { field:'hour', dir:'asc' };
+  const hrSort = hourTableSort[key];
   if(!(key in hourHeatmapMetric)) hourHeatmapMetric[key] = 'cost';
   let heatMetric = hourHeatmapMetric[key];
   if(isDB && (heatMetric==='revenue' || heatMetric==='roas')) heatMetric = hourHeatmapMetric[key] = 'cost';
@@ -2438,10 +2462,32 @@ function renderHourlyPage(data){
         <button type="button" class="km-xlsx" style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#12131c;">⬇️ 엑셀 내려받기</button>
       </div>
       <div class="hr-scroll"><table>
-        <thead><tr><th>시간대</th><th style="text-align:right">비용 비중</th><th style="text-align:right">노출수</th><th style="text-align:right">클릭수</th><th style="text-align:right">클릭률</th><th style="text-align:right">비용</th><th style="text-align:right">전환수</th><th style="text-align:right">${isDB?'CPA':'매출'}</th>${isDB?'':'<th style="text-align:right">ROAS</th>'}<th style="text-align:right">전환율</th><th style="text-align:right">평균노출순위</th></tr></thead>
+        <thead><tr>${[
+            ['시간대','hour'],['비용 비중','cost'],['노출수','impressions'],['클릭수','clicks'],['클릭률','ctr'],
+            ['비용','cost'],['전환수','conv'],
+            ...(isDB ? [['CPA','cpa']] : [['매출','revenue'],['ROAS','roas']]),
+            ['전환율','cvr'],['평균노출순위','avgRank']
+          ].map(([lab,f],i)=>{
+            const on = hrSort.field===f;
+            return `<th class="hr-sort-th" data-field="${f}" style="cursor:pointer;user-select:none;${i?'text-align:right':''}" title="눌러서 정렬">${lab}${on?(hrSort.dir==='desc'?' ▼':' ▲'):''}</th>`;
+          }).join('')}</tr></thead>
         <tbody>
           ${(() => {
-            const rowsAll = hourlyWithTrend.filter(h=>!h.unknown || h.impressions>0 || h.cost>0 || h.conv>0);
+            let rowsAll = hourlyWithTrend.filter(h=>!h.unknown || h.impressions>0 || h.cost>0 || h.conv>0);
+            // 정렬 — '시간 미상'은 시간 축 밖의 값이라 늘 맨 아래
+            {
+              const f = hrSort.field, mult = hrSort.dir==='asc' ? 1 : -1;
+              const val = h => {
+                if(f==='hour') return parseInt(h.hour,10);
+                const v = h[f];
+                return (v===null || v===undefined || isNaN(v)) ? -Infinity : Number(v);
+              };
+              rowsAll = rowsAll.slice().sort((a,b)=>{
+                if(!!a.unknown !== !!b.unknown) return a.unknown ? 1 : -1;
+                const d = (val(a)-val(b))*mult;
+                return d || (parseInt(a.hour,10)-parseInt(b.hour,10));
+              });
+            }
             // 24줄을 전부 펼치면 화면이 너무 길어져서, 기본은 비용이 큰 5개만 보여주고 버튼으로 전체를 편다.
             const maxCost = rowsAll.reduce((a,h)=>Math.max(a,h.cost||0),0) || 1;
             const totCost = rowsAll.reduce((a,h)=>a+(h.cost||0),0) || 1;
@@ -2616,6 +2662,15 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     if(dr.start && dr.end && dr.end < dr.start) dr.start = dr.end;
     renderHourlyPage(data);
   };
+  document.querySelectorAll('.hr-sort-th').forEach(th=>{
+    th.onclick = ()=>{
+      const f = th.dataset.field;
+      // 같은 열을 다시 누르면 방향만 뒤집는다. 처음 누를 땐 시간은 오름차순, 숫자는 큰 값부터.
+      if(hourTableSort[key].field === f) hourTableSort[key].dir = hourTableSort[key].dir==='desc' ? 'asc' : 'desc';
+      else hourTableSort[key] = { field:f, dir: f==='hour' ? 'asc' : 'desc' };
+      renderHourlyPage(data);
+    };
+  });
   const hrDayResetBtn = document.getElementById('dayRangeResetBtn');
   if(hrDayResetBtn) hrDayResetBtn.onclick = ()=>{ dayRangeState[key] = { start:null, end:null }; dayPresetChoice[key] = null; dayRangeCustomOpen[key] = false; renderHourlyPage(data); };
   document.getElementById('monthPrevBtn').onclick = ()=>{
@@ -2652,8 +2707,8 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
       ctr:   { label:'클릭률(%)', data:hourlyChartRows.map(h=> h.impressions>0 ? Number((h.clicks/h.impressions*100).toFixed(2)) : 0), color:data.color, axis:'pct' },
       cvr:   { label:'전환율(%)', data:hourlyChartRows.map(h=> h.clicks>0 ? Number((h.conv/h.clicks*100).toFixed(2)) : 0), color:'#ff5d7a', axis:'pct' },
       conv:  { label:'전환수', data:hourlyChartRows.map(h=>h.conv), color:'#ffb84d', axis:'count' },
-      cost:  { label:'비용(만원)', data:hourlyChartRows.map(h=>Number(h.cost.toFixed(1))), color:'#3fd4a3', axis:'count' },
-      revenue: { label:'매출(만원)', data:hourlyChartRows.map(h=>Number(h.revenue.toFixed(1))), color:'#4dd0ff', axis:'count' },
+      cost:  { label:'비용(만원)', data:hourlyChartRows.map(h=>h.cost), color:'#3fd4a3', axis:'count' },
+      revenue: { label:'매출(만원)', data:hourlyChartRows.map(h=>h.revenue), color:'#4dd0ff', axis:'count' },
       roas:  { label:'ROAS(%)', data:hourlyChartRows.map(h=> h.cost>0 ? Number((h.revenue/h.cost*100).toFixed(1)) : 0), color:'#ff9d4d', axis:'pct' },
       // CPA는 원화 단위라 노출수·클릭수·비용(count 축)과 스케일이 완전히 달라 같은 축에 두면 다른 지표가
       // 시각적으로 눌려 보임. pct 축(y1, 오른쪽)에 얹어서 분리 — 값 범위 자체는 Chart.js가 축마다 알아서 잡아줌.
@@ -2672,7 +2727,7 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
       if(!hourEl) return;
       hourChart = new Chart(hourEl, {
         data:{ labels:hourLabels, datasets },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}, tooltip: chartTooltipKRW()},
           scales:{ y:{position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
       });
     }
@@ -2706,12 +2761,13 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
       if(cmpEl){
         const cmpDatasets = compareCampaigns.map((camp, i)=>{
           const arr = compareData[camp];
-          const vals = realHours(arr).map(h=> compareMetric==='cost' ? Number(h.cost.toFixed(1)) : compareMetric==='ctr' ? Number(h.ctr.toFixed(2)) : compareMetric==='cvr' ? Number(h.cvr.toFixed(2)) : compareMetric==='cpa' ? (h.cpa||0) : compareMetric==='roas' ? Number(h.roas.toFixed(1)) : h.conv);
+          const vals = realHours(arr).map(h=> compareMetric==='cost' ? h.cost : compareMetric==='ctr' ? Number(h.ctr.toFixed(2)) : compareMetric==='cvr' ? Number(h.cvr.toFixed(2)) : compareMetric==='cpa' ? (h.cpa||0) : compareMetric==='roas' ? Number(h.roas.toFixed(1)) : h.conv);
           return { type:'line', label:camp, data:vals, borderColor:CMP_COLORS[i%CMP_COLORS.length], backgroundColor:CMP_COLORS[i%CMP_COLORS.length], tension:.3, pointRadius:2 };
         });
         new Chart(cmpEl, {
           data:{ labels:hourLabels, datasets:cmpDatasets },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
+          options:{ responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}, tooltip: chartTooltipKRW(compareMetric==='cost'?'만원':compareMetric==='cpa'?'원':'')},
             scales:{ y:{grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
         });
       }
@@ -2771,8 +2827,8 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
         ctr:   { label:'클릭률(%)', data:agChartRows.map(h=>Number(h.ctr.toFixed(2))), color:data.color, axis:'pct', type:'line' },
         cvr:   { label:'전환율(%)', data:agChartRows.map(h=>Number(h.cvr.toFixed(2))), color:'#ff5d7a', axis:'pct', type:'line' },
         conv:  { label:'전환수', data:agChartRows.map(h=>h.conv), color:'#ffb84d', axis:'count', type:'bar' },
-        cost:  { label:'비용(만원)', data:agChartRows.map(h=>Number(h.cost.toFixed(1))), color:hexToRgba(data.color,0.35), axis:'count', type:'bar' },
-        revenue: { label:'매출(만원)', data:agChartRows.map(h=>Number(h.revenue.toFixed(1))), color:'#4dd0ff', axis:'count', type:'bar' },
+        cost:  { label:'비용(만원)', data:agChartRows.map(h=>h.cost), color:hexToRgba(data.color,0.35), axis:'count', type:'bar' },
+        revenue: { label:'매출(만원)', data:agChartRows.map(h=>h.revenue), color:'#4dd0ff', axis:'count', type:'bar' },
         roas:  { label:'ROAS(%)', data:agChartRows.map(h=>Number(h.roas.toFixed(1))), color:'#ff9d4d', axis:'pct', type:'line' },
         cpa:   { label:'CPA(원)', data:agChartRows.map(h=>h.cpa||0), color:'#ff9d4d', axis:'pct', type:'line' },
       };
@@ -2788,7 +2844,7 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
           labels: agChartRows.map(h=>h.hour+'시'),
           datasets
         },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}, tooltip: chartTooltipKRW()},
           scales:{ y:{position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
       });
     }

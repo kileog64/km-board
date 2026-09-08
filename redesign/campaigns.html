@@ -1120,6 +1120,12 @@ let clientSwitcherBizFilter = 'ALL';
      kmWireExcel(root, ()=>({rows, cols, meta}));            // 내려받기 배선
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* 「직전 기간 열 보기」 — ▲▼ 화살표만으로는 "지난달엔 얼마였는지"를 알 수 없어서
+   보고서를 쓸 때 결국 다른 기간을 따로 열어 옮겨 적게 된다. 필요할 때만 켜도록 토글로 둔다
+   (늘 켜두면 표가 너무 넓어진다). 직전 기간 값은 이미 ▲▼를 그리려고 갖고 있는 값이라
+   새로 계산하지 않는다. */
+const showPrevCols = {};   // key -> bool
+
 const KM_FILTER = {};   // key -> { minCost, minClicks, minConv, q }
 
 function kmFilterState(key){
@@ -1802,6 +1808,22 @@ const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
    (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
 
 // 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
+/* 차트에 넣는 비용은 '만원' 단위인데 예전엔 Math.round로 정수(=만원 단위)까지 잘라 넣어서,
+   같은 화면의 표와 최대 5,000원까지 어긋나 보였다. 값은 그대로 넣고 툴팁에서만 원으로 바꾼다.
+   축 눈금은 만원 그대로(원으로 쓰면 자릿수가 길어져 그래프가 안 읽힌다). */
+function chartTooltipKRW(forceUnit){
+  return { callbacks: { label: (c)=>{
+    const lb = String(c.dataset.label||'');
+    const v = c.parsed.y;
+    if(v===null || v===undefined || isNaN(v)) return lb;
+    const unit = forceUnit || (lb.indexOf('(만원)')>=0 ? '만원' : lb.indexOf('(원)')>=0 ? '원' : '');
+    const name = lb.replace('(만원)','').replace('(원)','');
+    if(unit==='만원') return name + ': ' + Math.round(v*10000).toLocaleString('ko-KR') + '원';
+    if(unit==='원')   return name + ': ' + Math.round(v).toLocaleString('ko-KR') + '원';
+    return name + ': ' + (Math.round(v*100)/100).toLocaleString('ko-KR');
+  } } };
+}
+
 function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
@@ -2113,8 +2135,26 @@ function renderCampaignsPage(data){
       roasPP: (r.roas!==null && r.roas!==undefined && prev.roas!==null && prev.roas!==undefined) ? (r.roas - prev.roas) : null,
       cpc: pctOf(r.cpc, prev.cpc), avgRank: pctOf(r.avgRank, prev.avgRank)
     } : {};
-    return { ...r, isNewCamp, trends };
+    return { ...r, isNewCamp, trends, prev };
   });
+  if(!(key in showPrevCols)) showPrevCols[key] = false;
+  // 직전 기간이 아예 없으면 켤 수 없다(빈 칸만 늘어남)
+  const showPrev = hasPrevForTrend && showPrevCols[key];
+  /* 「지난 값 / 차이」 두 칸. 차이는 좋아진 쪽을 초록으로 — 비용은 줄면 좋고 전환은 늘면 좋다. */
+  const prevPairCells = (prevVal, curVal, kind, goodDir) => {
+    if(prevVal===null || prevVal===undefined){
+      return `<td style="color:var(--muted)">-</td><td style="color:var(--muted)">신규</td>`;
+    }
+    const fmtv = v => kind==='won' ? fmtWon(v)+'원' : Math.round(v).toLocaleString('ko-KR')+'건';
+    const diff = (curVal||0) - prevVal;
+    if(Math.abs(diff) < (kind==='won' ? 0.00005 : 0.5)){
+      return `<td class="km-sub">${fmtv(prevVal)}</td><td style="color:var(--muted)">—</td>`;
+    }
+    const good = (goodDir==='down') ? diff<0 : diff>0;
+    const sign = diff>0 ? '+' : '−';
+    return `<td class="km-sub">${fmtv(prevVal)}</td>`
+         + `<td style="color:${good?'var(--up)':'var(--down)'};font-weight:700;">${sign}${fmtv(Math.abs(diff))}</td>`;
+  };
   const pinnedSet = new Set(data.pinnedCampaigns || []);
   rows.sort((a,b)=> (pinnedSet.has(b.campaign)?1:0) - (pinnedSet.has(a.campaign)?1:0));
   if(!(key in expandedCampaignsState)) expandedCampaignsState[key] = new Set();
@@ -2457,17 +2497,22 @@ function renderCampaignsPage(data){
     </div>
 
     <div class="panel">
-      <div class="panel-title">📣 전체 캠페인 랭킹 (${rows.length}개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></div>
+      <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>📣 전체 캠페인 랭킹 (${rows.length}개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></span>
+        ${hasPrevForTrend ? `<button id="prevColsToggle" type="button" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:14px;cursor:pointer;border:1px solid ${showPrev?'var(--accent)':'var(--border)'};background:${showPrev?'var(--accent-solid)':'var(--panel)'};color:${showPrev?'#fff':'var(--muted)'};">${showPrev?'✓ ':''}직전 기간 열 보기</button>` : ''}
+      </div>
       ${kmFilterBarHTML(kmSt, rows.length, kmTotalBefore, '캠페인')}
       <div style="overflow-x:auto;">
       <table style="min-width:760px;">
         <thead><tr>
           <th class="camp-name-cell" style="white-space:nowrap;">캠페인 · 유형</th>
           ${sortTh('비용','cost')}
+          ${showPrev ? `<th style="color:var(--muted);font-weight:600;">지난 비용</th><th style="color:var(--muted);font-weight:600;">차이</th>` : ''}
           ${sortTh('노출수','impressions')}
           ${sortTh('클릭수','clicks')}
           ${sortTh('평균CPC','cpc')}
           ${isDB ? sortTh('전환수','conv') : sortTh('전환매출','revenue')}
+          ${showPrev ? `<th style="color:var(--muted);font-weight:600;">지난 ${isDB?'전환수':'전환매출'}</th><th style="color:var(--muted);font-weight:600;">차이</th>` : ''}
           ${sortTh('CPA','cpa')}
           ${!isDB ? sortTh('ROAS','roas') : ''}
           ${sortTh('클릭률','ctr')}
@@ -2480,7 +2525,7 @@ function renderCampaignsPage(data){
             const t = r.trends || {};
             const isPinned = pinnedSet.has(r.campaign);
             const pinBtn = `<button class="pin-star-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="${isPinned?'고정 해제':'상단에 고정'}" style="border:none;background:none;cursor:pointer;font-size:14px;padding:0 4px 0 0;vertical-align:middle;color:var(--muted);">${isPinned?'⭐':'☆'}</button>`;
-            const colCount = isDB ? 10 : 11;  // '유형'을 캠페인명 칸에 합쳐 하나 줄었고, 노출·클릭·CPC 3열을 더해 늘었음
+            const colCount = (isDB ? 10 : 11) + (showPrev ? 4 : 0);  // '유형'을 캠페인명 칸에 합쳐 하나 줄었고, 노출·클릭·CPC 3열을 더해 늘었음. 직전 기간 열을 켜면 4칸 더.
             const isExpanded = expandedCampaigns.has(r.campaign);
             const expandBtn = `<button class="expand-adgroup-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="광고그룹별 세부 보기" style="border:none;background:none;cursor:pointer;font-size:11px;color:var(--muted);padding:0 4px 0 0;vertical-align:middle;">${isExpanded?'▾':'▸'}</button>`;
             let subRowHtml = '';
@@ -2515,21 +2560,25 @@ function renderCampaignsPage(data){
             return `<tr>
               <td class="kw-name camp-name-cell">${expandBtn}${pinBtn}${campaignStatusBadge(r)}${campAcctBadge(r.campaign)}<span class="camp-name-scroll" title="${esc(displayCampaignName(r.campaign))}">${esc(campBareName(r.campaign))}</span>${newBadge}<span class="camp-type-sub">${campaignTypeLabel(r.type)}</span></td>
               <td>${fmtWon(r.cost)}원${cellTrend(t.cost,'down')}</td>
+              ${showPrev ? prevPairCells(r.prev ? r.prev.cost : null, r.cost, 'won', 'down') : ''}
               <td>${(r.impressions||0).toLocaleString('ko-KR')}</td>
               <td>${(r.clicks||0).toLocaleString('ko-KR')}</td>
               <td>${(r.cpc===null||r.cpc===undefined)?'-':Math.round(r.cpc).toLocaleString('ko-KR')+'원'}</td>
               <td>${isDB ? r.conv+'건'+cellTrend(t.conv,'up') : fmtWon(r.revenue)+'원'+cellTrend(t.revenue,'up')}</td>
+              ${showPrev ? (isDB ? prevPairCells(r.prev ? r.prev.conv : null, r.conv, 'cnt', 'up')
+                                 : prevPairCells(r.prev ? r.prev.revenue : null, r.revenue, 'won', 'up')) : ''}
               <td>${r.cpa!==null?r.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>
               ${!isDB ? `<td>${r.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>` : ''}
               <td>${r.ctr.toFixed(2)}%${cellTrend(t.ctr,'up')}</td>
               <td>${r.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>
               <td>${r.avgRank!==null?r.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>
             </tr>${subRowHtml}`;
-          }).join('') : `<tr><td colspan="${isDB ? 10 : 11}" style="color:var(--muted);">${kmFilterOn(kmSt)?'조건에 맞는 캠페인이 없어요. 조건을 풀어보세요.':'표시할 캠페인이 없어요.'}</td></tr>`}
+          }).join('') : `<tr><td colspan="${(isDB ? 10 : 11) + (showPrev ? 4 : 0)}" style="color:var(--muted);">${kmFilterOn(kmSt)?'조건에 맞는 캠페인이 없어요. 조건을 풀어보세요.':'표시할 캠페인이 없어요.'}</td></tr>`}
         </tbody>
       </table>
       </div>
       <div style="margin-top:8px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">💡 평균노출순위는 네이버 보고서의 실제 값(노출수 가중평균)이에요. 순위 숫자가 크면서 클릭률도 낮다면 입찰가를 점검해보세요 — 노출 위치가 낮아 클릭 기회 자체가 줄었을 수 있어요.</div>
+      ${showPrev ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">「지난」 칸은 직전 기간(${prevPeriodLabel}) 값이에요. 엑셀로 받으면 이 열은 <b>버튼과 상관없이 항상</b> 들어갑니다.</div>` : ''}
       ${hasPrevForTrend
         ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">▲▼는 직전 기간(${prevPeriodLabel}) 대비 각 지표별 변동(5%이상만 표시)이에요. 직전 기간에 없던 캠페인은 NEW로 표시돼요.</div>`
         : (dayTrendOff ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">선택한 날짜 구간 바로 앞에 같은 길이의 데이터가 없어서 ▲▼ 추이는 표시하지 않았어요.</div>` : '')}
@@ -2575,8 +2624,8 @@ function renderCampaignsPage(data){
       data: {
         labels: chartRows.map(r=>r.campaign.length>10?r.campaign.slice(0,10)+'…':r.campaign),
         datasets: [
-          { type:'bar', label:'비용(만원)', data: chartRows.map(r=>Math.round(r.cost)), backgroundColor: 'rgba(255,255,255,0.18)', yAxisID:'y', order:2 },
-          { type:'line', label: isDB?'CPA(원)':'ROAS(%)', data: chartRows.map(r=> isDB ? r.cpa : Math.round(r.roas)), borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c8cff', backgroundColor:'transparent', yAxisID:'y1', order:1, tension:0.3 }
+          { type:'bar', label:'비용(만원)', data: chartRows.map(r=>r.cost), backgroundColor: 'rgba(255,255,255,0.18)', yAxisID:'y', order:2 },
+          { type:'line', label: isDB?'CPA(원)':'ROAS(%)', data: chartRows.map(r=> isDB ? r.cpa : (r.roas===null||r.roas===undefined?null:+r.roas.toFixed(1))), borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c8cff', backgroundColor:'transparent', yAxisID:'y1', order:1, tension:0.3 }
         ]
       },
       options: {
@@ -2587,7 +2636,7 @@ function renderCampaignsPage(data){
           y1: { position:'right', ticks:{ color:'#a8abc4', font:{size:10} }, grid:{ display:false } },
           x: { ticks:{ color:'#a8abc4', font:{size:10} }, grid:{ display:false } }
         },
-        plugins: { legend:{ labels:{ color:'#f5f6fa', font:{size:11} } } }
+        plugins: { legend:{ labels:{ color:'#f5f6fa', font:{size:11} } }, tooltip: chartTooltipKRW() }
       }
     });
   }
@@ -2759,11 +2808,26 @@ document.querySelectorAll('.day-preset-pill-cp').forEach(btn=>{
     cols.push({ h:'CPA(원)', v:r=>(r.cpa===null||r.cpa===undefined)?'':Math.round(r.cpa) });
     if(!isDB) cols.push({ h:'ROAS(%)', v:r=>(r.conv>0)?+((r.roas||0).toFixed(0)):'' });
     cols.push({ h:'평균노출순위', v:r=>(r.avgRank===null||r.avgRank===undefined)?'':+r.avgRank.toFixed(1) });
+    /* 엑셀은 넓어져도 상관없으니 직전 기간 값을 늘 담는다 — 보고서를 만들 때 두 기간을
+       따로 받아 옮겨 붙이는 일이 없어진다. 직전 기간이 없으면 빈 칸으로 둔다. */
+    if(hasPrevForTrend){
+      cols.push({ h:'지난 비용(원)', v:r=>r.prev?Math.round((r.prev.cost||0)*10000):'' });
+      cols.push({ h:'비용 차이(원)', v:r=>r.prev?Math.round(((r.cost||0)-(r.prev.cost||0))*10000):'' });
+      if(isDB){
+        cols.push({ h:'지난 전환수', v:r=>r.prev?(r.prev.conv||0):'' });
+        cols.push({ h:'전환수 차이', v:r=>r.prev?((r.conv||0)-(r.prev.conv||0)):'' });
+      } else {
+        cols.push({ h:'지난 전환매출(원)', v:r=>r.prev?Math.round((r.prev.revenue||0)*10000):'' });
+        cols.push({ h:'전환매출 차이(원)', v:r=>r.prev?Math.round(((r.revenue||0)-(r.prev.revenue||0))*10000):'' });
+      }
+    }
     return { rows, cols,
       meta:[['기간', periodLabel||''],['조건', cond.length?cond.join(' / '):'조건 없음 (전체)'],
             ['건수', rows.length + '개' + (rows.length!==kmTotalBefore?(' (전체 '+kmTotalBefore+'개 중)'):'')]],
       title: data.name + ' — 캠페인', sheet:'캠페인', filename: data.name + '_캠페인' };
   });
+  const prevColsBtn = document.getElementById('prevColsToggle');
+  if(prevColsBtn) prevColsBtn.onclick = ()=>{ showPrevCols[key] = !showPrevCols[key]; renderCampaignsPage(data); };
   document.querySelectorAll('.pin-star-btn').forEach(btn=>{
     btn.onclick = async ()=>{
       const campaign = btn.dataset.campaign;
