@@ -1349,6 +1349,7 @@ const topVisibleCount = {}; // key -> number of rows currently shown
 const kwRecFilter = {};     // key -> 'all' | 'expand' | 'waste' (합친 표의 추천 필터 칩)
 // 숫자 조건 필터: 이 값 '이상'만 남긴다. 빈칸이면 조건 없음.
 const kwNumFilter = {};     // key -> { minCost, minClicks, minConv, q }
+const kwExportCtx = {};     // key -> 현재 화면에 걸린 조건 그대로의 행/문맥 (엑셀 내려받기용)
 const expandVisibleCount = {};
 const wasteVisibleCount = {};
 
@@ -1718,6 +1719,101 @@ function syncMonthRangeToDays(key, allMonths, dr){
   return true;
 }
 
+/* ── 키워드 표 엑셀 내려받기 ─────────────────────────────────────────────
+   지금 화면에 걸어둔 조건(모드·추천 칩·비용/클릭/전환 최소값·키워드 검색)을 그대로 적용한
+   결과를 파일로 떨군다. 화면은 '더보기'로 10개씩 끊어 그리지만 파일에는 조건에 맞는 줄을 전부 담는다.
+   첫 시트에 조건을 적어둬서, 나중에 파일만 봐도 무슨 기준으로 뽑은 표인지 알 수 있게 한다. */
+async function ensureExcelJS(){
+  if(typeof ExcelJS !== 'undefined') return true;
+  return new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    sc.onload=()=>res(true); sc.onerror=()=>res(false);
+    document.head.appendChild(sc);
+  });
+}
+async function downloadKeywordTable(key){
+  const ctx = kwExportCtx[key];
+  if(!ctx || !ctx.rows || !ctx.rows.length){ alert('내려받을 데이터가 없어요.'); return; }
+  if(!(await ensureExcelJS())){ alert('엑셀 모듈을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+  const { rows, isDB, noConv, clientName, periodLabel, recFilter, filters } = ctx;
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('키워드');
+
+  const recLabel = recFilter==='expand' ? '확대 추천만' : recFilter==='waste' ? '제외 추천만' : '전체';
+  const cond = [];
+  if(String(filters.minCost).trim()!=='')   cond.push('비용 ' + Number(filters.minCost).toLocaleString('ko-KR') + '원 이상');
+  if(String(filters.minClicks).trim()!=='') cond.push('클릭수 ' + filters.minClicks + '건 이상');
+  if(String(filters.minConv).trim()!=='')   cond.push('전환수 ' + filters.minConv + '건 이상');
+  if(String(filters.q||'').trim()!=='')     cond.push('키워드에 "' + filters.q + '" 포함');
+
+  ws.addRow([clientName + ' — ' + MODE_LABEL[ctx.mode]]);
+  ws.getRow(1).font = { name:'맑은 고딕', size:14, bold:true };
+  ws.addRow(['기간', periodLabel || '']);
+  ws.addRow(['추천 필터', recLabel]);
+  ws.addRow(['조건', cond.length ? cond.join(' / ') : '조건 없음 (전체)']);
+  ws.addRow(['건수', rows.length + '개']);
+  ws.addRow([]);
+
+  const head = ['키워드','캠페인','추천','비용(원)','노출수','클릭수','클릭률(%)','평균CPC(원)'];
+  if(!noConv) head.push('총 전환수');
+  if(!noConv && !isDB) head.push('전환매출(원)');
+  if(!noConv) head.push('CPA(원)');
+  if(!noConv && !isDB) head.push('ROAS(%)');
+  head.push('평균노출순위');
+  const headRow = ws.addRow(head);
+  headRow.eachCell(c=>{
+    c.font = { name:'맑은 고딕', size:10, bold:true, color:{argb:'FFFFFFFF'} };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2F3A52'} };
+    c.alignment = { horizontal:'center', vertical:'middle' };
+    c.border = { top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'} };
+  });
+
+  rows.forEach(k=>{
+    const camps = (k.campaigns && k.campaigns.length) ? k.campaigns : (k.campaign ? [k.campaign] : []);
+    const line = [
+      k.keyword === '-' ? '(키워드 확장)' : k.keyword,
+      camps.join(', '),
+      k.rec==='expand' ? '확대' : (k.rec==='waste' ? '제외' : ''),
+      Math.round((k.cost||0)*10000),
+      k.impressions||0,
+      k.clicks||0,
+      Number((k.ctr||0).toFixed(2)),
+      (k.avgCpc===null||k.avgCpc===undefined) ? '' : k.avgCpc
+    ];
+    if(!noConv) line.push(k.conv||0);
+    if(!noConv && !isDB) line.push(Math.round((k.revenue||0)*10000));
+    if(!noConv) line.push((k.cpa===null||k.cpa===undefined) ? '' : k.cpa);
+    if(!noConv && !isDB) line.push((k.conv>0) ? Number((k.roas||0).toFixed(0)) : '');
+    line.push((k.avgRank===null||k.avgRank===undefined) ? '' : Number(k.avgRank.toFixed(1)));
+    const r = ws.addRow(line);
+    r.eachCell(c=>{
+      c.font = { name:'맑은 고딕', size:10 };
+      c.border = { top:{style:'hair'},left:{style:'hair'},bottom:{style:'hair'},right:{style:'hair'} };
+    });
+  });
+
+  // 숫자는 천단위 구분, 키워드/캠페인은 넉넉한 폭
+  ws.columns.forEach((col,i)=>{
+    if(i===0) col.width = 26;
+    else if(i===1) col.width = 34;
+    else if(i===2) col.width = 8;
+    else { col.width = 14; col.numFmt = '#,##0'; }
+  });
+  ws.views = [{ state:'frozen', ySplit: headRow.number }];
+  ws.autoFilter = { from:{row:headRow.number,column:1}, to:{row:headRow.number,column:head.length} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = (clientName||'키워드') + '_키워드_' + (recFilter==='all'?'전체':recLabel.replace(/ /g,'')) + '_' + stamp + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
 function renderKeywordsPage(data){
   const key = 'client:' + slugify(data.name);
   const fstate = ensureFilterState(key, data);
@@ -1967,6 +2063,10 @@ function renderKeywordsPage(data){
   if(fConv!==null)   rows = rows.filter(r=>(r.conv||0) >= fConv);
   if(fq)             rows = rows.filter(r=>String(r.keyword||'').toLowerCase().indexOf(fq)>=0);
   const numFilterOn = (fCost!==null||fClicks!==null||fConv!==null||!!fq);
+  /* 내려받기용 — 화면은 '더보기'로 10개씩만 그리지만, 파일에는 지금 조건에 맞는 줄을 전부 담는다.
+     보이는 21개만 받으면 조건을 걸어 추린 의미가 없어지기 때문. */
+  kwExportCtx[key] = { rows, mode, isDB, noConv, clientName: data.name, periodLabel,
+    recFilter, filters: { minCost: nf.minCost, minClicks: nf.minClicks, minConv: nf.minConv, q: nf.q } };
 
   // 💡 키워드 성과 인사이트 (현재 모드·기간·필터 기준)
   // 원인 추정: 전환 없이 비용만 쓴 키워드 — 클릭은 있는데 전환이 없으면 타겟팅/랜딩페이지 불일치,
@@ -2145,6 +2245,7 @@ function renderKeywordsPage(data){
           <input type="number" min="0" step="1" class="kw-nf" data-nf="minConv" value="${nf.minConv}" placeholder="예: 1" style="width:78px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;">건 이상</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">키워드
           <input type="text" class="kw-nf" data-nf="q" value="${esc(String(nf.q||''))}" placeholder="이름 일부 검색" style="width:140px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;"></label>
+        <button type="button" id="kwXlsxBtn" style="margin-left:auto;font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#12131c;">⬇️ 엑셀 내려받기 (${rows.length.toLocaleString('ko-KR')}개)</button>
         ${numFilterOn ? `<button type="button" id="kwNfReset" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);">조건 해제</button>
         <span style="font-size:12px;color:var(--accent);font-weight:700;">${beforeNumFilter.toLocaleString('ko-KR')}개 중 ${rows.length.toLocaleString('ko-KR')}개</span>` : ''}
       </div>
@@ -2280,6 +2381,14 @@ function renderKeywordsPage(data){
     inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); apply(); } };
     inp.onblur = apply;
   });
+  const xlsxBtn = document.getElementById('kwXlsxBtn');
+  if(xlsxBtn) xlsxBtn.onclick = async ()=>{
+    const label = xlsxBtn.textContent;
+    xlsxBtn.disabled = true; xlsxBtn.textContent = '만드는 중…';
+    try { await downloadKeywordTable(key); }
+    catch(e){ alert('엑셀을 만들지 못했어요: ' + (e && e.message ? e.message : e)); }
+    finally { xlsxBtn.disabled = false; xlsxBtn.textContent = label; }
+  };
   const nfReset = document.getElementById('kwNfReset');
   if(nfReset) nfReset.onclick = ()=>{
     kwNumFilter[key] = { minCost:'', minClicks:'', minConv:'', q:'' };
