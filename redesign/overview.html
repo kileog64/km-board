@@ -284,6 +284,63 @@ table tbody tr:hover td{background:#1b1e2c}
 .nv-b{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;
   margin-left:5px;border-radius:8px;background:#f5a524;color:#12131c;font-size:10px;font-weight:700;vertical-align:1px}
 .topbar .client-switcher{margin-left:auto}
+
+/* ===== 표 가독성 공통(_kmread.css) — 시작 ===== */
+/* ══════════════════════════════════════════════════════════════════════
+   표 가독성 공통 규칙
+   숫자가 왼쪽으로 붙어 있고 모든 값이 같은 무게라, 뭐가 중요한지 알려면
+   표를 다 읽어야 했다. 아래 규칙으로 훑기만 해도 눈에 걸리게 만든다.
+   ※ 숫자 자체는 손대지 않는다(네이버와 같아야 하므로). 보이는 방식만 바꾼다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ① 숫자는 오른쪽 정렬 + 자릿수 고정폭.
+   이게 없으면 1,531,644 와 987,000 의 자릿수가 안 맞아 크기 비교가 눈으로 안 된다.
+   첫 칸(이름)과 kw-name/camp-name 은 글자라 왼쪽 그대로 둔다. */
+table th, table td { text-align: right; font-variant-numeric: tabular-nums; }
+table th:first-child, table td:first-child,
+table td.kw-name, table th.camp-name-cell, table td.camp-name-cell { text-align: left; }
+/* 캠페인·구분처럼 글자가 들어가는 칸은 개별적으로 왼쪽 정렬 */
+table td.km-text, table th.km-text { text-align: left; }
+
+/* ② 한 줄 걸러 옅은 배경 — 가로로 눈이 미끄러지지 않게 */
+table tbody tr:nth-child(even) td { background: rgba(255,255,255,.022); }
+table tbody tr:hover td { background: #1b1e2c; }
+
+/* ③ 보조 지표(노출·클릭)는 뒤로 물린다.
+   판단에 바로 쓰는 값은 비용·전환·CPA·ROAS 인데, 노출·클릭이 같은 무게로 끼어들면
+   시선이 분산된다. 값은 그대로 두고 색만 옅게. */
+table td.km-sub { color: var(--muted); }
+
+/* ④ 핵심 값은 굵게 — 비용은 규모, 전환은 성과 */
+table td.km-key { font-weight: 700; }
+
+/* ⑤ 나쁜 값만 빨강 — 전환 0, 비정상적으로 높은 CPA 등 */
+table td.km-bad { color: var(--down); font-weight: 700; }
+
+/* ⑥ 가로 스크롤 시 이름 칸이 따라다니게 — 오른쪽 열을 볼 때
+   "이게 무슨 키워드였지" 하고 되돌아가지 않아도 된다. */
+.km-stick table td:first-child,
+.km-stick table th:first-child {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--panel);
+  box-shadow: 1px 0 0 var(--border);
+}
+.km-stick table tbody tr:nth-child(even) td:first-child { background: var(--panel); }
+.km-stick table tbody tr:hover td:first-child { background: #1b1e2c; }
+
+/* ⑦ 표 위 요약 줄 — 지금 조건에서 얼마를 쓰고 얼마를 벌었는지 한 줄로 */
+.km-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.km-summary > div {
+  flex:1; min-width:112px; background:var(--panel-2);
+  border:1px solid var(--border); border-radius:9px; padding:9px 12px;
+}
+.km-summary .lb { font-size:11px; color:var(--muted); display:block; }
+.km-summary .vl { font-size:16px; font-weight:700; display:block; margin-top:2px;
+  font-variant-numeric:tabular-nums; }
+.km-summary .vl.warn { color: var(--down); }
+.km-summary .vl.good { color: var(--up); }
+
+/* ===== 표 가독성 공통 — 끝 ===== */
 </style>
 </head>
 <body>
