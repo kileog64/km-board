@@ -1466,10 +1466,18 @@ function parseHourlyRows(rows){
   // 실제 화면에서 쓰지도 않는 요일 구분을 빼고 시간×캠페인×광고그룹만 남김(hourlyByAdgroup).
   const hourAdgroup = {}; // 'hour|campaign::adgroup' -> {...} — 시간대별 리포트에 광고그룹 컬럼이 있을 때만 채워짐
   let hasDate = false;
+  // 시간대 칸을 못 읽어서 통째로 버려지는 줄이 있으면 조용히 넘어가지 말고 세어서 알려준다.
+  let skippedRows = 0, skippedCost = 0;
+  const skippedSamples = [];
   rows.forEach(r=>{
     const hstr = String(r[hourCol]||'').trim();
     const m = hstr.match(/^(\d{1,2})시/);
-    if(!m) return;
+    if(!m){
+      skippedRows++;
+      skippedCost += costCol ? toNumber(r[costCol]) : 0;
+      if(skippedSamples.length<3 && hstr) skippedSamples.push(hstr);
+      return;
+    }
     const h = m[1].padStart(2,'0');
     const imp = impCol ? toNumber(r[impCol]) : 0;
     const click = clickCol ? toNumber(r[clickCol]) : 0;
@@ -1522,17 +1530,22 @@ function parseHourlyRows(rows){
     }
   });
   const hourlyArr = [];
+  const pushHour = (h, v)=>hourlyArr.push({ hour:h, impressions:Math.round(v.imp), clicks:Math.round(v.click), cost: v.cost/10000, conv: Math.round(v.conv), revenue: v.rev/10000, avgRank: (v.rankImp>0) ? (v.rankSum/v.rankImp) : null });
   for(let i=0;i<24;i++){
     const h = String(i).padStart(2,'0');
-    const v = hourly[h] || {imp:0,click:0,cost:0,conv:0,rev:0,rankSum:0,rankImp:0};
-    hourlyArr.push({ hour:h, impressions:Math.round(v.imp), clicks:Math.round(v.click), cost: v.cost/10000, conv: Math.round(v.conv), revenue: v.rev/10000, avgRank: (v.rankImp>0) ? (v.rankSum/v.rankImp) : null });
+    pushHour(h, hourly[h] || {imp:0,click:0,cost:0,conv:0,rev:0,rankSum:0,rankImp:0});
   }
+  // 네이버는 시간을 특정할 수 없는 실적을 '99시'로 내려보낸다. 0~23만 담으면 이 줄이 통째로 빠져서
+  // 시간대 화면 합계가 대시보드보다 조용히 작아지고, 캠페인 필터를 끄면 없던 줄이 튀어나온다.
+  // (캠페인별 데이터에는 원래 남아 있었기 때문) — 25번째 칸으로 살려둔다.
+  Object.keys(hourly).filter(h=>{ const i=parseInt(h,10); return !(i>=0 && i<=23); }).sort()
+    .forEach(h=>pushHour(h, hourly[h]));
   const hourlyByCampaign = Object.values(hbc).map(o=>({ hour:o.hour, campaign:o.campaign, type:o.type, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null }));
   const hourlyByDow = hasDate ? Object.values(dowHour).map(o=>({ dow:o.dow, dowLabel:o.dowLabel, hour:o.hour, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null })) : [];
   const hourlyByDowByCampaign = hasDate ? Object.values(dowHourCamp).map(o=>({ dow:o.dow, dowLabel:o.dowLabel, hour:o.hour, campaign:o.campaign, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null })) : [];
   const hourlyByAdgroup = Object.values(hourAdgroup).map(o=>({ hour:o.hour, campaign:o.campaign, adgroup:o.adgroup, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null }));
   const hourlyByCampaignDate = hasDate ? Object.values(hourCampDate).map(o=>({ date:o.date, hour:o.hour, campaign:o.campaign, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000 })) : [];
-  return { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData: hasDate, hasSpecificConvCol: !!specificConvCol, hasRevenue: !!revCol, hasAdgroupCol: !!adgroupCol };
+  return { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData: hasDate, hasSpecificConvCol: !!specificConvCol, hasRevenue: !!revCol, hasAdgroupCol: !!adgroupCol, skippedRows, skippedCost, skippedSamples };
 }
 
 let parsedHourly = null;
@@ -1545,7 +1558,7 @@ async function handleHourlyFile(files, forcedBiz){
     statusEl.textContent = '분석 중...'; statusEl.className = 'status';
     const rows = await readFilesAsRows(files);
     if(!rows.length) throw new Error('empty');
-    const { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData, hasSpecificConvCol } = parseHourlyRows(rows);
+    const { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData, hasSpecificConvCol, skippedRows, skippedCost, skippedSamples } = parseHourlyRows(rows);
     const nameForBizCheck = document.getElementById('in-name').value.trim();
     const existingBiz = nameForBizCheck ? await getClientBizType(nameForBizCheck) : null;
     const radioBiz = document.querySelector('input[name="bizType"]:checked').value;
@@ -1572,10 +1585,13 @@ async function handleHourlyFile(files, forcedBiz){
     const totalRev = hourlyArr.reduce((a,b)=>a+(b.revenue||0),0);
     statusEl.textContent = `인식 완료 (${rows.length}행${hasDowData?' · 요일별 데이터 감지됨':''})`; statusEl.className = 'status ok';
     previewEl.style.display = 'block';
+    const unknownRow = hourlyArr.find(h=>{ const i=parseInt(h.hour,10); return !(i>=0 && i<=23); });
     previewEl.innerHTML = `
-      <div class="row"><span>24시간 합계 비용</span><b>${fmtMan(totalCost)}원</b></div>
-      <div class="row"><span>24시간 합계 전환수</span><b>${totalConv}건</b></div>
-      ${totalRev>0 ? `<div class="row"><span>24시간 합계 매출</span><b>${fmtMan(totalRev)}원</b></div>` : ''}
+      <div class="row"><span>합계 비용</span><b>${fmtMan(totalCost)}원</b></div>
+      <div class="row"><span>합계 전환수</span><b>${totalConv}건</b></div>
+      ${totalRev>0 ? `<div class="row"><span>합계 매출</span><b>${fmtMan(totalRev)}원</b></div>` : ''}
+      ${unknownRow ? `<div class="row" style="color:var(--muted);font-size:12px;">위 합계에 <b>시간 미상</b>(${unknownRow.hour}시) ${fmtMan(unknownRow.cost)}원이 포함돼 있어요 — 네이버가 시각을 특정 못 한 실적이에요.</div>` : ''}
+      ${skippedRows>0 ? `<div class="row" style="color:#ff9f43;font-size:12px;">⚠️ 시간대 칸을 못 읽어서 <b>${skippedRows.toLocaleString('ko-KR')}줄</b>(${fmtMan(skippedCost/10000)}원)이 빠졌어요${skippedSamples.length?` — 예: ${skippedSamples.map(x=>'"'+x+'"').join(', ')}`:''}. 이 줄은 어느 화면에도 안 들어가니 형식을 확인해주세요.</div>` : ''}
       <div class="row" style="color:var(--muted);font-size:12px;">인식된 열: ${hourCol||'-'}${hasDowData?' (일별 컬럼도 인식되어 요일×시간대 히트맵도 생성돼요)':''}</div>`;
   }catch(e){
     console.error(e);
@@ -1598,13 +1614,36 @@ setupDropZone(document.getElementById('filedrop-hourly-b2c'), document.getElemen
 document.getElementById('file-hourly-db').addEventListener('change', e=>{ onHourlyFiles(e.target.files, 'DB'); });
 setupDropZone(document.getElementById('filedrop-hourly-db'), document.getElementById('file-hourly-db'), files=>onHourlyFiles(files,'DB'));
 
+/* 예전엔 두 배열을 '몇 번째 칸'끼리 더했다(a.map((h,i)=>b[i])). 그래서
+   - 이미 저장된 쪽이 24칸(옛날 형식)이고 새로 올린 쪽이 25칸('시간 미상' 포함)이면 마지막 칸이 통째로 사라졌고,
+   - 두 배열의 순서가 조금이라도 다르면 엉뚱한 시간끼리 더해졌다.
+   시간 값을 열쇠로 삼아 합치고, 한쪽에만 있는 시간도 살린다. */
 function mergeHourlyArr(a, b){
-  return a.map((h,i)=>{
-    const o = (b && b[i]) || {impressions:0,clicks:0,cost:0,conv:0,revenue:0,avgRank:null};
-    const imp = (h.impressions||0)+(o.impressions||0);
-    const rankSum = ((h.avgRank!==null&&h.avgRank!==undefined)?h.avgRank*(h.impressions||0):0) + ((o.avgRank!==null&&o.avgRank!==undefined)?o.avgRank*(o.impressions||0):0);
-    const rankImp = ((h.avgRank!==null&&h.avgRank!==undefined)?(h.impressions||0):0) + ((o.avgRank!==null&&o.avgRank!==undefined)?(o.impressions||0):0);
-    return { hour:h.hour, impressions:imp, clicks:(h.clicks||0)+(o.clicks||0), cost:(h.cost||0)+(o.cost||0), conv:(h.conv||0)+(o.conv||0), revenue:(h.revenue||0)+(o.revenue||0), avgRank: rankImp>0?(rankSum/rankImp):null };
+  const blank = ()=>({impressions:0,clicks:0,cost:0,conv:0,revenue:0,rankSum:0,rankImp:0});
+  const map = {};
+  const add = (x)=>{
+    if(!x || x.hour===undefined || x.hour===null) return;
+    const h = String(x.hour).padStart(2,'0');
+    if(!map[h]) map[h] = blank();
+    const t = map[h];
+    t.impressions += x.impressions||0; t.clicks += x.clicks||0; t.cost += x.cost||0;
+    t.conv += x.conv||0; t.revenue += x.revenue||0;
+    if(x.avgRank!==null && x.avgRank!==undefined && (x.impressions||0)>0){
+      t.rankSum += x.avgRank*(x.impressions||0); t.rankImp += (x.impressions||0);
+    }
+  };
+  (a||[]).forEach(add); (b||[]).forEach(add);
+  for(let i=0;i<24;i++){ const h=String(i).padStart(2,'0'); if(!map[h]) map[h]=blank(); }
+  const isReal = h=>{ const i=parseInt(h,10); return i>=0 && i<=23; };
+  const keys = Object.keys(map).sort((x,y)=>{
+    const rx=isReal(x), ry=isReal(y);
+    if(rx!==ry) return rx ? -1 : 1;   // 0~23시 먼저, '시간 미상'은 맨 뒤
+    return x.localeCompare(y);
+  });
+  return keys.map(h=>{
+    const t = map[h];
+    return { hour:h, impressions:t.impressions, clicks:t.clicks, cost:t.cost, conv:t.conv,
+             revenue:t.revenue, avgRank: t.rankImp>0 ? (t.rankSum/t.rankImp) : null };
   });
 }
 function mergeHourlyByCampaignArr(a, b){

@@ -415,6 +415,12 @@ function newTodoId(){
 }
 
 let todoItems = [];
+/* 저장이 실패했을 때 화면만 바뀐 채로 두면 "저장된 줄 알았는데 아니었다"가 된다.
+   실패한 작업 이름을 알려주고, 서버 값을 다시 읽어 화면을 실제 저장 상태로 되돌린다. */
+async function todoSaveFailed(what){
+  alert((what||'저장') + '에 실패했어요. 저장된 내용은 그대로예요 — 잠시 후 다시 시도해주세요.');
+  todoItems = await loadTodos();
+}
 let filterState = { client:'ALL', status:'ALL', prio:'ALL', sort:'due', hideDone:false };
 
 async function refreshTodoList(){
@@ -608,20 +614,24 @@ function renderTodoList(){
     const t = todoItems.find(x=>x.id===id);
     if(!t) return;
     rowEl.querySelector('.todo-check').onchange = async (e)=>{
-      await patchTodo(id, { status: e.target.checked ? 'done' : 'todo' });
+      const ok = await patchTodo(id, { status: e.target.checked ? 'done' : 'todo' });
+      if(!ok) await todoSaveFailed('완료 표시');
       renderTodoList();
     };
     rowEl.querySelector('.status-sel').onchange = async (e)=>{
-      await patchTodo(id, { status: e.target.value });
+      const ok = await patchTodo(id, { status: e.target.value });
+      if(!ok) await todoSaveFailed('상태 변경');
       renderTodoList();
     };
     rowEl.querySelector('.prio-sel').onchange = async (e)=>{
-      await patchTodo(id, { priority: e.target.value });
+      const ok = await patchTodo(id, { priority: e.target.value });
+      if(!ok) await todoSaveFailed('중요도 변경');
       renderTodoList();
     };
     rowEl.querySelector('.todo-delete-btn').onclick = async ()=>{
       if(!confirm('이 할 일을 삭제할까요?')) return;
-      await mutateTodos(list=>list.filter(x=>x.id!==id));
+      const ok = await mutateTodos(list=>list.filter(x=>x.id!==id));
+      if(!ok) await todoSaveFailed('삭제');
       renderTodoList();
     };
   });
@@ -656,8 +666,12 @@ document.getElementById('addTodoBtn').onclick = async ()=>{
     document.getElementById('newTodoPrio').value = 'mid';
     renderTodoList();
   } else {
-    todoItems.pop();
-    setMsg('추가에 실패했어요. 다시 시도해주세요.', 'err');
+    // 예전엔 여기서 todoItems.pop() 을 했는데, 추가는 저장이 성공했을 때만 목록에 반영되므로
+    // 실패했을 땐 방금 쓴 것이 아니라 '원래 있던 마지막 할 일'이 화면에서 사라졌다.
+    // 실패 시엔 목록을 건드리지 말고 서버 값을 다시 읽어와 화면을 원상태로 맞춘다.
+    todoItems = await loadTodos();
+    renderTodoList();
+    setMsg('추가에 실패했어요. 저장된 내용은 그대로예요 — 다시 시도해주세요.', 'err');
   }
 };
 
