@@ -2063,6 +2063,7 @@ function renderKeywordsPage(data){
   if(fConv!==null)   rows = rows.filter(r=>(r.conv||0) >= fConv);
   if(fq)             rows = rows.filter(r=>String(r.keyword||'').toLowerCase().indexOf(fq)>=0);
   const numFilterOn = (fCost!==null||fClicks!==null||fConv!==null||!!fq);
+  const periodLabel = isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} 누적` : (months[0] ? months[0].label : '기간 없음');
   /* 내려받기용 — 화면은 '더보기'로 10개씩만 그리지만, 파일에는 지금 조건에 맞는 줄을 전부 담는다.
      보이는 21개만 받으면 조건을 걸어 추린 의미가 없어지기 때문. */
   kwExportCtx[key] = { rows, mode, isDB, noConv, clientName: data.name, periodLabel,
@@ -2143,7 +2144,6 @@ function renderKeywordsPage(data){
   }
   const keywordInsights = generateKeywordInsights();
   window.__currentClientData = data;
-  const periodLabel = isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} 누적` : (months[0] ? months[0].label : '기간 없음');
   window.__pageAIContext = {
     isDB, mode, modeLabel: MODE_LABEL[mode],
     periodLabel,
