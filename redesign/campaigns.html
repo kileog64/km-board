@@ -1007,6 +1007,142 @@ async function refreshTabs(selectAfter){
   }
 }
 let clientSwitcherBizFilter = 'ALL';
+/* ══════════════════════════════════════════════════════════════════════════
+   표 공통 도구 — 조건 좁히기 + 엑셀 내려받기
+   키워드 페이지에서 먼저 만든 것을 캠페인·쇼핑검색·시간대에서도 쓰려고 한 곳에 모았다.
+   같은 코드를 세 번 복사하면 고칠 때도 세 번 고쳐야 하고, 한 곳만 빠뜨리면 페이지마다
+   동작이 달라진다. 그래서 페이지들이 이 파일 하나를 같이 쓴다.
+
+   쓰는 법 (페이지에서):
+     const st = kmFilterState(key);                  // 조건 보관함 (없으면 만들어 줌)
+     rows = kmApplyFilter(rows, st, {nameKey:'campaign'});   // 조건 적용
+     ...HTML...  ${kmFilterBarHTML(st, rows.length, before)} // 조건 줄 그리기
+     kmWireFilterBar(root, st, ()=>다시그리기());            // 입력 배선
+     kmWireExcel(root, ()=>({rows, cols, meta}));            // 내려받기 배선
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const KM_FILTER = {};   // key -> { minCost, minClicks, minConv, q }
+
+function kmFilterState(key){
+  if(!(key in KM_FILTER)) KM_FILTER[key] = { minCost:'', minClicks:'', minConv:'', q:'' };
+  return KM_FILTER[key];
+}
+function kmNum(v){
+  if(v===null || v===undefined || String(v).trim()==='') return null;
+  const n = Number(String(v).replace(/[^0-9.]/g,''));
+  return isFinite(n) ? n : null;
+}
+function kmFilterOn(st){
+  return kmNum(st.minCost)!==null || kmNum(st.minClicks)!==null
+      || kmNum(st.minConv)!==null || !!String(st.q||'').trim();
+}
+/* 조건 적용. cost는 화면 어디서나 '만원 단위'로 들고 다니는데 사람은 '원'으로 입력하므로
+   10000을 곱해서 비교한다(이 규칙이 페이지마다 달라지면 같은 조건이 다르게 걸린다). */
+function kmApplyFilter(rows, st, opt){
+  const nameKey = (opt && opt.nameKey) || 'name';
+  const fCost = kmNum(st.minCost), fClk = kmNum(st.minClicks), fCv = kmNum(st.minConv);
+  const q = String(st.q||'').trim().toLowerCase();
+  let out = rows;
+  if(fCost!==null) out = out.filter(r=>(r.cost||0)*10000 >= fCost);
+  if(fClk!==null)  out = out.filter(r=>(r.clicks||0) >= fClk);
+  if(fCv!==null)   out = out.filter(r=>(r.conv||0) >= fCv);
+  if(q)            out = out.filter(r=>String(r[nameKey]||'').toLowerCase().indexOf(q)>=0);
+  return out;
+}
+
+function kmFilterBarHTML(st, shown, total, label){
+  const on = kmFilterOn(st);
+  const esc2 = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const inp = (k,ph,w) => `<input type="${k==='q'?'text':'number'}" min="0" class="km-nf" data-nf="${k}" value="${esc2(st[k])}" placeholder="${ph}" style="width:${w}px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;">`;
+  return `<div class="km-filterbar" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 14px;border:1px solid var(--border);border-radius:11px;background:var(--panel-2);">
+    <span style="font-size:12px;font-weight:700;color:var(--text);">조건 좁히기</span>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">비용 ${inp('minCost','예: 100000',112)}원 이상</label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">클릭수 ${inp('minClicks','예: 10',78)}건 이상</label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">전환수 ${inp('minConv','예: 1',78)}건 이상</label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">${label||'이름'} ${inp('q','일부 검색',140)}</label>
+    <button type="button" class="km-xlsx" style="margin-left:auto;font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#12131c;">⬇️ 엑셀 내려받기 (${(shown||0).toLocaleString('ko-KR')}개)</button>
+    ${on?`<button type="button" class="km-nf-reset" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);">조건 해제</button>
+    <span style="font-size:12px;color:var(--accent);font-weight:700;">${(total||0).toLocaleString('ko-KR')}개 중 ${(shown||0).toLocaleString('ko-KR')}개</span>`:''}
+  </div>`;
+}
+
+/* 입력 배선 — 글자를 칠 때마다 다시 그리면 커서가 튀므로 Enter 또는 포커스가 빠질 때만 적용 */
+function kmWireFilterBar(st, rerender){
+  document.querySelectorAll('.km-nf').forEach(inp=>{
+    const apply = ()=>{ if(st[inp.dataset.nf] === inp.value) return; st[inp.dataset.nf] = inp.value; rerender(); };
+    inp.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); apply(); } };
+    inp.onblur = apply;
+  });
+  document.querySelectorAll('.km-nf-reset').forEach(b=>{
+    b.onclick = ()=>{ st.minCost=''; st.minClicks=''; st.minConv=''; st.q=''; rerender(); };
+  });
+}
+
+async function kmEnsureExcel(){
+  if(typeof ExcelJS !== 'undefined') return true;
+  return new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    sc.onload=()=>res(true); sc.onerror=()=>res(false);
+    document.head.appendChild(sc);
+  });
+}
+
+/* 엑셀 만들기.
+   cols = [{h:'제목', v:행=>값, w:폭}] — 값이 숫자면 숫자로, 문자열이면 문자열로 들어간다.
+   meta = [['기간','2026.09'], ...] — 파일 첫머리에 어떤 조건으로 뽑았는지 남긴다. */
+async function kmDownloadExcel({ rows, cols, meta, title, sheet, filename }){
+  if(!rows || !rows.length){ alert('내려받을 데이터가 없어요.'); return; }
+  if(!(await kmEnsureExcel())){ alert('엑셀 모듈을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheet || '데이터');
+  ws.addRow([title || '데이터']);
+  ws.getRow(1).font = { name:'맑은 고딕', size:14, bold:true };
+  (meta||[]).forEach(m=>ws.addRow(m));
+  ws.addRow([]);
+  const headRow = ws.addRow(cols.map(c=>c.h));
+  headRow.eachCell(c=>{
+    c.font = { name:'맑은 고딕', size:10, bold:true, color:{argb:'FFFFFFFF'} };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2F3A52'} };
+    c.alignment = { horizontal:'center', vertical:'middle' };
+    c.border = { top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'} };
+  });
+  rows.forEach(r=>{
+    const line = ws.addRow(cols.map(c=>{ const v = c.v(r); return (v===null||v===undefined) ? '' : v; }));
+    line.eachCell(c=>{
+      c.font = { name:'맑은 고딕', size:10 };
+      c.border = { top:{style:'hair'},left:{style:'hair'},bottom:{style:'hair'},right:{style:'hair'} };
+    });
+  });
+  ws.columns.forEach((col,i)=>{
+    col.width = cols[i] && cols[i].w ? cols[i].w : 14;
+    if(i>0 && !(cols[i] && cols[i].text)) col.numFmt = '#,##0';
+  });
+  ws.views = [{ state:'frozen', ySplit: headRow.number }];
+  ws.autoFilter = { from:{row:headRow.number,column:1}, to:{row:headRow.number,column:cols.length} };
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (filename || '데이터') + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/* 내려받기 버튼 배선. getSpec()은 위 kmDownloadExcel 이 받는 객체를 그때그때 만들어 돌려준다
+   (버튼을 누르는 시점의 조건·정렬이 반영돼야 하므로 미리 만들어 두지 않는다). */
+function kmWireExcel(getSpec){
+  document.querySelectorAll('.km-xlsx').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = '만드는 중…';
+      try { await kmDownloadExcel(getSpec()); }
+      catch(e){ alert('엑셀을 만들지 못했어요: ' + (e && e.message ? e.message : e)); }
+      finally { btn.disabled = false; btn.textContent = label; }
+    };
+  });
+}
+
 function renderClientSwitcher(searchTerm){
   const active = clientListCache.find(c=>c.key===activeSlug);
   document.getElementById('clientSwitcherLabel').textContent = active ? active.name : '업체 선택';
@@ -1775,6 +1911,11 @@ function renderCampaignsPage(data){
     });
   }
   rows = applySort(rows, sort, isDB?'cost':'revenue');
+  /* 조건 좁히기 — 키워드 페이지와 같은 도구(_kmtable)를 쓴다.
+     캠페인이 수십~수백 개인 계정에서 "10만원 넘게 쓴 것만" 같은 식으로 볼 대상을 줄인다. */
+  const kmSt = kmFilterState('camp:' + key);
+  const kmTotalBefore = rows.length;
+  rows = kmApplyFilter(rows, kmSt, { nameKey:'campaign' });
 
   // 전기간 대비 추이: 기준 기간의 직전 기간 데이터 확보
   // refMonth = 현재 보고 있는 구간의 마지막 달(단일 월/전체 누적/임의 구간 모두 이 정의 하나로 처리)
@@ -2195,11 +2336,15 @@ function renderCampaignsPage(data){
 
     <div class="panel">
       <div class="panel-title">📣 전체 캠페인 랭킹 (${rows.length}개) <span style="font-size:12px;color:var(--muted);font-weight:400;">— 열 제목을 클릭하면 정렬돼요</span></div>
+      ${kmFilterBarHTML(kmSt, rows.length, kmTotalBefore, '캠페인')}
       <div style="overflow-x:auto;">
       <table style="min-width:760px;">
         <thead><tr>
           <th class="camp-name-cell" style="white-space:nowrap;">캠페인 · 유형</th>
           ${sortTh('비용','cost')}
+          ${sortTh('노출수','impressions')}
+          ${sortTh('클릭수','clicks')}
+          ${sortTh('평균CPC','cpc')}
           ${isDB ? sortTh('전환수','conv') : sortTh('전환매출','revenue')}
           ${sortTh('CPA','cpa')}
           ${!isDB ? sortTh('ROAS','roas') : ''}
@@ -2213,7 +2358,7 @@ function renderCampaignsPage(data){
             const t = r.trends || {};
             const isPinned = pinnedSet.has(r.campaign);
             const pinBtn = `<button class="pin-star-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="${isPinned?'고정 해제':'상단에 고정'}" style="border:none;background:none;cursor:pointer;font-size:14px;padding:0 4px 0 0;vertical-align:middle;color:var(--muted);">${isPinned?'⭐':'☆'}</button>`;
-            const colCount = isDB ? 7 : 8;   // '유형' 열을 캠페인명 칸에 합치면서 하나 줄었음
+            const colCount = isDB ? 10 : 11;  // '유형'을 캠페인명 칸에 합쳐 하나 줄었고, 노출·클릭·CPC 3열을 더해 늘었음
             const isExpanded = expandedCampaigns.has(r.campaign);
             const expandBtn = `<button class="expand-adgroup-btn" data-campaign="${r.campaign.replace(/"/g,'&quot;')}" title="광고그룹별 세부 보기" style="border:none;background:none;cursor:pointer;font-size:11px;color:var(--muted);padding:0 4px 0 0;vertical-align:middle;">${isExpanded?'▾':'▸'}</button>`;
             let subRowHtml = '';
@@ -2248,6 +2393,9 @@ function renderCampaignsPage(data){
             return `<tr>
               <td class="kw-name camp-name-cell">${expandBtn}${pinBtn}${campaignStatusBadge(r)}${campAcctBadge(r.campaign)}<span class="camp-name-scroll" title="${esc(displayCampaignName(r.campaign))}">${esc(campBareName(r.campaign))}</span>${newBadge}<span class="camp-type-sub">${campaignTypeLabel(r.type)}</span></td>
               <td>${fmtWon(r.cost)}원${cellTrend(t.cost,'down')}</td>
+              <td>${(r.impressions||0).toLocaleString('ko-KR')}</td>
+              <td>${(r.clicks||0).toLocaleString('ko-KR')}</td>
+              <td>${(r.cpc===null||r.cpc===undefined)?'-':Math.round(r.cpc).toLocaleString('ko-KR')+'원'}</td>
               <td>${isDB ? r.conv+'건'+cellTrend(t.conv,'up') : fmtWon(r.revenue)+'원'+cellTrend(t.revenue,'up')}</td>
               <td>${r.cpa!==null?r.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>
               ${!isDB ? `<td>${r.roas.toFixed(0)}%${cellTrend(t.roas,'up')}</td>` : ''}
@@ -2255,7 +2403,7 @@ function renderCampaignsPage(data){
               <td>${r.cvr.toFixed(2)}%${cellTrend(t.cvr,'up')}</td>
               <td>${r.avgRank!==null?r.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>
             </tr>${subRowHtml}`;
-          }).join('') : `<tr><td colspan="${isDB ? 8 : 9}" style="color:var(--muted);">표시할 캠페인이 없어요.</td></tr>`}
+          }).join('') : `<tr><td colspan="${isDB ? 10 : 11}" style="color:var(--muted);">${kmFilterOn(kmSt)?'조건에 맞는 캠페인이 없어요. 조건을 풀어보세요.':'표시할 캠페인이 없어요.'}</td></tr>`}
         </tbody>
       </table>
       </div>
@@ -2466,6 +2614,33 @@ document.querySelectorAll('.day-preset-pill-cp').forEach(btn=>{
       else { sort.field = field; sort.dir = 'desc'; }
       renderCampaignsPage(data);
     };
+  });
+  // 조건 좁히기 입력 + 엑셀 내려받기 배선 (공통 도구)
+  kmWireFilterBar(kmSt, ()=>renderCampaignsPage(data));
+  kmWireExcel(()=>{
+    const cond = [];
+    if(String(kmSt.minCost).trim()!=='')   cond.push('비용 ' + Number(kmSt.minCost).toLocaleString('ko-KR') + '원 이상');
+    if(String(kmSt.minClicks).trim()!=='') cond.push('클릭수 ' + kmSt.minClicks + '건 이상');
+    if(String(kmSt.minConv).trim()!=='')   cond.push('전환수 ' + kmSt.minConv + '건 이상');
+    if(String(kmSt.q||'').trim()!=='')     cond.push('캠페인명에 "' + kmSt.q + '" 포함');
+    const cols = [
+      { h:'캠페인', v:r=>r.campaign, w:30, text:1 },
+      { h:'유형', v:r=>r.type||'', w:12, text:1 },
+      { h:'비용(원)', v:r=>Math.round((r.cost||0)*10000) },
+      { h:'노출수', v:r=>r.impressions||0 },
+      { h:'클릭수', v:r=>r.clicks||0 },
+      { h:'클릭률(%)', v:r=>+((r.ctr||0).toFixed(2)) },
+      { h:'평균CPC(원)', v:r=>(r.cpc===null||r.cpc===undefined)?'':Math.round(r.cpc) },
+    ];
+    if(isDB) cols.push({ h:'전환수', v:r=>r.conv||0 });
+    else { cols.push({ h:'전환수', v:r=>r.conv||0 }); cols.push({ h:'전환매출(원)', v:r=>Math.round((r.revenue||0)*10000) }); }
+    cols.push({ h:'CPA(원)', v:r=>(r.cpa===null||r.cpa===undefined)?'':Math.round(r.cpa) });
+    if(!isDB) cols.push({ h:'ROAS(%)', v:r=>(r.conv>0)?+((r.roas||0).toFixed(0)):'' });
+    cols.push({ h:'평균노출순위', v:r=>(r.avgRank===null||r.avgRank===undefined)?'':+r.avgRank.toFixed(1) });
+    return { rows, cols,
+      meta:[['기간', periodLabel||''],['조건', cond.length?cond.join(' / '):'조건 없음 (전체)'],
+            ['건수', rows.length + '개' + (rows.length!==kmTotalBefore?(' (전체 '+kmTotalBefore+'개 중)'):'')]],
+      title: data.name + ' — 캠페인', sheet:'캠페인', filename: data.name + '_캠페인' };
   });
   document.querySelectorAll('.pin-star-btn').forEach(btn=>{
     btn.onclick = async ()=>{
