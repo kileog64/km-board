@@ -679,6 +679,16 @@ function sparkPath(vals, w, h){
   }).join(' ');
 }
 function dateKey(d){ return String(d).replace(/\D/g,''); }
+// 날짜 문자열('2026.09.02' 등)에서 요일(0=일 ~ 6=토)을 구한다.
+// 요일×시간대 데이터에는 날짜가 없어서, 날짜 필터를 켜면 날짜가 있는 쪽(hourlyByCampaignDate)에서
+// 요일을 직접 계산해 다시 만들어야 한다. 전체 기간 기준으로 기존 요일 데이터와 칸 단위까지
+// 완전히 일치하는 것을 실측 확인함(르하임 2026.07 121칸·08 119칸, 어긋난 칸 0).
+function dowOfDateStr(v){
+  const k = dateKey(v);
+  if(k.length !== 8) return null;
+  const dt = new Date(+k.slice(0,4), +k.slice(4,6)-1, +k.slice(6,8));
+  return isNaN(dt.getTime()) ? null : dt.getDay();
+}
 function weekdayOf(dateStr){
   // "2026.07.01" -> Date
   const parts = dateStr.split('.').map(s=>s.trim()).filter(Boolean);
@@ -2023,7 +2033,16 @@ function renderHourlyPage(data){
     if(m.hourlyByDow && m.hourlyByDow.length) hasDowData = true;
     if(m.hourlyByDowByCampaign && m.hourlyByDowByCampaign.length) hasDowByCampaignData = true;
   });
+  // 날짜 필터가 켜져 있으면 요일 데이터도 고른 구간만 써야 한다.
+  // hourlyByDow / hourlyByDowByCampaign 에는 날짜 차원이 없어서 월 전체가 그대로 들어왔고,
+  // 위쪽 표는 고른 날짜라 한 화면에 서로 다른 기간이 섞여 있었다.
+  const dayRangeHasHcd = months.some(m=>(m.hourlyByCampaignDate||[]).length);
+  const dowFromDayRange = hasHourlyDayFilter && dayRangeHasHcd;
+  if(dowFromDayRange) hasDowData = true;
   let dowGrid = null;
+  // 히트맵은 0~23시 격자라서 '시간 미상'(99) 줄은 못 넣는다. 그래서 히트맵 총합이 위쪽 표보다
+  // 그만큼 적게 나오는데, 안 적어두면 "왜 숫자가 다르지" 하게 된다. 빠진 금액을 세어 캡션에 적는다.
+  let dowUnknownHourCost = 0;
   let dowHeatmapIsFiltered = false; // true면 현재 캠페인 필터가 히트맵에도 실제로 반영된 상태
   let dowHeatmapPartiallyUnfiltered = false; // true면 필터 적용 중인데 일부(예전 형식) 달은 캠페인별 세부 정보가 없어서 필터 없이 전체 기준으로 섞여 들어감
   if(hasDowData){
@@ -2038,7 +2057,25 @@ function renderHourlyPage(data){
         dowGrid[d][h].rankSum += cell.avgRank*cell.impressions; dowGrid[d][h].rankImp += cell.impressions;
       }
     };
-    if(!isFullSelection && hasDowByCampaignData){
+    if(dowFromDayRange){
+      // 날짜×시간×캠페인에서 고른 날짜만 골라 요일을 계산해 채운다.
+      dowHeatmapIsFiltered = !isFullSelection;
+      const dr = dayRangeState[key];
+      const sKey = dr.start ? dateKey(dr.start) : null;
+      const eKey = dr.end ? dateKey(dr.end) : null;
+      months.forEach(m=>{
+        (m.hourlyByCampaignDate||[]).forEach(cell=>{
+          if(!isFullSelection && !fstate.campaigns.has(cell.campaign)) return;
+          const k = dateKey(cell.date);
+          if(sKey && k < sKey) return;
+          if(eKey && k > eKey) return;
+          const h = parseInt(cell.hour,10);
+          const d = dowOfDateStr(cell.date);
+          if(isNaN(h) || h<0 || h>23 || d==null){ dowUnknownHourCost += cell.cost||0; return; }
+          addCell(d,h,cell);
+        });
+      });
+    } else if(!isFullSelection && hasDowByCampaignData){
       dowHeatmapIsFiltered = true;
       // 달 단위로 분기: 캠페인별 세부 데이터(hourlyByDowByCampaign)가 있는 달만 필터를 적용할 수 있음.
       // 이전에는 범위 안에 그런 달이 하나라도 있으면 세부 데이터가 없는(예전 형식) 달은 통째로
@@ -2049,8 +2086,8 @@ function renderHourlyPage(data){
           m.hourlyByDowByCampaign.forEach(cell=>{
             const h = parseInt(cell.hour,10);
             const d = cell.dow;
-            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
             if(!fstate.campaigns.has(cell.campaign)) return;
+            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6){ dowUnknownHourCost += cell.cost||0; return; }
             addCell(d,h,cell);
           });
         } else if(m.hourlyByDow && m.hourlyByDow.length){
@@ -2058,7 +2095,7 @@ function renderHourlyPage(data){
           m.hourlyByDow.forEach(cell=>{
             const h = parseInt(cell.hour,10);
             const d = cell.dow;
-            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
+            if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6){ dowUnknownHourCost += cell.cost||0; return; }
             addCell(d,h,cell);
           });
         }
@@ -2068,13 +2105,15 @@ function renderHourlyPage(data){
         (m.hourlyByDow||[]).forEach(cell=>{
           const h = parseInt(cell.hour,10);
           const d = cell.dow;
-          if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6) return;
+          if(isNaN(h) || h<0 || h>23 || d==null || d<0 || d>6){ dowUnknownHourCost += cell.cost||0; return; }
           addCell(d,h,cell);
         });
       });
     }
   }
   const DOW_LABELS = ['일','월','화','수','목','금','토'];
+  // 날짜별 데이터에 평균노출순위가 없는 업체가 있어서(수집기 수정 전 기간), 그때는 순위 칸이 빈다.
+  const dowHasRank = !!dowGrid && dowGrid.some(row=>row.some(c=>c.rankImp>0));
 
   // 요일 단위 운영 추천 — 시간대(0~23시) 인사이트는 이미 있었지만, "주말 노출 끄기"처럼 실무 판단은
   // 요일 단위로 이뤄지는 경우가 많아서 dowGrid(요일×시간대)를 요일별로 합산해 같은 패턴의 인사이트를 추가.
@@ -2111,6 +2150,7 @@ function renderHourlyPage(data){
   let heatMetric = hourHeatmapMetric[key];
   if(isDB && (heatMetric==='revenue' || heatMetric==='roas')) heatMetric = hourHeatmapMetric[key] = 'cost';
   if(!isDB && heatMetric==='cpa') heatMetric = hourHeatmapMetric[key] = 'cost';
+  if(heatMetric==='rank' && !dowHasRank) heatMetric = hourHeatmapMetric[key] = 'cost';
 
   // 캠페인별 시간대 비교
   if(!(key in hourCompareCampaigns)) hourCompareCampaigns[key] = [];
@@ -2120,16 +2160,27 @@ function renderHourlyPage(data){
   const compareCampaigns = hourCompareCampaigns[key];
   const compareMetric = hourCompareMetric[key];
   const compareData = {};
+  // 날짜 필터가 켜져 있으면 hourlyByCampaign(월 전체)이 아니라 날짜가 있는 쪽에서 고른 구간만 모은다.
+  // 안 그러면 위쪽 표는 고른 며칠인데 이 차트만 월 전체라 한 화면에 기간이 섞인다.
+  const compareByDayRange = hasHourlyDayFilter && dayRangeHasHcd;
+  let compareDayRangeEmpty = false;
   if(compareCampaigns.length){
     compareCampaigns.forEach(camp=>{
-      const agg = blankAgg();
-      months.forEach(m=>{
-        (m.hourlyByCampaign||[]).forEach(h=>{
-          if(h.campaign!==camp) return;
-          const idx = hourIndexOf(h.hour);
-          agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0; agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
+      let agg;
+      if(compareByDayRange){
+        const r = aggHourlyByDateRange(months, new Set([camp]), dayRangeState[key]);
+        agg = r.agg;
+        if(!r.hasData) compareDayRangeEmpty = true;
+      } else {
+        agg = blankAgg();
+        months.forEach(m=>{
+          (m.hourlyByCampaign||[]).forEach(h=>{
+            if(h.campaign!==camp) return;
+            const idx = hourIndexOf(h.hour);
+            agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0; agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
+          });
         });
-      });
+      }
       compareData[camp] = enrich(agg);
     });
   }
@@ -2306,11 +2357,13 @@ function renderHourlyPage(data){
         ${[{k:'conv',l:'전환수'},isDB?{k:'cpa',l:'CPA'}:{k:'roas',l:'ROAS'},{k:'cost',l:'비용'},{k:'ctr',l:'클릭률'},{k:'cvr',l:'전환율'}].map(m=>`<button class="hour-cmp-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${compareMetric===m.k?'var(--accent-solid)':'var(--panel)'};color:${compareMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
       </div>
       <div class="chart-box" style="height:320px;"><canvas id="chartHourCompare"></canvas></div>
+      ${hasHourlyDayFilter ? `<div style="margin-top:8px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">${compareByDayRange ? `이 차트도 고른 날짜(${dayRangeState[key].start||dayBoundsMinHr} ~ ${dayRangeState[key].end||dayBoundsMaxHr})만 계산한 값이에요.${compareDayRangeEmpty?' 선택한 캠페인 중 이 구간에 데이터가 없는 캠페인은 빈 선으로 나와요.':''}` : '⚠️ 이 기간은 날짜별 세부 데이터가 없어서 이 차트만 <b>그 달 전체</b> 기준이에요 — 위쪽 표와 기간이 다릅니다.'}</div>` : ''}
       ` : `<div style="color:var(--muted);font-size:12px;">캠페인을 1개 이상 선택하면 시간대별로 겹쳐서 비교할 수 있어요.</div>`}
     </div>
 
     <div class="panel" style="margin-top:18px;">
       <div class="panel-title">🖼️ 광고그룹별 시간대 분석</div>
+      ${hasHourlyDayFilter && hasAdgroupHourlyData ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">⚠️ 광고그룹 데이터에는 날짜가 없어서 이 표만 <b>고른 기간이 속한 달 전체</b> 기준이에요 — 위쪽 표와 기간이 다릅니다.</div>` : ''}
       ${!hasAdgroupHourlyData ? `<div style="color:var(--muted);font-size:12px;">이 기간엔 광고그룹 단위 시간대 데이터가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 컬럼이 포함돼야 이 분석이 채워져요 (다시 업로드하면 반영돼요).</div>` : `
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <span style="font-size:12px;color:var(--muted);">캠페인 · 광고그룹:</span>
@@ -2405,7 +2458,7 @@ function renderHourlyPage(data){
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
         <span>🗓️ 요일 × 시간대 히트맵</span>
         <div style="display:flex;gap:6px;">
-          ${(isDB ? [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'cpa',l:'CPA'},{k:'rank',l:'평균노출순위'}] : [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'revenue',l:'매출'},{k:'roas',l:'ROAS'},{k:'rank',l:'평균노출순위'}]).map(m=>`<button class="hour-heat-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${heatMetric===m.k?'var(--accent-solid)':'var(--panel)'};color:${heatMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
+          ${(isDB ? [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'cpa',l:'CPA'},{k:'rank',l:'평균노출순위'}] : [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'revenue',l:'매출'},{k:'roas',l:'ROAS'},{k:'rank',l:'평균노출순위'}]).filter(m=>m.k!=='rank' || dowHasRank).map(m=>`<button class="hour-heat-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${heatMetric===m.k?'var(--accent-solid)':'var(--panel)'};color:${heatMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
         </div>
       </div>
       <div style="overflow-x:auto;">
@@ -2463,6 +2516,8 @@ function renderHourlyPage(data){
         <span style="font-size:12px;color:var(--muted);">색이 진할수록 ${heatMetric==='cpa'?'CPA가 낮음(효율 좋음)':heatMetric==='rank'?'평균노출순위가 낮음(상위 노출)':heatMetric==='cost'?'비용이 많음':heatMetric==='revenue'?'매출이 많음':heatMetric==='roas'?'ROAS가 높음(효율 좋음)':'전환수가 많음'}</span>
         <div style="height:10px;width:110px;border-radius:5px;background:linear-gradient(90deg, ${hexToRgba((getComputedStyle(document.documentElement).getPropertyValue('--accent')||'').trim() || '#8b7cff', 0.05)}, ${(getComputedStyle(document.documentElement).getPropertyValue('--accent')||'').trim() || '#8b7cff'});"></div>
       </div>
+      ${hasHourlyDayFilter ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">${dowFromDayRange ? `이 히트맵도 고른 날짜(${dayRangeState[key].start||dayBoundsMinHr} ~ ${dayRangeState[key].end||dayBoundsMaxHr})만 계산한 값이에요.` : '⚠️ 이 기간은 날짜별 세부 데이터가 없어서 히트맵만 <b>그 달 전체</b> 기준이에요 — 위쪽 표와 기간이 다릅니다.'}</div>` : ''}
+      ${dowUnknownHourCost>0 ? `<div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">히트맵은 0~23시 격자라 <b>시간 미상</b> 줄(${fmtWon(dowUnknownHourCost)}원)은 빠져 있어요 — 그만큼 위쪽 표 합계보다 적습니다.</div>` : ''}
       <div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">${dowHeatmapIsFiltered ? (dowHeatmapPartiallyUnfiltered ? '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요 (단, 선택한 기간 중 일부는 예전에 저장된 데이터라 캠페인별 세부 정보가 없어서 그 기간만 전체 캠페인 기준으로 함께 집계됐어요 — 다시 업로드하면 그 기간도 필터가 반영돼요).' : '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요.') : (hasDowByCampaignData ? '이 히트맵은 전체 캠페인 기준이에요(필터에서 "전체 선택" 상태).' : '이 히트맵은 캠페인 필터와 무관하게 전체 기준이에요 — 이 기간은 예전에 저장된 데이터라 캠페인별 세부 정보가 없어요. 다시 업로드하면 필터가 반영돼요.')}${heatMetric==='rank'?' 평균노출순위는 네이버 보고서의 실제 값이에요.':''}</div>
     </div>
     ` : `
