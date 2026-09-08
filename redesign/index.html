@@ -3362,6 +3362,29 @@ function dcCompare(data, months){
   if(months.length>=2) return { cur:[months[months.length-1]], prev:[months[months.length-2]], note:months[months.length-1].label+' vs '+months[months.length-2].label };
   return { cur:months, prev:[], note:'' };
 }
+/* 날짜 필터(예: 최근 7일)를 켜면 '지금 값'은 7일치인데 비교 대상은 직전 '한 달 전체'라,
+   실제로 늘었어도 화면엔 ▼75% 같은 큰 하락으로 찍혔다. 캠페인 페이지는 이미 고쳐져 있고
+   대시보드만 남아 있던 문제. → 바로 앞의 '같은 길이' 날짜 구간을 만들어 비교한다.
+   앞 구간에 데이터가 없으면 null을 돌려주고, 호출부는 증감 표시 자체를 생략한다. */
+function dcPrevDayRange(dayRange){
+  if(!dayRange || !dayRange.start || !dayRange.end) return null;
+  const d1 = new Date(dayRange.start+'T00:00:00'), d2 = new Date(dayRange.end+'T00:00:00');
+  if(isNaN(d1) || isNaN(d2)) return null;
+  const len = Math.round((d2-d1)/86400000) + 1;
+  if(!(len>0) || !isFinite(len)) return null;
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const pEnd = new Date(d1.getTime() - 86400000);
+  const pStart = new Date(pEnd.getTime() - (len-1)*86400000);
+  return { start: ymd(pStart), end: ymd(pEnd), len };
+}
+// 비교용 ctx — 날짜 필터가 있으면 '같은 길이의 바로 앞 구간'으로 바꾼 ctx를 돌려준다.
+function dcPrevCtx(ctx){
+  if(!ctx) return null;
+  const hasDay = !!(ctx.dayRange && (ctx.dayRange.start || ctx.dayRange.end));
+  if(!hasDay) return { ...ctx, dayRange:null };
+  const pr = dcPrevDayRange(ctx.dayRange);
+  return pr ? { ...ctx, dayRange:{ start:pr.start, end:pr.end } } : null; // null이면 비교 불가
+}
 const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
 const dcWon = man => dcNum((man||0)*10000)+'원';
 const dcSecHead = (title, sub, right) => `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
@@ -3480,7 +3503,12 @@ function dcKpiRowHTML(T, P, isDB){
 function dcWhyHTML(data, months, isDB, ctx){
   const CMP = dcCompare(data, months);
   // 현재 기간은 날짜 필터까지 반영, 직전 기간은 그 달 전체(비교 대상이라 날짜를 좁히지 않음)
-  const cur = dcMergeCamps(CMP.cur, ctx), prv = dcMergeCamps(CMP.prev, ctx ? {...ctx, dayRange:null} : null);
+  /* 날짜 필터가 켜져 있으면 '같은 길이의 바로 앞 구간'과 비교한다(dcPrevCtx).
+     앞 구간을 만들 수 없으면 prv를 비워 증감을 계산하지 않는다. */
+  const _hasDay = !!(ctx && ctx.dayRange && (ctx.dayRange.start || ctx.dayRange.end));
+  const _pctx = dcPrevCtx(ctx);
+  const cur = dcMergeCamps(CMP.cur, ctx);
+  const prv = (_hasDay ? (_pctx ? dcMergeCamps(months, _pctx) : []) : dcMergeCamps(CMP.prev, _pctx));
   const pmap = {}; prv.forEach(c=>pmap[c.campaign]=c);
   const totalCost = cur.reduce((a,c)=>a+c.cost,0);
   const MIN_SHARE = 0.03;
@@ -3584,7 +3612,10 @@ function dcHourHTML(hourlyAgg, isDB){
 function dcCampTableHTML(data, months, isDB, statusMap, ctx){
   const cur = dcMergeCamps(months, ctx).filter(c=>c.cost>0 || c.impressions>0);
   if(!cur.length) return '';
-  const prv = dcMergeCamps(dcCompare(data, months).prev, ctx ? {...ctx, dayRange:null} : null);
+  /* 위와 같은 이유 — 날짜 필터 중엔 같은 길이의 바로 앞 구간과 비교한다. */
+  const _hasDay2 = !!(ctx && ctx.dayRange && (ctx.dayRange.start || ctx.dayRange.end));
+  const _pctx2 = dcPrevCtx(ctx);
+  const prv = (_hasDay2 ? (_pctx2 ? dcMergeCamps(months, _pctx2) : []) : dcMergeCamps(dcCompare(data, months).prev, _pctx2));
   const pmap = {}; prv.forEach(c=>pmap[c.campaign]=c);
   cur.sort((a,b)=>b.cost-a.cost);
   const maxCost = cur[0].cost || 1;
@@ -3746,7 +3777,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
     cost: arr.reduce((x,m)=>x+(m.cost||0),0), rev: arr.reduce((x,m)=>x+(m.revenue||0),0),
     conv: arr.reduce((x,m)=>x+(m.conv||0),0), imp: arr.reduce((x,m)=>x+(m.impressions||0),0),
     clk: arr.reduce((x,m)=>x+(m.clicks||0),0) });
-  const dcPrevTotals = dcPrevMonthsArr.length ? dcSum(dcPrevMonthsArr) : null;
+  let dcPrevTotals = dcPrevMonthsArr.length ? dcSum(dcPrevMonthsArr) : null; // 날짜 필터가 켜지면 아래에서 같은 길이 구간으로 다시 계산됨
   let avgCpa = totalConv>0 ? Math.round((totalCostMan*10000)/totalConv) : 0;
 
   const firstRoas = roas[0]||0, lastRoas = roas[roas.length-1]||0;
@@ -3804,6 +3835,8 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
   const hasDayFilter = hasRealDailyData && !!(dayRangeState[key].start || dayRangeState[key].end);
   // 새 칸들이 쓰는 공통 조건: 선택된 캠페인 + 날짜 범위
   const dcCtx = { fstate, data, dayRange: hasDayFilter ? dayRangeState[key] : null };
+  // dailyAll 은 아래에서 제자리(in-place)로 잘리므로, 직전 구간 계산용 원본을 따로 보관해 둔다.
+  const dailyAllUnfiltered = dailyAll.slice();
   if(hasDayFilter){
     const filtered = filterRowsByDayRange(dailyAll, dayRangeState[key]);
     dailyAll.length = 0;
@@ -3817,6 +3850,24 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
     totalClick = dailyAll.reduce((a,d)=>a+(d.clicks||0),0);
     totalRoas = totalCostMan>0 ? (totalRevenueMan/totalCostMan)*100 : 0;
     avgCpa = totalConv>0 ? Math.round((totalCostMan*10000)/totalConv) : 0;
+
+    /* 위 KPI(총비용·총전환 등)는 여기서 '고른 날짜만'으로 다시 계산되는데,
+       비교 대상인 dcPrevTotals는 위쪽에서 '직전 달 한 달치'로 이미 계산돼 있었다.
+       그래서 7일을 고르면 7일치를 한 달치와 나눠 전 항목에 큰 하락 화살표가 찍혔다.
+       → 바로 앞의 같은 길이 날짜 구간으로 다시 계산하고, 그 구간에 데이터가 없으면
+         비교 자체를 접는다(null → 증감 배지 미표시). */
+    const _pr = dcPrevDayRange(dayRangeState[key]);
+    if(_pr){
+      const _prevRows = filterRowsByDayRange(dailyAllUnfiltered, _pr);
+      if(_prevRows.length){
+        dcPrevTotals = {
+          cost: _prevRows.reduce((a,d)=>a+(d.cost||0),0),
+          rev:  _prevRows.reduce((a,d)=>a+(d.revenue||0),0),
+          conv: _prevRows.reduce((a,d)=>a+(d.conv||0),0),
+          imp:  _prevRows.reduce((a,d)=>a+(d.impressions||0),0),
+          clk:  _prevRows.reduce((a,d)=>a+(d.clicks||0),0) };
+      } else { dcPrevTotals = null; }
+    } else { dcPrevTotals = null; }
   }
 
   // 비용 누수 리스트 / 지표별 원인 분해 패널용 캠페인 단위 집계 (선택된 캠페인 필터 + 날짜 필터 반영)

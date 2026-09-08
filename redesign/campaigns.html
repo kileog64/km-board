@@ -1845,6 +1845,9 @@ function renderCampaignsPage(data){
     const trends = prev ? {
       cost: pctOf(r.cost, prev.cost), conv: pctOf(r.conv, prev.conv), revenue: pctOf(r.revenue, prev.revenue),
       cpa: pctOf(r.cpa, prev.cpa), roas: pctOf(r.roas, prev.roas), ctr: pctOf(r.ctr, prev.ctr), cvr: pctOf(r.cvr, prev.cvr),
+      /* roas는 '상대 변화율(%)'이라 %p로 쓰면 안 된다. ROAS 300→360%는 상대 20%지만 실제로는 60%p다.
+         인사이트 문구와 판단 기준은 %p를 써야 하므로 진짜 차이를 따로 담는다(대시보드와 같은 방식). */
+      roasPP: (r.roas!==null && r.roas!==undefined && prev.roas!==null && prev.roas!==undefined) ? (r.roas - prev.roas) : null,
       cpc: pctOf(r.cpc, prev.cpc), avgRank: pctOf(r.avgRank, prev.avgRank)
     } : {};
     return { ...r, isNewCamp, trends };
@@ -1952,7 +1955,7 @@ function renderCampaignsPage(data){
       const t = r.trends||{};
       return (isDB
         ? (t.cpa!==null && t.cpa!==undefined && Math.abs(t.cpa)>=INSIGHT_THRESHOLDS.BIG_MOVE_CPA_PCT && r.conv>=MIN_CONV)
-        : (t.roas!==null && t.roas!==undefined && Math.abs(t.roas)>=INSIGHT_THRESHOLDS.BIG_MOVE_ROAS_PP && r.cost>=MIN_COST_MAN));
+        : (t.roasPP!==null && t.roasPP!==undefined && Math.abs(t.roasPP)>=INSIGHT_THRESHOLDS.BIG_MOVE_ROAS_PP && r.cost>=MIN_COST_MAN));
     }).slice(0,3);
     bigMoves.forEach(r=>{
       const t = r.trends;
@@ -1961,8 +1964,8 @@ function renderCampaignsPage(data){
         const isBad = t.cpa>0;
         insights.push({type: isBad?'warn':'good', severity: isBad ? r.cost * (Math.abs(t.cpa)/100) : 0, text:`'${r.campaign}' 캠페인, 직전 기간 대비 CPA가 ${Math.abs(t.cpa).toFixed(0)}% ${t.cpa<=0?'개선':'상승'}됐어요.`});
       } else {
-        const isBad = t.roas<0;
-        insights.push({type: isBad?'warn':'good', severity: isBad ? r.cost * (Math.abs(t.roas)/100) : 0, text:`'${r.campaign}' 캠페인, 직전 기간 대비 ROAS가 ${Math.abs(t.roas).toFixed(0)}%p ${t.roas>=0?'상승':'하락'}했어요.`});
+        const isBad = t.roasPP<0;
+        insights.push({type: isBad?'warn':'good', severity: isBad ? r.cost * (Math.abs(t.roasPP)/100) : 0, text:`'${r.campaign}' 캠페인, 직전 기간 대비 ROAS가 ${Math.abs(t.roasPP).toFixed(0)}%p ${t.roasPP>=0?'상승':'하락'}했어요.`});
       }
     });
     if(!insights.length) insights.push({type:'neutral', text:'아직 인사이트를 뽑기엔 데이터가 더 필요해요.'});
