@@ -1566,6 +1566,12 @@ function kwLabelHTML(name){
   return esc(name);
 }
 function isExpandBucket(name){ return name === '-'; }
+/* 전환이 0이면 CPA는 '-'인데 ROAS만 '0%'로 나와 표기가 따로 놀았다.
+   둘 다 "전환이 없어 계산할 수 없음"이라는 같은 뜻이므로 '-'로 통일한다. */
+function roasCellText(o){
+  if(!o || !(o.conv > 0)) return '-';
+  return (o.roas||0).toFixed(0) + '%';
+}
 // 네이버 '키워드 확장' 자동 매칭으로 노출된 클릭이 섞여있는 키워드를 한눈에 구분할 수 있게 표시.
 // TOP 키워드 표뿐 아니라 확대추천/제외추천 표에도 동일하게 적용(같은 searchType 필드를 씀).
 function searchTypeBadgeHTML(searchType){

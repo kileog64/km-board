@@ -849,22 +849,30 @@ function dcSpark(vals, w, h){
 function renderStatRow(){
   const el = document.getElementById('statRow');
   if(!overviewRows.length){ el.innerHTML = ''; return; }
-  const totalCost = overviewRows.reduce((a,r)=>a+r.cost,0);
-  const totalConv = overviewRows.reduce((a,r)=>a+r.conv,0);
-  const dbCount = overviewRows.filter(r=>r.bizType==='DB').length;
-  const b2cCount = overviewRows.filter(r=>r.bizType!=='DB').length;
+  /* 예전엔 여기서 overviewRows(전체)를 그대로 합산해서, 아래 표는 3개 업체인데
+     위 KPI는 80개 전체 합계가 뜨는 상태였다. 이제 화면에 걸린 조건과 같은 목록으로 계산한다. */
+  const kpiRows = (typeof overviewFilteredRows === 'function') ? overviewFilteredRows() : overviewRows;
+  const kpiFiltered = (typeof overviewFilterOn === 'function') && overviewFilterOn() && kpiRows.length !== overviewRows.length;
+  if(!kpiRows.length){
+    el.innerHTML = '<div style="padding:14px 4px;color:'+DC.mut+';font-size:13px;">조건에 맞는 업체가 없어요.</div>';
+    return;
+  }
+  const totalCost = kpiRows.reduce((a,r)=>a+r.cost,0);
+  const totalConv = kpiRows.reduce((a,r)=>a+r.conv,0);
+  const dbCount = kpiRows.filter(r=>r.bizType==='DB').length;
+  const b2cCount = kpiRows.filter(r=>r.bizType!=='DB').length;
 
   // 전월 대비 총합 변화율 — prevCost/prevConv가 있는(=지난달 데이터가 있는) 업체만 합산해서 비교.
   // 없는 업체까지 0으로 섞으면 왜곡되므로, 이번 달·지난 달 둘 다 있는 업체만 골라서 비교함.
-  const withPrev = overviewRows.filter(r=>r.prevCost!==null);
+  const withPrev = kpiRows.filter(r=>r.prevCost!==null);
   const prevTotalCost = withPrev.reduce((a,r)=>a+r.prevCost,0);
   const prevTotalConv = withPrev.reduce((a,r)=>a+r.prevConv,0);
   const costMom = momBadgeHTML(totalCost, prevTotalCost, 'down');
   const convMom = momBadgeHTML(totalConv, prevTotalConv, 'up');
 
   // 업종 유형별 평균 효율 — DB는 평균 CPA(낮을수록 좋음), B2C는 평균 ROAS(높을수록 좋음)
-  const dbRows = overviewRows.filter(r=>r.bizType==='DB' && r.cpa>0);
-  const b2cRows = overviewRows.filter(r=>r.bizType!=='DB' && r.cost>0);
+  const dbRows = kpiRows.filter(r=>r.bizType==='DB' && r.cpa>0);
+  const b2cRows = kpiRows.filter(r=>r.bizType!=='DB' && r.cost>0);
   /* 예전엔 업체별 CPA를 그냥 평균냈는데, 그러면 월 100만원 쓰는 업체와 1억 쓰는 업체가 같은 무게를
      가져서 대표값이 안 됨. 총비용/총전환, 총매출/총비용으로 계산해야 전체를 대표하는 값이 됨
      (hourly.html은 이미 전환수·비용 가중으로 계산하고 있어 같은 기준으로 맞춤). */
@@ -888,8 +896,8 @@ function renderStatRow(){
       ['총 전환', dcNum(totalConv)+'건', dcDelta(totalConv, prevTotalConv||null), 1],
       riskCount ? ['확인 필요', riskCount+'건',
         `<span style="font-size:12px;color:${DC.mut};margin-left:8px">${riskClients}개 업체</span>`, 1]
-      : ['업체 수', overviewRows.length+'개', '', 1] ],
-    [ ['업체 수', `${overviewRows.length}개`, `<span style="font-size:12px;color:${DC.mut};margin-left:8px">DB ${dbCount} · B2C ${b2cCount}</span>`],
+      : ['업체 수', kpiRows.length+'개', '', 1] ],
+    [ ['업체 수', `${kpiRows.length}개`, `<span style="font-size:12px;color:${DC.mut};margin-left:8px">DB ${dbCount} · B2C ${b2cCount}${kpiFiltered?` · 전체 ${overviewRows.length}개 중`:''}</span>`],
       ['DB 평균 CPA', avgCpa!==null ? dcNum(avgCpa)+'원' : '-', dbRows.length?`<span style="font-size:12px;color:${DC.mut};margin-left:8px">${dbRows.length}개 업체</span>`:''],
       ['B2C 평균 ROAS', avgRoas!==null ? Math.round(avgRoas)+'%' : '-', b2cRows.length?`<span style="font-size:12px;color:${DC.mut};margin-left:8px">${b2cRows.length}개 업체</span>`:''] ]
   );
@@ -1062,6 +1070,31 @@ function renderOneSection(containerEl, rows, sectionRows, sectionLabel){
   });
 }
 
+/* 화면에 걸린 조건(업종·검색어·목표미달·즐겨찾기·DB/B2C 탭)을 적용한 업체 목록.
+   예전엔 이 필터가 그리드 안에만 있어서, 위쪽 KPI와 엑셀 내려받기는 필터를 무시하고
+   전체 업체를 그대로 썼다 — 3개만 걸러놓고 받아도 파일엔 80개가 나오던 문제.
+   이제 한 곳에서 만들어 그리드·KPI·엑셀이 모두 같은 목록을 쓴다. */
+function overviewFilteredRows(){
+  const el = document.getElementById('overviewSearch');
+  const term = el ? el.value.trim().toLowerCase() : '';
+  const pinnedSet = getPinned();
+  let rows = overviewRows.slice();
+  if(overviewIndustryFilter!=='ALL') rows = rows.filter(r=> r.industry===overviewIndustryFilter);
+  if(term) rows = rows.filter(r=> r.name.toLowerCase().includes(term));
+  if(overviewGoalMissOnly) rows = rows.filter(r=> isGoalMissed(r));
+  if(overviewPinnedOnly) rows = rows.filter(r=> pinnedSet.has(r.key));
+  if(overviewBizFilter==='DB')  rows = rows.filter(r=> r.bizType==='DB');
+  if(overviewBizFilter==='B2C') rows = rows.filter(r=> r.bizType!=='DB');
+  return rows;
+}
+// 조건이 하나라도 걸려 있는지 — KPI 옆에 "조건 적용됨"을 알려주기 위해 씀.
+function overviewFilterOn(){
+  const el = document.getElementById('overviewSearch');
+  const term = el ? el.value.trim() : '';
+  return overviewIndustryFilter!=='ALL' || !!term || overviewGoalMissOnly
+      || overviewPinnedOnly || overviewBizFilter!=='ALL';
+}
+
 function renderOverviewGrid(){
   const gridDB = document.getElementById('overviewGrid');
   const gridB2C = document.getElementById('overviewGridB2C');
@@ -1072,6 +1105,7 @@ function renderOverviewGrid(){
   if(term) rows = rows.filter(r=> r.name.toLowerCase().includes(term));
   if(overviewGoalMissOnly) rows = rows.filter(r=> isGoalMissed(r));
   if(overviewPinnedOnly) rows = rows.filter(r=> pinnedSet.has(r.key));
+  renderStatRow(); // 조건이 바뀌면 위쪽 KPI도 같이 다시 계산한다.
 
   const sortFn = (a,b)=>{
     // 즐겨찾기한 업체는 어떤 정렬 기준을 골라도 항상 그 안에서 맨 위로 고정됨.
@@ -1270,14 +1304,32 @@ function renderPermOverviewPanel(){
 
 document.getElementById('exportAllExcelBtn').onclick = ()=>{
   if(!overviewRows.length) return;
+  /* 화면에 걸린 조건(업종·검색어·목표미달·즐겨찾기·DB/B2C 탭)을 그대로 적용해서 내보낸다.
+     예전엔 overviewRows(전체)를 썼기 때문에, 3개만 걸러놓고 받아도 파일엔 80개가 들어갔다. */
+  const expRows = overviewFilteredRows();
+  if(!expRows.length){ alert('조건에 맞는 업체가 없어요. 조건을 풀고 다시 시도해 주세요.'); return; }
   const header = ['업체명','업종','업종 유형','기간','비용(원)','전환수(건)','전환매출(원)','ROAS(%)','CPA(원)'];
-  const body = overviewRows.map(r=>[
+  const body = expRows.map(r=>[
     r.name, r.industry, r.bizType==='DB'?'DB(상담·전환)':'B2C(매출·ROAS)', r.periodLabel,
     Math.round(r.cost*10000), r.conv, r.bizType==='DB' ? '' : Math.round(r.revenue*10000),
     r.bizType==='DB' ? '' : Number(r.roas.toFixed(1)),
     r.bizType==='DB' ? Math.round(r.cpa) : ''
   ]);
-  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+  // 어떤 조건으로 뽑았는지 파일 안에 남겨둔다 — 나중에 파일만 봐도 알 수 있게.
+  const condParts = [];
+  if(overviewBizFilter!=='ALL') condParts.push('유형 ' + overviewBizFilter);
+  if(overviewIndustryFilter!=='ALL') condParts.push('업종 ' + overviewIndustryFilter);
+  const sEl = document.getElementById('overviewSearch');
+  if(sEl && sEl.value.trim()) condParts.push('검색어 "' + sEl.value.trim() + '"');
+  if(overviewGoalMissOnly) condParts.push('목표 미달만');
+  if(overviewPinnedOnly) condParts.push('즐겨찾기만');
+  const meta = [
+    ['전체 업체 요약'],
+    ['조건', condParts.length ? condParts.join(' / ') : '조건 없음 (전체)'],
+    ['업체 수', expRows.length + '개' + (expRows.length!==overviewRows.length ? ' (전체 ' + overviewRows.length + '개 중)' : '')],
+    []
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([...meta, header, ...body]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '전체업체요약');
   XLSX.writeFile(wb, `전체업체요약_${new Date().toISOString().slice(0,10)}.xlsx`);

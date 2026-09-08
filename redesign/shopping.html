@@ -1824,8 +1824,11 @@ function renderKeywordsPage(data){
 
   // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
   const sortKey = noConv ? 'cost' : (isDB?'conv':'revenue');
-  const prodRows = applySort(rows.filter(r=>r.shopKind==='prod'), sort, sortKey).slice(0,50);
-  const termRows = applySort(rows.filter(r=>r.shopKind==='term'), sort, sortKey).slice(0,50);
+  /* 예전엔 여기서 50개로 잘랐는데, 제목은 자르기 전 개수(예: "쇼핑상품 300개 · 비용 500만원")를
+     그대로 보여줘서 표에 있는 50개와 숫자가 안 맞았다. 더보기 버튼도 잘린 50 기준으로 세어
+     "250개 더 있음"을 못 알려줬다. → 자르지 않고 넘기고 화면은 더보기로 끊어 그린다. */
+  const prodRows = applySort(rows.filter(r=>r.shopKind==='prod'), sort, sortKey);
+  const termRows = applySort(rows.filter(r=>r.shopKind==='term'), sort, sortKey);
   rows = applySort(rows, sort, sortKey).slice(0,50); // 아래 인사이트/확대·제외 추천은 기존대로 전체 기준
 
   // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
@@ -2303,7 +2306,10 @@ function renderKeywordsPage(data){
       renderKeywordsPage(data);
     };
   });
-  document.querySelectorAll('.kw-more-btn').forEach(btn=>{
+  /* 예전엔 '.kw-more-btn' 전체를 다시 잡아서, 위에서 따로 배선해 둔 검색어 표(shopterm)의
+     더보기까지 여기서 덮어썼다. 그 결과 검색어 더보기를 누르면 else 로 빠져 제외추천 표가 펴지고,
+     검색어 표는 10줄에서 영영 늘어나지 않았다. → shopterm 은 제외하고 잡는다. */
+  document.querySelectorAll('.kw-more-btn:not([data-target="shopterm"])').forEach(btn=>{
     btn.onclick = ()=>{
       if(btn.dataset.target==='top') topVisibleCount[key] += 10;
       else if(btn.dataset.target==='expand') expandVisibleCount[key] += 10;
