@@ -1204,96 +1204,11 @@ document.getElementById('aiChatInput').addEventListener('keydown', (e)=>{
 refreshChatUI();
 restoreChatUI();
 
-/* ---------- AI 총평 (성과 인사이트를 자연스러운 문단으로 종합) ---------- */
-// campaigns.html과 동일한 방식 — 기존 챗봇의 Gemini 연동·컨텍스트(buildAIContext)를 재사용해서
-// 규칙 기반 인사이트를 나열하지 않고 하나의 자연스러운 총평 문단으로 종합해서 보여줌.
-const aiSummaryState = {}; // "client:slug::기간라벨" -> { status:'loading'|'done'|'error', text, errorMsg }
-function aiSummaryStateKey(key, periodLabel){ return key + '::' + periodLabel; }
-// Gemini API가 "high demand"(일시적 과부하) 응답을 줄 때가 잦아서, 매번 사용자가 손으로 "다시 시도"를
-// 누르지 않아도 되도록 몇 초 간격을 두고 자동으로 재시도함. 429(요청 과다)·503(서버 과부하)류의 일시적
-// 오류나 "overloaded"/"high demand" 문구가 섞인 오류만 재시도 대상으로 보고, 그 외(예: API 키 자체가
-// 잘못된 경우)는 재시도해봐야 소용없으니 바로 실패 처리함.
-const GEMINI_RETRY_DELAYS_MS = [1500, 4000, 9000]; // 최대 3회 자동 재시도, 갈수록 간격을 늘림
-function isRetryableGeminiError(status, errBody){
-  if(status===429 || status===503) return true;
-  const msg = ((errBody && errBody.error && errBody.error.message) || '').toLowerCase();
-  return msg.includes('overloaded') || msg.includes('high demand') || msg.includes('unavailable');
-}
-async function callGeminiGenerateContent(apiKey, systemPrompt, userText, onRetry){
-  for(let attempt=0; ; attempt++){
-    let res, networkErr = null;
-    try{
-      // 한 모델이 막히면 다른 모델로 넘어간다(같은 모델 재시도보다 성공률이 훨씬 높음)
-      const _json = await aiFetchWithFallback(apiKey, {
-        contents: [{ role:'user', parts:[{ text:userText }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] }
-      }, onRetry ? (i,total,next)=>onRetry(i,total) : null);
-      const _c = (_json.candidates && _json.candidates[0]) || {};
-      const _p = (_c.content && _c.content.parts) || [];
-      return _p.map(p=>p.text||'').join('\n').trim() || '(응답이 없어요)';
-    }catch(e){ networkErr = e; }
-    if(!networkErr && res.ok){
-      const json = await res.json();
-      const cand = (json.candidates && json.candidates[0]) || {};
-      const parts = (cand.content && cand.content.parts) || [];
-      return parts.map(p=>p.text||'').join('\n').trim() || '(응답이 없어요)';
-    }
-    const errBody = networkErr ? null : await res.json().catch(()=>({}));
-    const canRetry = attempt < GEMINI_RETRY_DELAYS_MS.length && (networkErr || isRetryableGeminiError(res.status, errBody));
-    if(!canRetry){
-      if(networkErr) throw networkErr;
-      throw new Error((errBody && errBody.error && errBody.error.message) || `HTTP ${res.status}`);
-    }
-    if(onRetry) onRetry(attempt+1, GEMINI_RETRY_DELAYS_MS.length+1);
-    await new Promise(r=>setTimeout(r, GEMINI_RETRY_DELAYS_MS[attempt]));
-  }
-}
-async function generateAISummary(data, key, periodLabel){
-  const apiKey = getAIApiKey();
-  if(!apiKey){
-    document.getElementById('aiChatPanel').classList.add('open');
-    sessionStorage.setItem(CHAT_OPEN_STORAGE, '1');
-    document.getElementById('aiChatSetup').classList.add('show');
-    refreshChatUI();
-    return;
-  }
-  const sKey = aiSummaryStateKey(key, periodLabel);
-  aiSummaryState[sKey] = { status:'loading' };
-  renderAbTestPage(data);
-  try{
-    const contextStr = await buildAIContext();
-    const systemPrompt = `당신은 네이버 검색광고 대행사의 시니어 매니저입니다. 아래는 지금 보고 있는 화면(일별 전용 보기)의 데이터 요약과, 이미 규칙 기반으로 뽑아낸 인사이트 목록입니다.\n\n${contextStr}\n\n위 내용을 바탕으로, 고객 보고서에 그대로 붙여넣을 수 있는 자연스러운 한국어 총평을 2~4문장으로 작성하세요. 규칙: (1) 위 데이터·인사이트에 없는 내용은 추측하지 마세요. (2) 인사이트 목록을 그대로 나열하지 말고 핵심만 골라 하나의 자연스러운 글로 종합하세요. (3) 가능하면 다음 기간에 시도해볼 만한 액션을 한 가지 짧게 제안하세요. (4) 마크다운(별표, 목록 기호 등)은 쓰지 마세요.`;
-    const replyText = await callGeminiGenerateContent(apiKey, systemPrompt, '위 데이터를 바탕으로 총평을 작성해주세요.', (attempt, max)=>{
-      aiSummaryState[sKey] = { status:'loading', retryAttempt: attempt, retryMax: max };
-      renderAbTestPage(data);
-    });
-    aiSummaryState[sKey] = { status:'done', text: replyText };
-  }catch(e){
-    console.error(e);
-    aiSummaryState[sKey] = { status:'error', errorMsg: e.message||String(e) };
-  }
-  renderAbTestPage(data);
-}
-function buildAISummaryBoxHTML(key, periodLabel){
-  const sKey = aiSummaryStateKey(key, periodLabel);
-  const st = aiSummaryState[sKey];
-  if(!st){
-    return `<button class="btn btn-ghost ai-summary-btn" style="margin-top:10px;width:100%;font-size:12px;">🤖 AI 총평 쓰기 (이 기간 데이터로 자연스러운 요약 문단 생성)</button>`;
-  }
-  if(st.status==='loading'){
-    return `<div style="margin-top:10px;font-size:12px;color:var(--muted);">🤖 ${st.retryAttempt ? `일시적 오류로 자동 재시도 중이에요 (${st.retryAttempt}/${st.retryMax})...` : '총평을 쓰는 중...'}</div>`;
-  }
-  if(st.status==='error'){
-    return `<div style="margin-top:10px;font-size:12px;color:var(--down);">⚠️ 총평 생성 실패: ${st.errorMsg}</div><button class="btn btn-ghost ai-summary-btn" style="margin-top:6px;width:100%;font-size:12px;">다시 시도</button>`;
-  }
-  return `
-    <div style="margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--panel-2);border:1px solid var(--border);font-size:12px;line-height:1.7;color:var(--text);">
-      🤖 <b>AI 총평</b> <span style="font-size:11px;color:var(--muted);font-weight:400;">(Gemini 생성 · 참고용, 내보내기 전 검토 권장)</span>
-      <div style="margin-top:6px;">${formatChatText(st.text)}</div>
-    </div>
-    <button class="btn btn-ghost ai-summary-btn" style="margin-top:8px;width:100%;font-size:12px;">🔄 다시 생성</button>
-  `;
-}
+/* ---------- AI 총평 — 이 페이지에는 두지 않음 ----------
+   A/B 테스트는 「기간」이 아니라 「테스트 두 대상」을 비교하는 화면이라, 기간 기준으로 쓰는
+   총평이 들어갈 자리가 없다. 예전엔 총평을 만드는 코드가 통째로 들어 있었는데 화면에 붙이는
+   곳이 없어서 한 번도 실행되지 않았고, 있는 기능처럼 보여서 헷갈렸다. 그래서 지웠다.
+   이 페이지의 AI 요약은 오른쪽 아래 챗봇을 쓴다. */
 
 
 function ensureFilterState(key, data){
@@ -1736,6 +1651,27 @@ function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
 }
+/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
+   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
+   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
+async function loadNavTodoBadge(){
+  try{
+    if(typeof db === 'undefined' || !db) return;
+    const doc = await db.collection('config').doc('todos').get();
+    const items = (doc.exists && doc.data().items) || [];
+    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
+  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
+}
+(function(){
+  let tries = 0;
+  const timer = setInterval(()=>{
+    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
+      clearInterval(timer);
+      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
+    } else if(++tries > 60) clearInterval(timer);
+  }, 200);
+})();
+
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{

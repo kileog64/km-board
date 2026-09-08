@@ -1587,14 +1587,16 @@ function mergedCampaignList(data, monthsScope){
 
 
 const keywordPageState = {};
-// 지금 저장된 쇼핑검색 데이터엔 '상품명'과 '검색어'가 섞여 있다(수집기가 아직 상품 단위로 저장하지 않음).
-// 완벽한 구분은 불가능하지만, 상품명은 띄어쓰기가 있는 긴 제목이고 검색어는 대개 붙여쓴 한 덩어리라 그걸로 가른다.
-// 수집기가 상품 단위로 바뀌면 이 구분 자체가 필요 없어진다.
+/* 네이버는 쇼핑검색 자료에서 '상품명'과 '검색어'를 구분해 주지 않는다 — 같은 목록에 섞여 오고
+   상품 번호도 안 온다(전 업체 실측: pid 0건). 그래서 이름만 보고 짐작하는 수밖에 없는데,
+   예전엔 그 짐작으로 표를 '상품별'·'검색어별' 둘로 갈라 놓아서 마치 확실한 구분처럼 보였다.
+   실제로 '(1박스/20개) 토마토캐닝 캔닝병 1L' 같은 상품명이 검색어 쪽에 들어가 있었다.
+   → 표는 하나로 합치고, 이 짐작은 '추정' 칩으로만 남긴다(끄면 전체가 다 보인다). */
 function shopKindOf(name){
   const t = String(name||'').trim();
   return (t.indexOf(' ') >= 0 || t.length >= 14) ? 'prod' : 'term';
 }
-const shopTermVisible = {}; // 검색어 표 더보기 카운터(상품 표와 별도) // key -> 'keyword' or 'searchterm'
+const shopKindFilter = {}; // key -> 'all' | 'prod' | 'term'
 const kwSortState = {}; // key -> { field, dir }
 const wasteSortState = {}; // key -> { field, dir }
 const expandSortState = {}; // key -> { field, dir }
@@ -1846,6 +1848,27 @@ function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
 }
+/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
+   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
+   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
+async function loadNavTodoBadge(){
+  try{
+    if(typeof db === 'undefined' || !db) return;
+    const doc = await db.collection('config').doc('todos').get();
+    const items = (doc.exists && doc.data().items) || [];
+    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
+  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
+}
+(function(){
+  let tries = 0;
+  const timer = setInterval(()=>{
+    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
+      clearInterval(timer);
+      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
+    } else if(++tries > 60) clearInterval(timer);
+  }, 200);
+})();
+
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{
@@ -2052,27 +2075,27 @@ function renderKeywordsPage(data){
       return (av-bv)*mult;
     });
   }
-  // ── 상품 / 검색어를 갈라서 각각 별도의 표로 보여준다
+  // ── 상품·검색어를 한 표에 모으고, 이름으로 짐작한 구분은 칩으로만 제공한다
   rows = rows.map(r=>({ ...r, shopKind: shopKindOf(r.keyword) }));
-  const shopCounts = { prod: rows.filter(r=>r.shopKind==='prod').length, term: rows.filter(r=>r.shopKind==='term').length };
-  const shopCosts  = { prod: rows.filter(r=>r.shopKind==='prod').reduce((a,r)=>a+(r.cost||0),0),
+  if(!(key in shopKindFilter)) shopKindFilter[key] = 'all';
+  const shopKind = shopKindFilter[key];
+  const shopCounts = { all: rows.length,
+                       prod: rows.filter(r=>r.shopKind==='prod').length,
+                       term: rows.filter(r=>r.shopKind==='term').length };
+  const shopCosts  = { all: rows.reduce((a,r)=>a+(r.cost||0),0),
+                       prod: rows.filter(r=>r.shopKind==='prod').reduce((a,r)=>a+(r.cost||0),0),
                        term: rows.filter(r=>r.shopKind==='term').reduce((a,r)=>a+(r.cost||0),0) };
-  if(!(key in shopTermVisible)) shopTermVisible[key] = 10;
 
   // 검색어 모드는 전환/매출이 전부 0이라 그걸로 정렬하면 순서가 무의미해짐 → 비용 큰 순.
   const sortKey = noConv ? 'cost' : (isDB?'conv':'revenue');
   /* 예전엔 여기서 50개로 잘랐는데, 제목은 자르기 전 개수(예: "쇼핑상품 300개 · 비용 500만원")를
      그대로 보여줘서 표에 있는 50개와 숫자가 안 맞았다. 더보기 버튼도 잘린 50 기준으로 세어
      "250개 더 있음"을 못 알려줬다. → 자르지 않고 넘기고 화면은 더보기로 끊어 그린다. */
-  let prodRows = applySort(rows.filter(r=>r.shopKind==='prod'), sort, sortKey);
-  let termRows = applySort(rows.filter(r=>r.shopKind==='term'), sort, sortKey);
-  /* 조건 좁히기 — 상품 표와 검색어 표에 각각 따로 건다(성격이 달라 같은 조건을 공유하면 불편).
-     키워드·캠페인 페이지와 같은 공통 도구(_kmtable)를 쓴다. */
-  const kmStProd = kmFilterState('shopprod:' + key);
-  const kmStTerm = kmFilterState('shopterm:' + key);
-  const prodBefore = prodRows.length, termBefore = termRows.length;
-  prodRows = kmApplyFilter(prodRows, kmStProd, { nameKey:'keyword' });
-  termRows = kmApplyFilter(termRows, kmStTerm, { nameKey:'keyword' });
+  let shopRows = applySort(shopKind==='all' ? rows : rows.filter(r=>r.shopKind===shopKind), sort, sortKey);
+  /* 조건 좁히기 — 표가 하나라 조건도 하나. 키워드·캠페인 페이지와 같은 공통 도구(_kmtable)를 쓴다. */
+  const kmStShop = kmFilterState('shop:' + key);
+  const shopBefore = shopRows.length;
+  shopRows = kmApplyFilter(shopRows, kmStShop, { nameKey:'keyword' });
   rows = applySort(rows, sort, sortKey).slice(0,50); // 아래 인사이트/확대·제외 추천은 기존대로 전체 기준
 
   // 전기간 대비 추이 & 신규 키워드 판별용: 기준 기간의 직전 기간 데이터 확보
@@ -2386,25 +2409,15 @@ function renderKeywordsPage(data){
 
 
     ${shopPanel({
-      SR: prodRows, VIS: topVisibleCount[key], MORE: 'top',
-      TITLE: '🛍️ 상품별 성과',
-      SUB: `쇼핑상품 ${shopCounts.prod}개 · 비용 ${fmtWon(shopCosts.prod)}원 — 열 제목을 클릭하면 정렬돼요`,
-      BAR: kmFilterBarHTML(kmStProd, prodRows.length, prodBefore, '상품명'),
-      COL1: '상품',
-      RIGHT: '',
-      EMPTY: '아직 상품 단위로 저장된 데이터가 없어요. 수집기가 상품 기준으로 바뀌면 여기가 채워집니다.',
-      FOOT: '💡 같은 상품이 여러 광고그룹에 걸려 있으면 합쳐서 한 줄로 보여줘요. 쇼핑상품 ID·광고그룹·ON/OFF는 수집기 작업 후에 붙습니다.'
-    })}
-
-    ${shopPanel({
-      SR: termRows, VIS: shopTermVisible[key], MORE: 'shopterm',
-      TITLE: '🔍 검색어별 성과',
-      SUB: `검색어 ${shopCounts.term}개 · 비용 ${fmtWon(shopCosts.term)}원 — 열 제목을 클릭하면 정렬돼요`,
-      BAR: kmFilterBarHTML(kmStTerm, termRows.length, termBefore, '검색어'),
-      COL1: '검색어',
-      RIGHT: '',
-      EMPTY: '검색어로 잡힌 데이터가 없어요.',
-      FOOT: '💡 손님이 실제로 검색창에 친 말이에요. 쇼핑 홈·카테고리처럼 검색어가 없는 지면은 여기 안 잡히니, 총액은 위 상품 표를 기준으로 보세요.'
+      SR: shopRows, VIS: topVisibleCount[key], MORE: 'top',
+      TITLE: '🛍️ 쇼핑검색 항목별 성과',
+      SUB: `${shopCounts.all}개 · 비용 ${fmtWon(shopCosts.all)}원 — 열 제목을 클릭하면 정렬돼요`,
+      BAR: kmFilterBarHTML(kmStShop, shopRows.length, shopBefore, '이름'),
+      COL1: '상품명 · 검색어',
+      RIGHT: [['all','전체',shopCounts.all],['prod','상품으로 추정',shopCounts.prod],['term','검색어로 추정',shopCounts.term]]
+        .map(([k2,l,c])=>`<button class="shop-kind-btn" data-kind="${k2}" style="font-size:12px;padding:4px 11px;border-radius:14px;cursor:pointer;border:1px solid ${shopKind===k2?'var(--accent)':'var(--border)'};background:${shopKind===k2?'var(--accent-solid)':'var(--panel)'};color:${shopKind===k2?'#fff':'var(--muted)'};">${l} ${c}</button>`).join(''),
+      EMPTY: '이 조건에 맞는 항목이 없어요.',
+      FOOT: '💡 네이버가 상품명과 검색어를 구분해 주지 않아서 한 표에 함께 보여줘요. 위 「상품으로 추정 / 검색어로 추정」은 <b>이름 모양만 보고 짐작한 것</b>이라 틀릴 수 있어요 — 총액은 항상 「전체」를 기준으로 보세요. 같은 이름이 여러 광고그룹에 걸려 있으면 합쳐서 한 줄로 보여줍니다.'
     })}
 
 
@@ -2537,8 +2550,9 @@ function renderKeywordsPage(data){
   document.querySelectorAll('.kw-mode-btn').forEach(btn=>{
     btn.onclick = ()=>{ keywordPageState[key] = btn.dataset.mode; topVisibleCount[key] = 10; renderKeywordsPage(data); };
   });
-  document.querySelectorAll('.kw-more-btn[data-target="shopterm"]').forEach(btn=>{
-    btn.onclick = ()=>{ shopTermVisible[key] += 20; renderKeywordsPage(data); };
+  // 상품/검색어 추정 칩
+  document.querySelectorAll('.shop-kind-btn').forEach(btn=>{
+    btn.onclick = ()=>{ shopKindFilter[key] = btn.dataset.kind; topVisibleCount[key] = 10; renderKeywordsPage(data); };
   });
   document.querySelectorAll('th[data-sort]').forEach(th=>{
     th.onclick = ()=>{
@@ -2553,14 +2567,9 @@ function renderKeywordsPage(data){
       renderKeywordsPage(data);
     };
   });
-  /* 예전엔 '.kw-more-btn' 전체를 다시 잡아서, 위에서 따로 배선해 둔 검색어 표(shopterm)의
-     더보기까지 여기서 덮어썼다. 그 결과 검색어 더보기를 누르면 else 로 빠져 제외추천 표가 펴지고,
-     검색어 표는 10줄에서 영영 늘어나지 않았다. → shopterm 은 제외하고 잡는다. */
-  /* 조건 좁히기 + 엑셀 — 상품/검색어 패널을 각각 따로 배선한다.
-     한 화면에 조건 줄이 둘이라 범위를 안 넘기면 서로의 입력이 섞인다. */
-  // 패널 이름은 shopPanel 의 MORE 값과 같아야 한다(상품 패널은 'shopprod'이 아니라 'top').
-  [['top', kmStProd, ()=>prodRows, prodBefore, '상품', '상품명'],
-   ['shopterm', kmStTerm, ()=>termRows, termBefore, '검색어', '검색어']].forEach(([mk, st, getRows, before, sheetName, label])=>{
+  /* 조건 좁히기 + 엑셀 — 표가 하나라 배선도 하나.
+     패널 이름은 shopPanel 의 MORE 값과 같아야 한다(상품 패널은 'shopprod'이 아니라 'top'). */
+  [['top', kmStShop, ()=>shopRows, shopBefore, '쇼핑검색', '이름']].forEach(([mk, st, getRows, before, sheetName, label])=>{
     const root = document.querySelector('[data-shop-panel="'+mk+'"]');
     if(!root) return;
     kmWireFilterBar(st, ()=>renderKeywordsPage(data), root);
@@ -2595,7 +2604,7 @@ function renderKeywordsPage(data){
         filename: data.name + '_쇼핑검색_' + sheetName };
     }, root);
   });
-  document.querySelectorAll('.kw-more-btn:not([data-target="shopterm"])').forEach(btn=>{
+  document.querySelectorAll('.kw-more-btn').forEach(btn=>{
     btn.onclick = ()=>{
       if(btn.dataset.target==='top') topVisibleCount[key] += 10;
       else if(btn.dataset.target==='expand') expandVisibleCount[key] += 10;

@@ -26,6 +26,27 @@ function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
 }
+/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
+   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
+   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
+async function loadNavTodoBadge(){
+  try{
+    if(typeof db === 'undefined' || !db) return;
+    const doc = await db.collection('config').doc('todos').get();
+    const items = (doc.exists && doc.data().items) || [];
+    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
+  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
+}
+(function(){
+  let tries = 0;
+  const timer = setInterval(()=>{
+    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
+      clearInterval(timer);
+      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
+    } else if(++tries > 60) clearInterval(timer);
+  }, 200);
+})();
+
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{
@@ -4327,6 +4348,8 @@ async function populateBrandContractClientSelect(){
     sel.innerHTML=opts.join('');
   }catch(e){ console.error(e); sel.innerHTML='<option value="">불러오기 실패</option>'; }
 }
+// 계약 하나를 가리키는 표식 — 캠페인·시작·종료·금액이 모두 같아야 같은 계약으로 본다.
+function bcSig(c){ return [c&&c.campaign, c&&c.start, c&&c.end, Number((c&&c.amount)||0)].join('\u0000'); }
 function bcContractListHTML(contracts){
   if(!contracts || !contracts.length) return '<div class="sub">아직 등록된 계약이 없어요.</div>';
   return contracts.map((c,i)=>{
@@ -4334,7 +4357,9 @@ function bcContractListHTML(contracts){
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding:8px 0;">'
       +'<div style="min-width:0;"><div style="font-size:13px;font-weight:600;word-break:break-all;">'+c.campaign+'</div>'
       +'<div class="sub" style="margin:2px 0 0;">'+c.start+' ~ '+c.end+' · '+total.toLocaleString('ko-KR')+'원</div></div>'
-      +'<button class="btn btn-ghost bc-del" data-idx="'+i+'" style="font-size:12px;padding:6px 10px;white-space:nowrap;">삭제</button></div>';
+      /* 예전엔 '몇 번째 줄'(data-idx)로 지웠는데, 목록을 그린 뒤에 다른 사람이 계약을 추가·삭제하면
+         번호가 밀려 엉뚱한 계약이 지워질 수 있었다. 캠페인·기간·금액으로 찾아 지운다. */
+      +'<button class="btn btn-ghost bc-del" data-idx="'+i+'" data-sig="'+bcSig(c).replace(/"/g,'&quot;')+'" style="font-size:12px;padding:6px 10px;white-space:nowrap;">삭제</button></div>';
   }).join('');
 }
 async function bcRefreshList(){
@@ -4351,7 +4376,15 @@ async function bcRefreshList(){
         try{
           const cur=await getClient(key, true);
           const list=((cur&&cur.brandContracts)||[]).slice();
-          list.splice(+b.dataset.idx,1);
+          const sig=b.dataset.sig;
+          const pos=list.findIndex(x=>bcSig(x)===sig);
+          if(pos<0){
+            el.textContent='이 계약을 찾지 못했어요. 그새 다른 곳에서 바뀐 것 같아요 — 목록을 새로 불러올게요.';
+            el.className='status-msg show err';
+            await bcRefreshList();
+            return;
+          }
+          list.splice(pos,1);
           await userClientsRef().doc(key.replace(/^client:/,'')).update({ brandContracts:list });
           el.textContent='계약을 삭제했어요.'; el.className='status-msg show ok';
           await bcRefreshList();

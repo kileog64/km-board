@@ -852,6 +852,27 @@ function setNavTodoBadge(n){
   const el=document.getElementById('navTodoBadge'); if(!el) return;
   if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
 }
+/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
+   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
+   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
+async function loadNavTodoBadge(){
+  try{
+    if(typeof db === 'undefined' || !db) return;
+    const doc = await db.collection('config').doc('todos').get();
+    const items = (doc.exists && doc.data().items) || [];
+    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
+  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
+}
+(function(){
+  let tries = 0;
+  const timer = setInterval(()=>{
+    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
+      clearInterval(timer);
+      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
+    } else if(++tries > 60) clearInterval(timer);
+  }, 200);
+})();
+
 function dcAlignTables(root){
   const scope = root || document;
   scope.querySelectorAll('table').forEach(tb=>{
