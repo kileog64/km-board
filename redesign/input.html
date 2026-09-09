@@ -4683,21 +4683,36 @@ function auMonthStats(m){
   const daily = Array.isArray(m.daily) ? m.daily : [];
   const dailySum = daily.reduce((a,x)=>a+(Number(x.cost)||0),0);
   const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(Number(c.cost)||0),0);
+  const N0 = x => Math.round(Number(x)||0);
+  const N1 = x => Math.round((Number(x)||0)*10)/10;
   return {
     label: m.label,
     impressions: Math.round(Number(m.impressions)||0),
     clicks: Math.round(Number(m.clicks)||0),
     cost: auNum(m.cost),
     conv: Math.round((Number(m.conv)||0)*10)/10,
+    revenue: auNum(m.revenue),
     dailySum: auNum(dailySum),
     campSum: auNum(campSum),
     days: daily.length,
+    // 캠페인 단위 대조용 (월별x캠페인 / 일별x캠페인 시트에서 씀)
+    camps: (m.campaigns||[]).map(c=>({
+      campaign: String(c.campaign||''),
+      impressions: N0(c.impressions), clicks: N0(c.clicks),
+      cost: auNum(c.cost), conv: N1(c.conv), revenue: auNum(c.revenue)
+    })),
+    dailyCamps: (Array.isArray(m.dailyByCampaign)?m.dailyByCampaign:[]).map(r=>({
+      date: String(r.date||''), campaign: String(r.campaign||''),
+      impressions: N0(r.impressions), clicks: N0(r.clicks),
+      cost: auNum(r.cost), conv: N1(r.conv), revenue: auNum(r.revenue)
+    })),
     daily: daily.map(x=>({
       date: String(x.date||''),
       impressions: Math.round(Number(x.impressions)||0),
       clicks: Math.round(Number(x.clicks)||0),
       cost: auNum(x.cost),
-      conv: Math.round((Number(x.conv)||0)*10)/10
+      conv: Math.round((Number(x.conv)||0)*10)/10,
+      revenue: auNum(x.revenue)
     }))
   };
 }
@@ -4808,6 +4823,115 @@ function auExtraHeader(ws, r, title, labels){
     const x=ws.getCell(r,start+k); x.fill=auFill(AU.TEAL); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
     const s=ws.getCell(r+1,start+k); s.value=labels[k]; s.fill=auFill(AU.TEAL); s.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; s.alignment={horizontal:'center',vertical:'middle'}; s.border=auBorder();
   }
+}
+
+/* 캠페인 단위 대조 시트 공통 — 5개 항목(노출/클릭/비용/전환/전환매출)을
+   [우리 / 네이버(노란칸) / 차이] 3칸씩으로 깔아준다. 네이버 값만 채우면 차이가 자동 계산된다. */
+const AU_METRICS = [
+  ['\ub178\ucd9c\uc218','impressions','#,##0',0],
+  ['\ud074\ub9ad\uc218','clicks','#,##0',0],
+  ['\ucd1d\ube44\uc6a9(\uc6d0)','cost',AU.WON,2],
+  ['\uc804\ud658\uc218','conv','#,##0.0',0],
+  ['\uc804\ud658\ub9e4\ucd9c(\uc6d0)','revenue',AU.WON,2]
+];
+function auCampHeader(ws, r, firstLabels){
+  firstLabels.forEach((lab,i)=>{
+    ws.mergeCells(r,i+1,r+1,i+1);
+    [ws.getCell(r,i+1), ws.getCell(r+1,i+1)].forEach(x=>{
+      x.value = x.row===r ? lab : x.value;
+      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
+    });
+    ws.getCell(r,i+1).value=lab;
+  });
+  let col = firstLabels.length + 1;
+  AU_METRICS.forEach(([name])=>{
+    ws.mergeCells(r,col,r,col+2);
+    const g=ws.getCell(r,col); g.value=name;
+    for(let k=0;k<3;k++){
+      const x=ws.getCell(r,col+k);
+      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
+      const t=ws.getCell(r+1,col+k); t.value=['\ub300\uc2dc\ubcf4\ub4dc','\ub124\uc774\ubc84','\ucc28\uc774'][k];
+      t.fill=auFill(AU.NAVY); t.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      t.alignment={horizontal:'center',vertical:'middle'}; t.border=auBorder();
+    }
+    col += 3;
+  });
+  return col - 1;
+}
+function auCampRow(ws, r, firstVals, obj){
+  firstVals.forEach((v,i)=>{
+    const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Arial',size:10};
+    c.alignment={horizontal:i===firstVals.length-1?'left':'center'}; c.border=auBorder();
+  });
+  let col = firstVals.length + 1;
+  AU_METRICS.forEach(([,key,fmt,tol])=>{
+    const L=ws.getColumn(col).letter, N=ws.getColumn(col+1).letter;
+    const a=ws.getCell(r,col); a.value=Number(obj[key])||0; a.numFmt=fmt;
+    a.font={name:'Arial',size:10}; a.alignment={horizontal:'right'}; a.border=auBorder();
+    const b=ws.getCell(r,col+1); b.numFmt=fmt; b.font={name:'Arial',size:10,color:{argb:'FF0000FF'}};
+    b.alignment={horizontal:'right'}; b.border=auBorder(); b.fill=auFill(AU.YEL);
+    const d=ws.getCell(r,col+2);
+    d.value={formula:`IF(${N}${r}="","",${N}${r}-${L}${r})`}; d.numFmt=fmt;
+    d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'}; d.border=auBorder(); d.fill=auFill(AU.GRAY);
+    col += 3;
+  });
+}
+function auCampWidths(ws, firstWidths){
+  const w = firstWidths.concat([]);
+  AU_METRICS.forEach(()=>{ w.push(13,13,11); });
+  w.forEach((x,i)=>{ ws.getColumn(i+1).width=x; });
+}
+function auCampSheet(ws, stats, title, note){
+  ws.getCell('A1').value=title; ws.getCell('A1').font={name:'Arial',size:14,bold:true};
+  ws.getCell('A2').value=note; ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
+  auCampHeader(ws, 4, ['\uc6d4','\ucea0\ud398\uc778\uba85']);
+  let r=6;
+  stats.slice().reverse().forEach(s=>{
+    const camps=(s.camps||[]).slice().sort((a,b)=>b.cost-a.cost);
+    if(!camps.length) return;
+    camps.forEach(c=>{ auCampRow(ws, r, [s.label, c.campaign], c); r++; });
+    // 그 달 소계
+    const sum={};
+    AU_METRICS.forEach(([,k])=>{ sum[k]=camps.reduce((a,c)=>a+(Number(c[k])||0),0); });
+    auCampRow(ws, r, [s.label, '\u2014 ' + s.label + ' \ud569\uacc4'], sum);
+    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(!x.fill||x.fill.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
+    r+=2;
+  });
+  auCampWidths(ws, [10,34]);
+  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
+}
+function auDailyCampSheet(ws, stats, dailyLabel){
+  const target = stats.find(s=>s.label===dailyLabel) || stats[stats.length-1];
+  ws.getCell('A1').value='\uc77c\ubcc4 \u00d7 \uce90\ud398\uc778 \ub300\uc870' + (target?(' \u2014 '+target.label):'');
+  ws.getCell('A1').font={name:'Arial',size:14,bold:true};
+  if(!target || !(target.dailyCamps||[]).length){
+    ws.getCell('A3').value='\uc774 \ub2ec\uc740 \ub0a0\uc9dc\u00d7\uce90\ud398\uc778 \uc0c1\uc138\uac00 \uc800\uc7a5\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. (\uc218\uc9d1 \ub2f9\uc2dc \uc0c1\uc138\ub97c \ubc1b\uc9c0 \uc54a\uc558\uac70\ub098 \ubc31\uc5c5\uc5d0\uc11c \uc81c\uc678\ub41c \uacbd\uc6b0)';
+    ws.getCell('A3').font={name:'Arial',size:10,color:{argb:'FF808080'}};
+    ws.getColumn(1).width=80; return;
+  }
+  ws.getCell('A2').value='\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uc77c\ubcc4 + \uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud558\uba74 \uc774 \ud45c\uc640 \uac19\uc740 \ubaa8\uc591\uc774 \ub098\uc635\ub2c8\ub2e4.';
+  ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
+  auCampHeader(ws, 4, ['\uc77c\uc790','\ucea0\ud398\uc778\uba85']);
+  const rows=(target.dailyCamps||[]).slice().sort((a,b)=>
+    String(a.date).localeCompare(String(b.date)) || b.cost-a.cost);
+  let r=6, curDate=null, dayStart=r;
+  const closeDay=()=>{
+    if(curDate===null) return;
+    const same=rows.filter(x=>x.date===curDate);
+    const sum={}; AU_METRICS.forEach(([,k])=>{ sum[k]=same.reduce((a,c)=>a+(Number(c[k])||0),0); });
+    auCampRow(ws, r, [curDate, '\u2014 ' + curDate + ' \ud569\uacc4'], sum);
+    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(x.fill?.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
+    r+=2;
+  };
+  rows.forEach(x=>{
+    if(x.date!==curDate){ closeDay(); curDate=x.date; dayStart=r; }
+    auCampRow(ws, r, [x.date, x.campaign], x); r++;
+  });
+  closeDay();
+  auCampWidths(ws, [12,34]);
+  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
 }
 
 async function buildAuditWorkbook(name, stats, dailyLabel){
@@ -4922,6 +5046,15 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
   ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'].forEach((L,i)=>{ s2.getColumn(i+1).width=[8,12,12,6,14,14,12,9,12,12,9,11,12,9,10,11,9][i]; });
   s2.views=[{state:'frozen', xSplit:4, ySplit:4}];
 
+  // ── 월별 x 캠페인  (어느 캠페인에서 어긋나는지)
+  const s4 = wb.addWorksheet('월별x캠페인');
+  auCampSheet(s4, stats, '월별 \u00d7 캠페인 대조',
+    '\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud574\uc11c \ub098\ub780\ud788 \ub193\uace0 \ubcf4\uc138\uc694.');
+
+  // ── 일별 x 캠페인  (어느 날짜에서 어긋나는지)
+  const s5 = wb.addWorksheet('일별x캠페인');
+  auDailyCampSheet(s5, stats, dailyLabel);
+
   // ── 사용법
   const s3 = wb.addWorksheet('사용법');
   s3.getCell('A1').value='검수표 쓰는 법'; s3.getCell('A1').font={name:'Arial',size:14,bold:true};
@@ -4941,6 +5074,11 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
    '   3일·1주 틀림    → 구간 누락',
    '   1개월만 틀림    → 월 합산 문제',
    '   전부 틀림        → 계정 또는 부가세 기준 문제',
+   '',
+   '어느 캠페인·날짜에서 어긋나는지 보려면',
+   '   「월별×캠페인」 — 네이버를 캠페인 기준으로 조회해서 넣으세요. 어느 캠페인이 문제인지 바로 보입니다.',
+   '   「일별×캠페인」 — 날짜+캠페인 기준으로 조회해서 넣으세요. 어느 날이 문제인지 보입니다.',
+   '   두 표 모두 줄마다 「합계」가 있어서 큰 숫자부터 맞춰보고 내려가면 빠릅니다.',
    '',
    '플레이스는 수집 단계에서 이미 빠져 있어서 이 표에 나오지 않습니다.'
   ].forEach((t,i)=>{ const c=s3.getCell(i+2,1); c.value=t; c.font={name:'Arial',size:10,bold:/^(\d\.|총비용|「표본)/.test(t)}; });
