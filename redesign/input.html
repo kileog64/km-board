@@ -3120,7 +3120,7 @@ async function renderCollectorAccountsPanel(){
       // 계정 여러 개(accounts 배열)와 구버전 단일 계정(customerId) 모두 표시
       const accounts = (Array.isArray(c.accounts) && c.accounts.length) ? c.accounts
         : (c.customerId ? [{ customerId:c.customerId, label:c.label||'', enabled:c.enabled!==false }] : []);
-      return { id: d.id, name: v.name||d.id, bizType: v.bizType||'B2C', enabled: !!c.enabled, accounts };
+      return { id: d.id, name: v.name||d.id, bizType: v.bizType||'B2C', enabled: !!c.enabled, accounts, backfillMonths: c.backfillMonths };
     }).sort((a,b)=> (b.enabled?1:0)-(a.enabled?1:0) || a.name.localeCompare(b.name,'ko'));
     if(!rows.length){ box.innerHTML = '<div style="color:var(--muted);font-size:12px;">등록된 업체가 없어요. 먼저 업체를 추가해주세요.</div>'; return; }
     box.innerHTML = `
@@ -3130,6 +3130,7 @@ async function renderCollectorAccountsPanel(){
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">자동수집</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">업체</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);" colspan="2">검색광고 Key (CUSTOMER_ID) · 지칭 — 계정이 여러 개면 줄 추가</th>
+          <th style="padding:6px 8px;border-bottom:1px solid var(--border);" title="새 계정을 처음 붙일 때 과거 몇 달치를 받아올지 — 비워두면 12개월">처음 받을<br>과거 개월</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">유형</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);"></th>
         </tr></thead>
@@ -3141,13 +3142,17 @@ async function renderCollectorAccountsPanel(){
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);" colspan="2">
               <div class="acct-rows">
               ${(r.accounts.length?r.accounts:[{customerId:'',label:''}]).map(a=>`
-                <div class="acct-row" style="display:flex;gap:6px;margin-bottom:4px;">
+                <div class="acct-row" style="display:flex;gap:6px;margin-bottom:4px;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;" title="이 계정만 수집에서 빼려면 체크를 풀어주세요">
+                    <input type="checkbox" class="col-acct-on" ${a.enabled===false?'':'checked'}>켬
+                  </label>
                   <input class="col-customer" value="${esc(a.customerId||'')}" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
                   <input class="col-label" value="${esc(a.label||'')}" placeholder="지칭 (예: 메인)" style="width:160px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
                 </div>`).join('')}
               </div>
               <button class="export-btn col-add-acct" style="padding:3px 10px;font-size:12px;margin-top:2px;">+ 계정 추가</button>
             </td>
+            <td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:center;vertical-align:top;"><input class="col-backfill" type="number" min="1" max="36" value="${r.backfillMonths==null?'':esc(String(r.backfillMonths))}" placeholder="12" style="width:64px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;text-align:center;"></td>
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;">${esc(r.bizType)}</td>
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;"><button class="export-btn col-save" style="padding:5px 12px;font-size:12px;">저장</button></td>
           </tr>`).join('')}
@@ -3162,8 +3167,10 @@ async function renderCollectorAccountsPanel(){
         const wrap = tr.querySelector('.acct-rows');
         const div = document.createElement('div');
         div.className = 'acct-row';
-        div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;';
-        div.innerHTML = `<input class="col-customer" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;align-items:center;';
+        // 새로 추가하는 계정도 켬/끔 체크박스를 같이 넣는다(없으면 저장할 때 꺼진 것으로 읽힌다).
+        div.innerHTML = `<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;" title="이 계정만 수집에서 빼려면 체크를 풀어주세요"><input type="checkbox" class="col-acct-on" checked>켬</label>
+          <input class="col-customer" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
           <input class="col-label" placeholder="지칭 (예: 서브)" style="width:160px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">`;
         wrap.appendChild(div);
       };
@@ -3173,14 +3180,19 @@ async function renderCollectorAccountsPanel(){
         const accounts = [...tr.querySelectorAll('.acct-row')].map(row=>({
           customerId: row.querySelector('.col-customer').value.trim().replace(/\D/g,''),
           label: row.querySelector('.col-label').value.trim(),
-          enabled: true,
+          // 계정마다 켜고 끌 수 있다. 예전에는 무조건 켬으로 저장해서, 빼둔 계정이 저장할 때마다 되살아났다.
+          enabled: !!(row.querySelector('.col-acct-on')||{}).checked,
         })).filter(a=>a.customerId);
         const dup = accounts.map(a=>a.customerId).find((v,i,arr)=>arr.indexOf(v)!==i);
         if(dup){ setMsg(`검색광고 Key ${dup}가 중복 입력됐어요.`, 'err'); return; }
         if(enabled && !accounts.length){ setMsg('자동수집을 켜려면 검색광고 Key(숫자)가 최소 하나 필요해요.', 'err'); return; }
         try{
+          // 처음 받을 과거 개월 — 비워두면 수집기 기본값(12개월)을 쓴다.
+          const bfRaw = (tr.querySelector('.col-backfill')||{}).value;
+          const bfNum = String(bfRaw||'').trim() === '' ? null : Math.max(1, Math.min(36, parseInt(bfRaw,10)||12));
           await userClientsRef().doc(id).set({ collector: {
             enabled, accounts,
+            ...(bfNum===null ? {} : { backfillMonths: bfNum }),
             customerId: (accounts[0]||{}).customerId || '',   // 구버전 호환
             label: (accounts[0]||{}).label || '',
             updatedAt: new Date().toISOString(), updatedBy: currentUserEmail,
@@ -3195,7 +3207,7 @@ async function renderCollectorAccountsPanel(){
 /* 엑셀 일괄 등록 — 양식 내려받기(현재 목록 프리필) → 채워서 업로드 → 업체명 매칭 후 일괄 저장.
    업체명으로 매칭하는 이유: 사용자가 아는 식별자가 업체명뿐이고, 문서 id는 슬러그라 손으로 못 씀.
    매칭 실패 행은 저장하지 않고 목록으로 돌려줌(오타·미등록 업체를 조용히 삼키지 않도록). */
-const COLLECTOR_XLS_HEADER = ['업체명', '검색광고Key(CUSTOMER_ID)', '지칭(별칭 메모)', '자동수집(Y/N)', '유형(B2C/DB)', '업종'];
+const COLLECTOR_XLS_HEADER = ['업체명', '검색광고Key(CUSTOMER_ID)', '지칭(별칭 메모)', '자동수집(Y/N · 비우면 기존값 유지)', '유형(B2C/DB)', '업종'];
 async function downloadCollectorTemplate(){
   const msgEl = document.getElementById('collectorStatusMsg');
   const setMsg = (m,t)=>{ msgEl.textContent = m; msgEl.className = 'status-msg show ' + (t||''); };
@@ -3244,7 +3256,13 @@ async function handleCollectorBulkFile(file){
     // 업체명 → 문서 id 매핑 (공백 무시 비교). 없는 이름은 새 업체로 만든다.
     const snap = await userClientsRef().get();
     const byName = {};
-    snap.docs.forEach(d=>{ const v=d.data()||{}; byName[String(v.name||d.id).replace(/\s/g,'')] = { id:d.id, name:v.name||d.id }; });
+    snap.docs.forEach(d=>{ const v=d.data()||{}; const c=v.collector||{};
+      // 기존 자동수집 설정을 함께 담아둔다 — 엑셀에서 켜기/끄기 칸을 비워두면 이 값을 그대로 유지한다.
+      const prevAcc = {};
+      (Array.isArray(c.accounts)?c.accounts:[]).forEach(a=>{ if(a&&a.customerId) prevAcc[String(a.customerId)] = a.enabled!==false; });
+      if(c.customerId && !(String(c.customerId) in prevAcc)) prevAcc[String(c.customerId)] = c.enabled!==false;
+      byName[String(v.name||d.id).replace(/\s/g,'')] = { id:d.id, name:v.name||d.id, prevEnabled:c.enabled!==false, prevAcc, hadCollector: !!(c.accounts||c.customerId) };
+    });
     const ok = [], skipped = [];
     const seenIds = new Set();
     rows.forEach(r=>{
@@ -3255,7 +3273,12 @@ async function handleCollectorBulkFile(file){
       const customerId = String(r[kCust]??'').replace(/\D/g,'');
       const label = String((kLabel && r[kLabel])||'').trim();
       const onRaw = String((kOn && r[kOn])||'').trim().toUpperCase();
-      const enabled = onRaw ? ['Y','YES','TRUE','O','ON','1','사용'].includes(onRaw) : !!customerId;
+      // 켜기/끄기 칸이 비어 있으면 "기존 설정 그대로"가 안전하다.
+      // 예전에는 비어 있으면 무조건 켬으로 봐서, 꺼둔 업체가 엑셀 한 번에 다시 켜지는 사고가 있었다(2026-09-09).
+      const onGiven = !!onRaw;
+      const prevOn = hit ? (hit.prevAcc && (String(customerId) in hit.prevAcc) ? hit.prevAcc[String(customerId)] : hit.prevEnabled) : null;
+      const enabled = onGiven ? ['Y','YES','TRUE','O','ON','1','사용'].includes(onRaw)
+                    : (hit && hit.hadCollector ? !!prevOn : !!customerId);
       const bizRaw = String((kBiz && r[kBiz])||'').trim().toUpperCase();
       const bizType = bizRaw.includes('B2C') ? 'B2C' : (bizRaw.includes('DB') ? 'DB' : null);
       const industry = String((kInd && r[kInd])||'').trim();
@@ -3265,13 +3288,13 @@ async function handleCollectorBulkFile(file){
       const prev = ok.find(o=>o.id===id);
       if(prev){
         if(customerId && prev.accounts.some(a=>a.customerId===customerId)){ skipped.push(`${rawName} — 같은 검색광고 Key(${customerId})가 두 번 나옴`); return; }
-        if(customerId) prev.accounts.push({ customerId, label, enabled });
+        if(customerId) prev.accounts.push({ customerId, label, enabled, kept: !onGiven && !!(hit && hit.hadCollector) });
         if(bizType) prev.bizType = bizType;
         if(industry) prev.industry = industry;
         return;
       }
       seenIds.add(id);
-      ok.push({ id, name: hit ? hit.name : rawName, accounts: customerId ? [{ customerId, label, enabled }] : [], bizType, industry, isNew: !hit });
+      ok.push({ id, name: hit ? hit.name : rawName, accounts: customerId ? [{ customerId, label, enabled, kept: !onGiven && !!(hit && hit.hadCollector) }] : [], bizType, industry, isNew: !hit });
     });
     const newCount = ok.filter(o=>o.isNew).length;
     prev.innerHTML = `
@@ -3280,7 +3303,7 @@ async function handleCollectorBulkFile(file){
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <tbody>${ok.map(o=>`<tr>
             <td style="padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;">${esc(o.name)}${o.isNew?' <span style="font-size:11px;color:var(--accent-text,var(--accent));border:1px solid var(--accent);border-radius:4px;padding:0 4px;">신규</span>':''}${o.accounts.length>1?` <span style="font-size:11px;color:var(--muted);">계정 ${o.accounts.length}개</span>`:''}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${o.accounts.length? o.accounts.map(a=>`${esc(a.customerId)}${a.label?` <span style="color:var(--muted);">(${esc(a.label)})</span>`:''}${a.enabled?'':' <span style="color:var(--muted);">OFF</span>'}`).join('<br>') : '<span style="color:var(--muted);">(없음)</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${o.accounts.length? o.accounts.map(a=>`${esc(a.customerId)}${a.label?` <span style="color:var(--muted);">(${esc(a.label)})</span>`:''}${a.enabled?'':' <span style="color:var(--muted);">OFF</span>'}${a.kept?' <span style="font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 4px;">기존값 유지</span>':''}`).join('<br>') : '<span style="color:var(--muted);">(없음)</span>'}</td>
             <td style="padding:4px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;">${esc(o.bizType||(o.isNew?'DB':''))}</td>
           </tr>`).join('')}</tbody>
         </table></div>`:''}
@@ -3296,6 +3319,8 @@ async function handleCollectorBulkFile(file){
         let batch = db.batch(); let n = 0;
         for(const o of ok){
           const payload = { collector: {
+            // 계정 중 하나라도 켜져 있으면 업체 스위치는 켬.
+            // (계정별 enabled 자체가 위에서 "빈 칸이면 기존값 유지"로 정해지므로, 꺼둔 업체는 여기서도 꺼진 채로 남는다.)
             enabled: o.accounts.some(a=>a.enabled),
             accounts: o.accounts,                       // 업체 하나에 광고계정 여러 개 — 수집기가 합쳐서 저장함
             customerId: (o.accounts[0]||{}).customerId || '',  // 구버전 호환용 대표 계정
