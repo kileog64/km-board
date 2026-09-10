@@ -759,7 +759,7 @@ function renderGrpCard(){
 
   const period = (mFrom===mTo ? mFrom : (mFrom+' ~ '+mTo));
   return `<div class="card"><h3>캠페인 · 광고그룹별 연령</h3>
-    <div class="sub">전체로도 보고, 캠페인·광고그룹까지 좁혀서도 볼 수 있어요.</div>
+    <div class="sub">전체로도 보고, 캠페인·광고그룹까지 좁혀서도 볼 수 있어요. <b>이 칸에서 고른 것만</b> 아래 요약·그래프·표에 나옵니다 — 위쪽 표는 계정 전체입니다.</div>
     <div class="grp-pick">
       <label><span class="grp-lab">캠페인</span>
         <select id="grpCampSel">${campOpts}</select></label>
@@ -782,8 +782,8 @@ function renderGrpCard(){
          ${thin ? `<div class="sub" style="margin-top:10px;">전환이 아직 적어서 연령대별 순위는 참고만 하세요.
             ${isDB?('전환 '+MIN_CONV+'건'):('비용 '+won(MIN_COST)+'원')} 넘는 연령대가 아직 없습니다.</div>` : ''}
          ${chartPart}
-         ${renderTable('연령대별', period, rows, ageLabel, false)}
-         ${genRows.length ? renderTable('성별', period, genRows, c=>GENDER_LABEL[c]||c, false) : ''}`}
+         ${renderTable(esc2(P.what)+' · 연령대별', period, rows, ageLabel, false)}
+         ${genRows.length ? renderTable(esc2(P.what)+' · 성별', period, genRows, c=>GENDER_LABEL[c]||c, false) : ''}`}
     </div>`;
 }
 function drawGrpChart(){
