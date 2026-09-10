@@ -274,16 +274,49 @@ table tbody tr:hover td{background:#1b1e2c}
 .memo-cpill{padding:1px 7px;border-radius:999px;font-size:10px;background:rgba(65,184,227,.12);border:1px solid rgba(65,184,227,.3);color:#7ed0ee}
 
 .memo-editor{margin-bottom:0}
-.memo-etop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.memo-title{flex:1;min-width:200px;background:transparent;border:0;border-bottom:1px solid transparent;color:var(--text);font:inherit;font-size:19px;font-weight:700;letter-spacing:-.02em;padding:4px 0;outline:none}
+.memo-etop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.memo-title{flex:1;min-width:200px;background:transparent;border:0;border-bottom:1px solid transparent;color:var(--text);font:inherit;font-size:20px;font-weight:700;letter-spacing:-.02em;padding:4px 0;outline:none}
 .memo-title:focus{border-bottom-color:rgba(139,124,255,.5)}
 .memo-etop .sel{width:auto;min-width:140px}
 .memo-icon{background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:8px;width:34px;height:33px;font-size:14px;cursor:pointer}
 .memo-icon:hover{color:var(--text)}
 .memo-icon.on{background:rgba(245,165,36,.16);border-color:rgba(245,165,36,.4)}
 .memo-icon.del:hover{color:var(--down);border-color:rgba(255,107,133,.4)}
-.memo-body{width:100%;min-height:420px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px 15px;font:inherit;font-size:14px;line-height:1.75;outline:none;resize:vertical}
+
+/* 도구 막대 */
+.memo-tools{display:flex;align-items:center;gap:3px;flex-wrap:wrap;background:var(--panel-2);border:1px solid var(--border);
+  border-radius:10px 10px 0 0;border-bottom:0;padding:6px 8px}
+.memo-tools button{background:transparent;border:1px solid transparent;color:var(--muted);font:inherit;font-size:13px;
+  min-width:30px;height:28px;padding:0 7px;border-radius:6px;cursor:pointer;line-height:1}
+.memo-tools button:hover{background:rgba(139,124,255,.14);color:var(--text)}
+.memo-tools button.on{background:rgba(139,124,255,.2);border-color:rgba(139,124,255,.45);color:var(--text)}
+.memo-tools button.memo-hl{background:linear-gradient(transparent 58%, rgba(245,196,90,.55) 58%)}
+.memo-blk{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;
+  padding:5px 8px;font:inherit;font-size:12.5px;cursor:pointer;height:28px}
+.memo-sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.memo-fs{display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1px;margin-left:auto}
+.memo-fs button{min-width:26px;height:24px;font-size:12px}
+.memo-fs span{min-width:20px;text-align:center;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* 본문 — 진짜 문서처럼 */
+.memo-body{width:100%;min-height:440px;max-height:64vh;overflow-y:auto;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+  border-radius:0 0 10px 10px;padding:18px 20px;font-size:16px;line-height:1.8;outline:none}
 .memo-body:focus{border-color:rgba(139,124,255,.5)}
+.memo-body:empty:before{content:attr(data-placeholder);color:var(--muted);opacity:.7}
+.memo-body p{margin:0 0 .55em}
+.memo-body p:last-child{margin-bottom:0}
+.memo-body h2{font-size:1.42em;font-weight:700;letter-spacing:-.02em;margin:1.1em 0 .45em;padding-bottom:.28em;border-bottom:1px solid var(--border)}
+.memo-body h2:first-child{margin-top:0}
+.memo-body h3{font-size:1.16em;font-weight:700;letter-spacing:-.01em;margin:.95em 0 .35em}
+.memo-body h3:first-child{margin-top:0}
+.memo-body blockquote{margin:.6em 0;padding:.4em 0 .4em 14px;border-left:3px solid var(--accent);color:var(--muted)}
+.memo-body ul,.memo-body ol{margin:.5em 0;padding-left:1.5em}
+.memo-body li{margin:.2em 0}
+.memo-body hr{border:0;border-top:1px solid var(--border);margin:1.1em 0}
+.memo-body a{color:var(--accent)}
+.memo-body ::selection{background:rgba(139,124,255,.35)}
+
 .memo-efoot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:11px;font-size:12px;color:var(--muted)}
 .memo-efoot .ok{color:var(--up)}
 .memo-send{background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 13px;font:inherit;font-size:12.5px;cursor:pointer;margin-left:auto}
@@ -295,6 +328,8 @@ table tbody tr:hover td{background:#1b1e2c}
 @media (max-width:900px){
   .memo-cols{grid-template-columns:1fr}
   .memo-side{order:2}
+  .memo-fs{margin-left:0}
+  .memo-body{min-height:340px}
 }
 
 </style>
@@ -424,7 +459,36 @@ table tbody tr:hover td{background:#1b1e2c}
         <button class="memo-icon" id="memoPinBtn" title="위에 고정">📌</button>
         <button class="memo-icon del" id="memoDelBtn" title="삭제">🗑</button>
       </div>
-      <textarea class="memo-body" id="memoBody" placeholder="여기에 자유롭게 적으세요"></textarea>
+
+      <div class="memo-tools" id="memoTools">
+        <select class="memo-blk" id="memoBlock" title="문단 종류">
+          <option value="p">본문</option>
+          <option value="h2">제목</option>
+          <option value="h3">소제목</option>
+          <option value="blockquote">인용</option>
+        </select>
+        <span class="memo-sep"></span>
+        <button type="button" data-cmd="bold" title="굵게 (Ctrl+B)"><b>가</b></button>
+        <button type="button" data-cmd="italic" title="기울임 (Ctrl+I)"><i>가</i></button>
+        <button type="button" data-cmd="underline" title="밑줄 (Ctrl+U)"><u>가</u></button>
+        <button type="button" data-cmd="strikeThrough" title="취소선"><s>가</s></button>
+        <button type="button" data-cmd="hilite" title="형광펜" class="memo-hl">가</button>
+        <span class="memo-sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="글머리 기호">• 목록</button>
+        <button type="button" data-cmd="insertOrderedList" title="번호 매기기">1. 번호</button>
+        <button type="button" data-cmd="hr" title="구분선">구분선</button>
+        <span class="memo-sep"></span>
+        <button type="button" data-cmd="removeFormat" title="서식 지우기">서식↺</button>
+        <div class="memo-fs" title="화면에 보이는 글자 크기 (이 브라우저에만 저장)">
+          <button type="button" id="memoFsDown" aria-label="글자 작게">가−</button>
+          <span id="memoFsNow">16</span>
+          <button type="button" id="memoFsUp" aria-label="글자 크게">가＋</button>
+        </div>
+      </div>
+
+      <div class="memo-body" id="memoBody" contenteditable="true" spellcheck="false"
+           data-placeholder="여기에 자유롭게 적으세요"></div>
+
       <div class="memo-efoot">
         <span id="memoSaved" class="ok">저장됨</span>
         <span>·</span>
@@ -433,7 +497,8 @@ table tbody tr:hover td{background:#1b1e2c}
         <button class="memo-send" id="memoSendBtn">선택한 줄 → 체크리스트로 보내기</button>
       </div>
       <div class="memo-note">
-        <b>적으면 바로 저장됩니다.</b> 저장 버튼은 없어요. 본문에서 한 줄을 드래그해 선택하고 오른쪽 아래 버튼을 누르면 그 줄이 체크리스트에 할 일로 넘어갑니다.
+        <b>적으면 바로 저장됩니다.</b> 저장 버튼은 없어요. 워드처럼 굵게·밑줄·제목·목록을 쓸 수 있고,
+        한 줄을 드래그해 선택한 뒤 오른쪽 아래 버튼을 누르면 그 줄이 체크리스트에 할 일로 넘어갑니다.
       </div>
     </div>
 
@@ -509,6 +574,90 @@ async function mutateMemos(mutate){
 }
 function newMemoId(){ return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
+
+/* ================= 본문 편집기 (진짜 문서처럼) =================
+   textarea 대신 편집 가능한 영역을 쓴다. 굵게·제목·목록 같은 서식이 들어가야
+   메모가 "글"처럼 읽히기 때문. 저장은 HTML 그대로, 목록 미리보기와 검색은 태그를 뗀 글자만 쓴다. */
+const EDITOR = () => document.getElementById('memoBody');
+
+/* 태그를 떼고 순수 글자만 (미리보기·검색·글자수용) */
+function htmlToText(html){
+  const d = document.createElement('div');
+  d.innerHTML = String(html||'').replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n');
+  return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+/* 예전에 저장된 줄글(태그 없는 메모)을 문단으로 바꿔준다 */
+function textToHtml(txt){
+  return String(txt||'').split(/\n/).map(l => '<p>' + (esc(l) || '<br>') + '</p>').join('');
+}
+function looksLikeHtml(s){ return /<(p|div|br|h[1-6]|ul|ol|li|b|strong|i|em|u|s|span|blockquote|hr)\b/i.test(String(s||'')); }
+function bodyToHtml(v){ return looksLikeHtml(v) ? String(v) : textToHtml(v); }
+
+/* 붙여넣기는 글자만 — 워드/웹에서 붙이면 색·글꼴이 딸려와 화면이 망가진다 */
+function initEditorPaste(){
+  EDITOR().addEventListener('paste', (e)=>{
+    e.preventDefault();
+    const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+    const lines = String(t||'').split(/\r?\n/);
+    document.execCommand('insertHTML', false, lines.map(l => esc(l)).join('<br>'));
+  });
+}
+
+/* 도구 막대 */
+function initEditorTools(){
+  try{ document.execCommand('styleWithCSS', false, true); }catch(e){}
+  const ed = EDITOR();
+  document.querySelectorAll('.memo-tools button[data-cmd]').forEach(btn=>{
+    // mousedown 에서 막아야 편집 영역의 선택이 풀리지 않는다
+    btn.addEventListener('mousedown', e=>e.preventDefault());
+    btn.onclick = ()=>{
+      const c = btn.dataset.cmd;
+      ed.focus();
+      if(c === 'hilite'){
+        const on = document.queryCommandValue('hiliteColor');
+        const has = on && on !== 'transparent' && !/rgba?\(0, 0, 0, 0\)/.test(on) && on !== 'rgb(0, 0, 0)';
+        document.execCommand('hiliteColor', false, has ? 'transparent' : 'rgba(245,196,90,.45)');
+      } else if(c === 'hr'){
+        document.execCommand('insertHorizontalRule');
+      } else if(c === 'removeFormat'){
+        document.execCommand('removeFormat');
+        document.execCommand('formatBlock', false, 'p');
+      } else {
+        document.execCommand(c);
+      }
+      onEdit(); syncToolbar();
+    };
+  });
+  const blk = document.getElementById('memoBlock');
+  blk.addEventListener('mousedown', ()=>{ window.__blkSel = true; });
+  blk.onchange = ()=>{
+    ed.focus();
+    document.execCommand('formatBlock', false, blk.value);
+    onEdit(); syncToolbar();
+  };
+  ['keyup','mouseup','focus'].forEach(ev=> ed.addEventListener(ev, syncToolbar));
+}
+
+/* 커서 위치의 서식을 도구 막대에 반영 */
+function syncToolbar(){
+  const map = { bold:'bold', italic:'italic', underline:'underline', strikeThrough:'strikeThrough',
+                insertUnorderedList:'insertUnorderedList', insertOrderedList:'insertOrderedList' };
+  Object.keys(map).forEach(c=>{
+    const b = document.querySelector('.memo-tools button[data-cmd="'+c+'"]');
+    if(!b) return;
+    let on = false;
+    try{ on = document.queryCommandState(map[c]); }catch(e){}
+    b.classList.toggle('on', !!on);
+  });
+  let blk = 'p';
+  try{
+    const v = String(document.queryCommandValue('formatBlock')||'').toLowerCase();
+    if(['h2','h3','blockquote'].indexOf(v) >= 0) blk = v;
+  }catch(e){}
+  const sel = document.getElementById('memoBlock');
+  if(sel && !sel.matches(':focus')) sel.value = blk;
+}
+
 let memos = [];
 let curId = null;
 let searchTerm = '';
@@ -528,7 +677,7 @@ function visibleMemos(){
   else if(filterClient!=='ALL') arr = arr.filter(m=>m.clientKey===filterClient);
   if(searchTerm){
     const q = searchTerm.toLowerCase();
-    arr = arr.filter(m => ((m.title||'')+' '+(m.body||'')).toLowerCase().includes(q));
+    arr = arr.filter(m => ((m.title||'')+' '+htmlToText(m.body)).toLowerCase().includes(q));
   }
   arr.sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
   return arr;
@@ -542,7 +691,7 @@ function renderList(){
   const block = (label, list) => {
     if(!list.length) return '';
     return `<div class="memo-seclbl">${label}</div>` + list.map(m=>{
-      const preview = (m.body||'').replace(/\s+/g,' ').slice(0,42);
+      const preview = htmlToText(m.body).replace(/\s+/g,' ').slice(0,42);
       const cn = m.clientKey ? `<span class="memo-cpill">${esc(clientNameOf(m.clientKey))}</span>` : '';
       return `<div class="memo-item${m.id===curId?' on':''}" data-id="${esc(m.id)}">
         <div class="t">${m.pin?'📌 ':''}${esc(m.title||'제목 없음')}</div>
@@ -564,14 +713,15 @@ function selectMemo(id){
   const t = document.getElementById('memoTitle'), b = document.getElementById('memoBody');
   const c = document.getElementById('memoClient'), p = document.getElementById('memoPinBtn');
   if(!m){
-    t.value=''; b.value=''; c.value=''; p.classList.remove('on');
+    t.value=''; b.innerHTML=''; c.value=''; p.classList.remove('on');
     document.getElementById('memoWhen').textContent=''; document.getElementById('memoCount').textContent='';
     renderList(); return;
   }
-  t.value = m.title||''; b.value = m.body||''; c.value = m.clientKey||'';
+  t.value = m.title||''; b.innerHTML = bodyToHtml(m.body); c.value = m.clientKey||'';
   p.classList.toggle('on', !!m.pin);
   document.getElementById('memoWhen').textContent = (m.updatedAt2||'') + ' 수정';
-  document.getElementById('memoCount').textContent = (m.body||'').length + '자';
+  document.getElementById('memoCount').textContent = htmlToText(m.body).length + '자';
+  syncToolbar();
   setSaved('저장됨');
   renderList();
 }
@@ -588,9 +738,9 @@ function onEdit(){
   const m = memos.find(x=>x.id===curId);
   if(!m) return;
   m.title = document.getElementById('memoTitle').value;
-  m.body  = document.getElementById('memoBody').value;
+  m.body  = EDITOR().innerHTML;
   m.clientKey = document.getElementById('memoClient').value || null;
-  document.getElementById('memoCount').textContent = (m.body||'').length + '자';
+  document.getElementById('memoCount').textContent = htmlToText(m.body).length + '자';
   dirty = true;
   setSaved('저장 중…');
   clearTimeout(saveTimer);
@@ -621,8 +771,39 @@ async function flushSave(silent){
 }
 
 document.getElementById('memoTitle').oninput = onEdit;
-document.getElementById('memoBody').oninput = onEdit;
+document.getElementById('memoBody').addEventListener('input', onEdit);
 document.getElementById('memoClient').onchange = onEdit;
+
+/* ---------- 화면 글자 크기 ----------
+   메모는 오래 들여다보는 화면이라 사람마다 편한 크기가 다르다.
+   이건 '보이는 크기'만 바꾸는 것이고 저장되는 글에는 영향이 없다 (이 브라우저에만 기억됨). */
+const MEMO_FS_KEY = 'km_memo_fontsize';
+const FS_MIN = 13, FS_MAX = 24, FS_DEF = 16;
+function getMemoFs(){
+  let v = FS_DEF;
+  try{ v = parseInt(localStorage.getItem(MEMO_FS_KEY), 10) || FS_DEF; }catch(e){}
+  return Math.min(FS_MAX, Math.max(FS_MIN, v));
+}
+function applyMemoFs(v){
+  v = Math.min(FS_MAX, Math.max(FS_MIN, v));
+  const ed = document.getElementById('memoBody');
+  ed.style.fontSize = v + 'px';
+  ed.style.lineHeight = (v <= 14 ? 1.75 : v <= 18 ? 1.8 : 1.85);
+  document.getElementById('memoFsNow').textContent = v;
+  document.getElementById('memoFsDown').disabled = (v <= FS_MIN);
+  document.getElementById('memoFsUp').disabled = (v >= FS_MAX);
+  try{ localStorage.setItem(MEMO_FS_KEY, String(v)); }catch(e){}
+}
+document.getElementById('memoFsDown').onclick = ()=> applyMemoFs(getMemoFs() - 1);
+document.getElementById('memoFsUp').onclick   = ()=> applyMemoFs(getMemoFs() + 1);
+/* 편집 중 Ctrl(⌘) + / − 로도 조절 — 브라우저 전체 확대 대신 본문만 커진다 */
+document.addEventListener('keydown', (e)=>{
+  if(!(e.ctrlKey || e.metaKey)) return;
+  if(document.activeElement !== document.getElementById('memoBody')) return;
+  if(e.key === '=' || e.key === '+'){ e.preventDefault(); applyMemoFs(getMemoFs()+1); }
+  else if(e.key === '-' || e.key === '_'){ e.preventDefault(); applyMemoFs(getMemoFs()-1); }
+  else if(e.key === '0'){ e.preventDefault(); applyMemoFs(FS_DEF); }
+});
 
 document.getElementById('memoPinBtn').onclick = async ()=>{
   if(!curId) return;
@@ -665,17 +846,18 @@ document.getElementById('memoFilterClient').onchange = (e)=>{ filterClient = e.t
 
 /* 선택한 줄을 체크리스트(할 일)로 보내기 */
 document.getElementById('memoSendBtn').onclick = async ()=>{
-  const ta = document.getElementById('memoBody');
-  let text = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
-  if(!text){
-    // 선택한 게 없으면 커서가 있는 줄을 통째로 가져온다
-    const v = ta.value, p = ta.selectionStart;
-    const s = v.lastIndexOf('\n', Math.max(0,p-1)) + 1;
-    let e2 = v.indexOf('\n', p); if(e2 < 0) e2 = v.length;
-    text = v.slice(s, e2).trim();
+  const ed = document.getElementById('memoBody');
+  let text = '';
+  const sel = window.getSelection();
+  if(sel && !sel.isCollapsed && ed.contains(sel.anchorNode)) text = sel.toString().trim();
+  if(!text && sel && sel.anchorNode && ed.contains(sel.anchorNode)){
+    // 고른 게 없으면 커서가 놓인 줄(문단)을 통째로
+    let n = sel.anchorNode;
+    while(n && n !== ed && !(n.nodeType===1 && /^(P|DIV|LI|H2|H3|BLOCKQUOTE)$/.test(n.tagName))) n = n.parentNode;
+    if(n && n !== ed) text = (n.textContent||'').trim();
   }
-  text = text.replace(/^[-*·•\s]+/, '').trim();
-  if(!text){ alert('보낼 내용을 먼저 선택하거나, 옮기고 싶은 줄에 커서를 두세요.'); return; }
+  text = text.replace(/^[-*·•\s]+/, '').replace(/\s+/g,' ').trim();
+  if(!text){ alert('보낼 내용을 먼저 드래그해 고르거나, 옮기고 싶은 줄에 커서를 두세요.'); return; }
   if(text.length > 120) text = text.slice(0,120);
   const m = memos.find(x=>x.id===curId);
   const clientKey = (m && m.clientKey) || null;
@@ -717,6 +899,9 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById('mainApp').style.display = 'block';
     document.getElementById('authUserEmail').textContent = user.email;
     currentUserEmail = user.email;
+    initEditorTools();
+    initEditorPaste();
+    applyMemoFs(getMemoFs());
     await loadClients();
     memos = await loadMemos();
     renderList();
