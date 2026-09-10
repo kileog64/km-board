@@ -417,8 +417,9 @@ table tbody tr:hover td{background:#1b1e2c}
 
 .cl-lab{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px}
 .cl-form4{display:grid;grid-template-columns:1.6fr 1fr 1fr .9fr;gap:10px}
+.cl-form5{display:grid;grid-template-columns:1.5fr 1fr 1fr .9fr .9fr;gap:10px}
 .cl-form3{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-top:10px}
-.cl-form4 .txt,.cl-form4 .sel,.cl-form3 .txt,.cl-form3 .sel{width:100%}
+.cl-form4 .txt,.cl-form4 .sel,.cl-form5 .txt,.cl-form5 .sel,.cl-form3 .txt,.cl-form3 .sel{width:100%}
 .cl-ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .cl-hint{margin-top:10px;color:var(--muted);font-size:12px}
 .cl-warn{margin-top:14px;background:rgba(245,165,36,.09);border:1px solid rgba(245,165,36,.3);border-left:3px solid #f5a524;border-radius:8px;padding:11px 13px;font-size:12.5px;color:var(--muted)}
@@ -485,6 +486,8 @@ table tbody tr:hover td{background:#1b1e2c}
 .cl-bar{height:17px;border-radius:5px;font-size:10.5px;line-height:17px;padding:0 7px;margin:1px 3px;overflow:hidden;white-space:nowrap;font-weight:600;text-overflow:ellipsis}
 .cl-bar.a{background:rgba(65,184,227,.22);color:#8fd9f2;border:1px solid rgba(65,184,227,.35)}
 .cl-bar.b{background:rgba(139,124,255,.22);color:#bdb2ff;border:1px solid rgba(139,124,255,.4)}
+.cl-bar.t{background:rgba(63,191,136,.20);color:#8fe3bd;border:1px solid rgba(63,191,136,.38);cursor:pointer}
+.cl-bar.done{opacity:.45;text-decoration:line-through}
 .cl-chips{padding:3px 4px 0;display:flex;flex-direction:column;gap:3px;min-height:34px}
 .cl-chip{font-size:10.5px;line-height:1.35;padding:3px 6px;border-radius:5px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .cl-chip:hover{border-color:var(--accent)}
@@ -504,7 +507,7 @@ table tbody tr:hover td{background:#1b1e2c}
 
 @media (max-width:900px){
   .cl-sum{grid-template-columns:repeat(2,1fr)}
-  .cl-form4,.cl-form3,.cl-ab-grid{grid-template-columns:1fr}
+  .cl-form4,.cl-form5,.cl-form3,.cl-ab-grid{grid-template-columns:1fr}
   .cl-verdict{border-left:0;padding-left:0;text-align:left;min-width:0;margin-top:9px;width:100%}
   .cl-head{flex-wrap:wrap}
   .cl-acts{margin-top:8px}
@@ -1977,7 +1980,7 @@ const CL = {
   full: {},        // clientKey -> 전체 데이터(비교표 계산용). 무거워서 필요할 때만 불러옴.
   open: {},        // 항목 id -> 펼침 여부
   busy: {},        // clientKey -> 불러오는 중
-  newTodo: { title:'', clientKey:'', owner:'', due:'', status:'todo', priority:'mid', memo:'' },
+  newTodo: { title:'', clientKey:'', owner:'', start:'', due:'', status:'todo', priority:'mid', memo:'' },
   addStatus: ''
 };
 
@@ -2046,13 +2049,13 @@ function clStatusLabel(s){ return s==='doing' ? '진행 중' : s==='done' ? '완
 function clItems(){
   const a = CL.todos.map(t=>({
     kind:'todo', id:t.id, title:t.title||'',
-    clientKey:t.clientKey||'', owner:t.owner||'', due:t.due||'',
+    clientKey:t.clientKey||'', owner:t.owner||'', start:t.start||'', due:t.due||'',
     status:t.status||'todo', priority:t.priority||'mid',
     memo:t.memo||'', conclusion:'', createdAt:t.createdAt||0, raw:t
   }));
   const b = CL.abList.map(t=>({
     kind:'ab', id:t.id, title:t.name||'',
-    clientKey:t.clientKey, owner:t.owner||'', due:t.due||'',
+    clientKey:t.clientKey, owner:t.owner||'', start:'', due:t.due||'',
     status:t.status||'todo', priority:t.priority||'mid',
     memo:t.hypothesis||'', conclusion:t.conclusion||'', createdAt:t.createdAt||0, raw:t
   }));
@@ -2218,11 +2221,12 @@ function clAddHTML(){
       <button type="button" class="cl-type${gen?'':' on'}" data-cltype="ab">A/B 테스트</button>
     </div>
 
-    <div class="cl-form4">
+    <div class="${gen?'cl-form5':'cl-form4'}">
       <div><label class="cl-lab">${gen?'할 일 내용':'테스트 이름'}</label>
         <input class="txt" id="clTitle" placeholder="${gen?'예: 추석 시즌 키워드 입찰가 점검':'예: 쇼핑 소재 문구 A/B'}" value="${clEsc(CL.newTodo.title)}"></div>
       <div><label class="cl-lab">업체</label><select class="sel" id="clClient">${clientOpts}</select></div>
       <div><label class="cl-lab">담당자</label><input class="txt" id="clOwner" placeholder="담당자 (선택)" value="${clEsc(CL.newTodo.owner)}"></div>
+      ${gen?`<div><label class="cl-lab">시작일 (선택)</label><input class="txt" type="date" id="clStart" value="${clEsc(CL.newTodo.start)}" title="넣으면 캘린더에 기간 막대로 보여요"></div>`:''}
       <div><label class="cl-lab">${gen?'마감일':'결과 확인일'}</label><input class="txt" type="date" id="clDue" value="${clEsc(CL.newTodo.due)}"></div>
     </div>
 
@@ -2289,10 +2293,12 @@ function clListHTML(){
 
     let dueHtml = '';
     if(it.due){
-      const d = over ? '<span class="cl-due over">마감 '+it.due+' — 지남</span>'
-              : isToday ? '<span class="cl-due tdy">마감 '+it.due+' — 오늘</span>'
-              : '<span class="cl-due">'+(it.kind==='ab'?'결과 확인 ':'마감 ')+it.due+'</span>';
-      dueHtml = d;
+      const span = it.start ? (it.start+' ~ ') : '';
+      dueHtml = over ? '<span class="cl-due over">'+span+it.due+' — 지남</span>'
+              : isToday ? '<span class="cl-due tdy">'+span+it.due+' — 오늘 마감</span>'
+              : '<span class="cl-due">'+(it.kind==='ab'?'결과 확인 ':(it.start?'기간 ':'마감 '))+span+it.due+'</span>';
+    } else if(it.start){
+      dueHtml = '<span class="cl-due">'+it.start+' 시작</span>';
     }
     let right = '';
     if(it.kind==='ab'){
@@ -2354,12 +2360,19 @@ function clCalendarHTML(){
 
   const rows = clFiltered();
 
-  // 이 달에 걸치는 A/B 테스트 → 줄(lane) 배정
+  // 이 달에 걸치는 '기간이 있는 항목' → 줄(lane) 배정
+  //  · A/B 테스트: A안 기간 + B안 기간
+  //  · 일반 할 일: 시작일~마감일 (시작일을 넣은 것만)
   const lanes = [];
-  rows.filter(x=>x.kind==='ab').forEach(it=>{
-    const A = clSideDays(it.raw.sideA), B = clSideDays(it.raw.sideB);
-    const inMonth = r => r && !(r.to < monthFrom || r.from > monthTo);
-    if(inMonth(A) || inMonth(B)) lanes.push({ it, A, B });
+  const inMonth = r => r && !(r.to < monthFrom || r.from > monthTo);
+  rows.forEach(it=>{
+    if(it.kind==='ab'){
+      const A = clSideDays(it.raw.sideA), B = clSideDays(it.raw.sideB);
+      if(inMonth(A) || inMonth(B)) lanes.push({ it, A, B });
+    } else if(it.start && it.due && it.start <= it.due){
+      const T = { from: it.start, to: it.due };   // 'YYYY-MM-DD' 그대로 — 달 범위와 같은 모양이어야 비교가 된다
+      if(inMonth(T)) lanes.push({ it, T });
+    }
   });
 
   // 날짜별 칩
@@ -2397,13 +2410,17 @@ function clCalendarHTML(){
           const over = !done && ds < today;
           const cls = done ? 'done' : over ? 'over' : (ds===today ? 'tdy' : (it.kind==='ab' ? 'res' : ''));
           const nm = it.clientKey ? clClientName(it.clientKey)+' ' : '';
-          return `<div class="cl-chip ${cls}" data-clgo="${clEsc(it.id)}" title="${clEsc(nm+it.title)}">${clEsc(nm+it.title)}</div>`;
+          const mark = it.start ? '▪ ' : '';   // 기간 막대가 따로 있는 항목은 점을 붙여 구분
+          return `<div class="cl-chip ${cls}" data-clgo="${clEsc(it.id)}" title="${clEsc(nm+it.title)}">${mark}${clEsc(nm+it.title)}</div>`;
         }).join('') + '</div>';
       }
     }
 
     lanes.forEach((ln, li)=>{
-      [['a', ln.A, 'A안'], ['b', ln.B, 'B안']].forEach(([cls, r, tagLabel])=>{
+      const segs = ln.T
+        ? [['t', ln.T, '']]
+        : [['a', ln.A, 'A안'], ['b', ln.B, 'B안']];
+      segs.forEach(([cls, r, tagLabel])=>{
         if(!r) return;
         if(r.to < weekFrom || r.from > weekTo) return;
         const segFrom = r.from > weekFrom ? r.from : weekFrom;
@@ -2411,10 +2428,12 @@ function clCalendarHTML(){
         const colStart = Number(segFrom.slice(8,10)) - weekStartIdx + 1;
         const colEnd   = Number(segTo.slice(8,10))   - weekStartIdx + 2;
         const showLabel = (segFrom === r.from);
+        const who = ln.it.clientKey ? clClientName(ln.it.clientKey)+' · ' : '';
         const label = showLabel
-          ? clEsc((ln.it.clientKey ? clClientName(ln.it.clientKey)+' · ' : '') + tagLabel + ' (' + ln.it.title + ')')
+          ? clEsc(tagLabel ? (who + tagLabel + ' (' + ln.it.title + ')') : (who + ln.it.title))
           : '';
-        bars += `<div class="cl-bar ${cls}" style="grid-row:${li+2};grid-column:${colStart}/${colEnd}" title="${clEsc(ln.it.title+' '+tagLabel+' '+r.from+'~'+r.to)}">${label}</div>`;
+        const done = ln.it.status==='done' ? ' done' : '';
+        bars += `<div class="cl-bar ${cls}${done}" style="grid-row:${li+2};grid-column:${colStart}/${colEnd}" title="${clEsc(ln.it.title+(tagLabel?' '+tagLabel:'')+' '+r.from+'~'+r.to)}" data-clgo="${clEsc(ln.it.id)}">${label}</div>`;
       });
     });
 
@@ -2432,6 +2451,7 @@ function clCalendarHTML(){
     <div class="cl-legend">
       <span><i style="background:rgba(65,184,227,.35)"></i>A안 기간</span>
       <span><i style="background:rgba(139,124,255,.35)"></i>B안 기간</span>
+      <span><i style="background:rgba(63,191,136,.35)"></i>할 일 기간</span>
       <span><i style="background:rgba(255,107,133,.3)"></i>마감 지남</span>
       <span><i style="background:rgba(245,165,36,.3)"></i>오늘</span>
       <span><i style="background:rgba(139,124,255,.25)"></i>결과 확인일</span>
@@ -2474,11 +2494,11 @@ function clBind(){
   const keep = ()=>{
     const g = id => { const el=document.getElementById(id); return el ? el.value : ''; };
     CL.newTodo.title = g('clTitle'); CL.newTodo.clientKey = g('clClient');
-    CL.newTodo.owner = g('clOwner'); CL.newTodo.due = g('clDue');
+    CL.newTodo.owner = g('clOwner'); CL.newTodo.start = g('clStart'); CL.newTodo.due = g('clDue');
     CL.newTodo.status = g('clStatus') || 'todo'; CL.newTodo.priority = g('clPrio') || 'mid';
     CL.newTodo.memo = g('clMemo');
   };
-  ['clTitle','clClient','clOwner','clDue','clStatus','clPrio','clMemo'].forEach(id=>{
+  ['clTitle','clClient','clOwner','clStart','clDue','clStatus','clPrio','clMemo'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.oninput = el.onchange = keep;
   });
@@ -2636,17 +2656,20 @@ async function clAdd(){
 
   const clientKey = document.getElementById('clClient').value || null;
   const owner = (document.getElementById('clOwner').value||'').trim() || null;
+  const startEl = document.getElementById('clStart');
+  const start = (startEl && startEl.value) || null;
   const due = document.getElementById('clDue').value || null;
+  if(start && due && start > due){ setMsg('시작일이 마감일보다 늦어요. 날짜를 다시 봐주세요.', 'err'); return; }
   const status = document.getElementById('clStatus').value;
   const priority = document.getElementById('clPrio').value;
   const memo = (document.getElementById('clMemo').value||'').trim() || null;
 
   if(CL.addType==='gen'){
-    const item = { id:newTodoId(), title, clientKey, owner, due, status, priority, memo,
+    const item = { id:newTodoId(), title, clientKey, owner, start, due, status, priority, memo,
                    createdAt: Date.now(), createdBy: currentUserEmail };
     const ok = await mutateTodos(list=>[...list, item]);
     if(!ok){ CL.todos = await loadTodos(); setMsg('추가에 실패했어요. 저장된 내용은 그대로예요 — 다시 시도해주세요.', 'err'); renderChecklist(); return; }
-    CL.newTodo = { title:'', clientKey:'', owner:'', due:'', status:'todo', priority:'mid', memo:'' };
+    CL.newTodo = { title:'', clientKey:'', owner:'', start:'', due:'', status:'todo', priority:'mid', memo:'' };
     CL.addStatus = '할 일을 추가했어요.';
     renderChecklist();
     return;
@@ -2682,7 +2705,7 @@ async function clAdd(){
     data.abTests = next;
     CL.full[key] = data;
     newTestFormState[key] = { name:'', hypothesis:'', A: defaultSideState(), B: defaultSideState() };
-    CL.newTodo = { title:'', clientKey:'', owner:'', due:'', status:'todo', priority:'mid', memo:'' };
+    CL.newTodo = { title:'', clientKey:'', owner:'', start:'', due:'', status:'todo', priority:'mid', memo:'' };
     await loadAbIndex();
     CL.addStatus = 'A/B 테스트를 추가했어요.';
     renderChecklist();
