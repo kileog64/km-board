@@ -927,6 +927,7 @@ table tbody tr:hover td{background:#1b1e2c}
           · <b>부가세 계산</b> — 네이버가 예전 기간은 부가세를 포함해서 주고 최근 기간은 빼고 줘요. 두 기준을 미리 계산해둬서, 네이버 숫자를 넣으면 그 날짜가 어느 쪽인지 알려줘요<br>
           · <b>일별 대조</b> — 고른 달의 하루하루를 펼쳐서 어느 날짜부터 어긋나는지 찾을 수 있어요<br>
           · <b>표본 대조</b> — 1일·3일·1주일·1개월 네 단계로 12구간을 자동으로 뽑아줘요. 어느 단계에서 틀리는지로 원인이 좁혀져요<br>
+          · <b>연령·성별</b> — 연령 데이터(타겟팅 세그먼트 보고서)와 일별 데이터가 같은지 자동으로 대조하고, 연령대별·성별 표와 전환 유형별 내역을 같이 넣어요<br>
           플레이스는 수집 단계에서 이미 빠져 있어서 이 표에 안 나와요.
         </div>
         <div class="field">
@@ -5057,7 +5058,205 @@ function auDailyCampSheet(ws, stats, dailyLabel){
   ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
 }
 
-async function buildAuditWorkbook(name, stats, dailyLabel){
+/* ── 연령·성별 대조 시트 ──────────────────────────────────────────────────
+   연령 데이터는 네이버 "타겟팅 세그먼트 보고서"에서, 일별 데이터는 "일별 보고서"에서 온다.
+   둘은 서로 다른 보고서라 대조가 의미가 있다 — 한쪽이 틀리면 여기서 드러난다.
+   ⚠️ 전환은 "구매" 유형만 센다. 2026-09-10 이전 데이터는 모든 유형을 다 더해서
+      담은 기준 2~5배 부풀려져 있었다(장바구니에도 매출이 찍히는 계정이라 생긴 문제). */
+async function auLoadAgeFiles(id, labels){
+  const out = {};
+  await Promise.all(labels.map(async (lb)=>{
+    try{
+      const url = await storage.ref('clients/'+id+'/'+lb+'__ageGender.json').getDownloadURL();
+      const res = await fetch(url);
+      if(!res.ok) return;
+      out[lb] = await res.json();
+    }catch(e){ /* 그 달은 아직 안 받은 것 — 표에 '없음'으로 표시 */ }
+  }));
+  return out;
+}
+function auAgeTotals(box){
+  const t = { imp:0, clk:0, cost:0, conv:0, rev:0, convAll:0, revAll:0 };
+  Object.values(box||{}).forEach(b=>{
+    t.imp+=b.imp||0; t.clk+=b.clk||0; t.cost+=b.cost||0;
+    t.conv+=b.conv||0; t.rev+=b.rev||0;
+    t.convAll+=b.convAll||0; t.revAll+=b.revAll||0;
+  });
+  return t;
+}
+const AU_AGE_LABEL = {
+  AG0013:'13세 이하', AG1418:'14~18세', AG1924:'19~24세', AG2529:'25~29세',
+  AG3034:'30~34세', AG3539:'35~39세', AG4044:'40~44세', AG4549:'45~49세',
+  AG5054:'50~54세', AG5559:'55~59세', AG6099:'60세 이상', AGXXXX:'알 수 없음'
+};
+const AU_GENDER_LABEL = { GNM:'남성', GNF:'여성', GNU:'알 수 없음' };
+const AU_AGE_ORDER = ['AG0013','AG1418','AG1924','AG2529','AG3034','AG3539','AG4044','AG4549','AG5054','AG5559','AG6099','AGXXXX'];
+
+function auAgeSheet(sh, stats, files, pickLabel){
+  const F = (r,c,v,opt)=>{
+    const cell = sh.getCell(r,c); cell.value=v;
+    const o = opt||{};
+    cell.font = { name:'Arial', size:o.size||10, bold:!!o.bold,
+                  color:{ argb:o.color||'FF000000' } };
+    cell.alignment = { horizontal:o.al||'left', vertical:'middle' };
+    if(o.fill) cell.fill = auFill(o.fill);
+    if(o.fmt) cell.numFmt = o.fmt;
+    if(o.border!==false) cell.border = auBorder();
+    return cell;
+  };
+  const head = (r,c,v)=>F(r,c,v,{bold:true,al:'center',fill:AU.NAVY,color:'FFFFFFFF'});
+
+  sh.getCell('A1').value = '연령 · 성별 대조';
+  sh.getCell('A1').font = { name:'Arial', size:14, bold:true };
+  sh.getCell('A2').value = '연령 데이터는 네이버 「타겟팅 세그먼트 보고서」에서, 일별 데이터는 「일별 보고서」에서 옵니다. '
+    + '서로 다른 보고서라 둘이 같으면 양쪽 다 맞는 것입니다. 전환은 「구매」 유형만 셉니다.';
+  sh.getCell('A2').font = { name:'Arial', size:9, color:{argb:'FF808080'} };
+
+  let r = 4;
+
+  // ── 1) 달별 자동 대조 ────────────────────────────────────────────────
+  F(r,1,'1. 달별 자동 대조 (입력할 것 없음)',{bold:true,size:11,border:false}); r+=1;
+  F(r,1,'연령 데이터 합계와 일별 데이터가 같아야 합니다. 비용은 반올림 때문에 몇 원까지 차이날 수 있습니다.',
+    {size:9,color:'FF808080',border:false}); r+=2;
+
+  const H = ['달','항목','연령 데이터','일별 원본','차이','판정'];
+  H.forEach((h,i)=>head(r,i+1,h)); r++;
+
+  const items = [
+    ['노출수','imp','impressions',0],
+    ['클릭수','clk','clicks',0],
+    ['총비용','cost','cost',2],
+    ['전환수','conv','conv',0],
+    ['전환매출','rev','revenue',0]
+  ];
+  let missing = [];
+  stats.forEach(st=>{
+    const f = files[st.label];
+    if(!f){ missing.push(st.label); return; }
+    const A = auAgeTotals(f.age);
+    items.forEach(([nm,ak,sk,tol],i)=>{
+      F(r,1, i===0 ? st.label : '', {bold:true,al:'center'});
+      F(r,2, nm, {});
+      F(r,3, Math.round(A[ak]), {al:'right',fmt:AU.WON,bold:true});
+      F(r,4, Math.round(st[sk]||0), {al:'right',fmt:AU.WON});
+      const d = sh.getCell(r,5);
+      d.value = { formula:'IF(D'+r+'="","",C'+r+'-D'+r+')' };
+      d.numFmt = AU.WON; d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'};
+      d.border=auBorder(); d.fill=auFill(AU.GRAY);
+      const j = sh.getCell(r,6);
+      j.value = { formula:'IF(ABS(E'+r+')<='+tol+',"일치","불일치")' };
+      j.font={name:'Arial',size:10,bold:true}; j.alignment={horizontal:'center'}; j.border=auBorder();
+      r++;
+    });
+  });
+  if(missing.length){
+    F(r,1,'아직 안 받은 달: '+missing.join(', '),{size:9,color:'FFB07000',border:false}); r++;
+  }
+  r += 2;
+
+  // ── 2) 고른 달 · 연령대별 ────────────────────────────────────────────
+  const pf = files[pickLabel];
+  F(r,1,'2. 연령대별 — '+pickLabel+(pf?'':'  (이 달은 아직 안 받았습니다)'),{bold:true,size:11,border:false}); r+=1;
+  F(r,1,'네이버 다차원보고서를 「타겟팅 세그먼트 > 연령」으로 조회해서 노란 칸에 넣으세요.',
+    {size:9,color:'FF808080',border:false}); r+=2;
+
+  const H2 = ['연령대','노출수','클릭수','총비용','구매 전환','구매 매출',
+              '네이버 노출','차이','네이버 클릭','차이','네이버 비용','차이','네이버 전환','차이'];
+  H2.forEach((h,i)=>head(r,i+1,h)); r++;
+
+  const rowsOf = (box, labelMap, order)=>{
+    const keys = order
+      ? order.filter(k=>box && box[k])
+      : Object.keys(box||{}).sort();
+    return keys.map(k=>[ (labelMap[k]||k), box[k] ]);
+  };
+  const numBlock = (row, ourCol, naverCol)=>{
+    const OL = sh.getColumn(ourCol).letter, NL = sh.getColumn(naverCol).letter;
+    const n = sh.getCell(row, naverCol);
+    n.numFmt=AU.WON; n.font={name:'Arial',size:10,color:{argb:'FF0000FF'}};
+    n.alignment={horizontal:'right'}; n.border=auBorder(); n.fill=auFill(AU.YEL);
+    const d = sh.getCell(row, naverCol+1);
+    d.value={formula:'IF('+NL+row+'="","",'+NL+row+'-'+OL+row+')'};
+    d.numFmt=AU.WON; d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'};
+    d.border=auBorder(); d.fill=auFill(AU.GRAY);
+  };
+  const bodyRows = (list)=>{
+    list.forEach(([nm,b])=>{
+      F(r,1,nm,{bold:true});
+      F(r,2,Math.round(b.imp||0),{al:'right',fmt:AU.WON});
+      F(r,3,Math.round(b.clk||0),{al:'right',fmt:AU.WON});
+      F(r,4,Math.round(b.cost||0),{al:'right',fmt:AU.WON});
+      F(r,5,Math.round(b.conv||0),{al:'right',fmt:AU.WON,bold:true});
+      F(r,6,Math.round(b.rev||0),{al:'right',fmt:AU.WON});
+      numBlock(r,2,7); numBlock(r,3,9); numBlock(r,4,11); numBlock(r,5,13);
+      r++;
+    });
+  };
+  if(pf) bodyRows(rowsOf(pf.age, AU_AGE_LABEL, AU_AGE_ORDER));
+  if(pf){
+    const T = auAgeTotals(pf.age);
+    F(r,1,'합계',{bold:true,fill:AU.GREEN});
+    [T.imp,T.clk,T.cost,T.conv,T.rev].forEach((v,i)=>F(r,i+2,Math.round(v),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN}));
+    for(let c=7;c<=14;c++) F(r,c,'',{fill:AU.GREEN});
+    r++;
+  }
+  r += 2;
+
+  // ── 3) 고른 달 · 성별 ────────────────────────────────────────────────
+  F(r,1,'3. 성별 — '+pickLabel,{bold:true,size:11,border:false}); r+=2;
+  H2.forEach((h,i)=>head(r,i+1,h)); r++;
+  if(pf) bodyRows(rowsOf(pf.gender, AU_GENDER_LABEL, ['GNM','GNF','GNU']));
+  r += 2;
+
+  // ── 4) 전환 유형별 ───────────────────────────────────────────────────
+  F(r,1,'4. 전환 유형별 — '+pickLabel,{bold:true,size:11,border:false}); r+=1;
+  F(r,1,'네이버가 이 계정에서 내려주는 전환 유형입니다. 대시보드는 「구매」 유형만 셉니다 — '
+       +'장바구니에도 매출이 찍히는 계정이 있어서, 다 더하면 매출이 부풀려집니다.',
+    {size:9,color:'FF808080',border:false}); r+=2;
+  ['전환 유형','건수','매출','대시보드에 포함?'].forEach((h,i)=>head(r,i+1,h)); r++;
+  if(pf){
+    const types = {};
+    Object.values(pf.age||{}).forEach(b=>{
+      Object.entries(b.byType||{}).forEach(([t,e])=>{
+        const x = types[t] || (types[t]={c:0,s:0});
+        x.c += e.c||0; x.s += e.s||0;
+      });
+    });
+    const T = auAgeTotals(pf.age);
+    const names = Object.keys(types).sort((a,b)=>types[b].c-types[a].c);
+    if(!names.length){
+      F(r,1,'이 달 파일에는 유형별 내역이 없습니다 (2026-09-10 이전에 받은 데이터).',
+        {size:9,color:'FFB07000'}); r++;
+    } else {
+      names.forEach(t=>{
+        F(r,1,t,{bold:true});
+        F(r,2,types[t].c,{al:'right',fmt:AU.WON});
+        F(r,3,Math.round(types[t].s),{al:'right',fmt:AU.WON});
+        // 구매로 셌는지 = 이 유형만으로 conv 합계가 설명되는지로 판정하지 않고,
+        // 구매 합계와 이 유형 건수가 같은지로 표시 (유형이 하나뿐일 때가 대부분)
+        const inDash = (types[t].c === T.conv && Math.round(types[t].s) === Math.round(T.rev));
+        F(r,4, inDash ? '포함 (구매)' : '제외', {al:'center',bold:true,
+          color: inDash ? 'FF1F6F6B' : 'FF808080'});
+        r++;
+      });
+      F(r,1,'대시보드 값',{bold:true,fill:AU.GREEN});
+      F(r,2,Math.round(T.conv),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN});
+      F(r,3,Math.round(T.rev),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN});
+      F(r,4,'',{fill:AU.GREEN});
+      r++;
+      F(r,1,'모든 유형 합계',{bold:true,fill:AU.GRAY});
+      F(r,2,Math.round(T.convAll),{al:'right',fmt:AU.WON,fill:AU.GRAY});
+      F(r,3,Math.round(T.revAll),{al:'right',fmt:AU.WON,fill:AU.GRAY});
+      F(r,4,'참고용',{al:'center',color:'FF808080',fill:AU.GRAY});
+      r++;
+    }
+  }
+
+  [16,12,13,13,12,14,13,11,13,11,13,11,13,11].forEach((w,i)=>{ sh.getColumn(i+1).width=w; });
+  sh.views=[{state:'frozen', ySplit:3}];
+}
+
+async function buildAuditWorkbook(name, stats, dailyLabel, ageFiles){
   const wb = new ExcelJS.Workbook();
   wb.creator = 'km-board';
   const ws = wb.addWorksheet('월별 대조');
@@ -5169,6 +5368,12 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
   ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'].forEach((L,i)=>{ s2.getColumn(i+1).width=[8,12,12,6,14,14,12,9,12,12,9,11,12,9,10,11,9][i]; });
   s2.views=[{state:'frozen', xSplit:4, ySplit:4}];
 
+  // ── 연령 · 성별  (다른 보고서끼리 대조)
+  if(ageFiles && Object.keys(ageFiles).length){
+    const sAge = wb.addWorksheet('연령·성별');
+    auAgeSheet(sAge, stats, ageFiles, dailyLabel);
+  }
+
   // ── 월별 x 캠페인  (어느 캠페인에서 어긋나는지)
   const s4 = wb.addWorksheet('월별x캠페인');
   auCampSheet(s4, stats, '월별 \u00d7 캠페인 대조',
@@ -5191,6 +5396,13 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
    '   네이버가 예전 기간은 부가세를 포함해서 주고, 최근 기간은 빼고 줍니다. 데이터가 틀린 게 아닙니다.',
    '   「월별 대조」 오른쪽 파란 칸이 두 기준을 다 계산해두었으니 어느 쪽과 맞는지만 보시면 됩니다.',
    '   일별 표의 맨 오른쪽 칸에 「부가세 포함」이 처음 뜨는 날짜가 네이버가 기준을 바꾼 날입니다.',
+   '',
+   '「연령·성별」 시트',
+   '   1번 표는 입력할 게 없습니다 — 연령 데이터와 일별 데이터가 같은지 자동으로 대조합니다.',
+   '   서로 다른 보고서에서 온 값이라, 둘이 같으면 양쪽 다 맞는 것입니다.',
+   '   2·3번 표의 노란 칸에는 네이버 다차원보고서를 「타겟팅 세그먼트」로 조회해서 넣으시면 됩니다.',
+   '   4번 표는 이 계정에 어떤 전환 유형이 있는지 보여줍니다. 대시보드는 「구매」 유형만 셉니다 —',
+   '   장바구니에도 매출이 찍히는 계정이 있어서, 다 더하면 전환과 매출이 부풀려집니다.',
    '',
    '「표본 대조」에서 어디가 틀리는지로 원인이 좁혀집니다',
    '   1일만 틀림      → 그 날짜 수집 실패',
@@ -5221,6 +5433,7 @@ async function ensureExcelJS(){
 }
 let auCurrentStats = null;
 let auCurrentName = '';
+let auCurrentId = '';
 async function populateAuditClientSelect(){
   const sel=document.getElementById('au-client-select');
   if(!sel) return;
@@ -5252,6 +5465,7 @@ function auWire(){
     const raw=await getClientLight(key);
     if(!raw || !(raw.months||[]).length){ msg.textContent='데이터가 없습니다.'; return; }
     auCurrentName = raw.name || key.replace(/^client:/,'');
+    auCurrentId = key.replace(/^client:/,'');
     auCurrentStats = (raw.months||[]).map(auMonthStats);
     const def = auPickDefaultMonth(auCurrentStats);
     ms.innerHTML = auCurrentStats.map(s=>{
@@ -5270,7 +5484,12 @@ function auWire(){
     try{
       const ok=await ensureExcelJS();
       if(!ok){ msg.textContent='엑셀 만드는 도구를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.'; btn.disabled=false; return; }
-      const wb=await buildAuditWorkbook(auCurrentName, auCurrentStats, ms.value);
+      msg.textContent='연령 데이터 읽는 중...';
+      let ageFiles = {};
+      try{ ageFiles = await auLoadAgeFiles(auCurrentId, auCurrentStats.map(s=>s.label)); }
+      catch(e){ console.error(e); }
+      msg.textContent='엑셀 만드는 중...';
+      const wb=await buildAuditWorkbook(auCurrentName, auCurrentStats, ms.value, ageFiles);
       const buf=await wb.xlsx.writeBuffer();
       const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       const a=document.createElement('a');
