@@ -513,6 +513,28 @@ table tbody tr:hover td{background:#1b1e2c}
   .cl-acts{margin-top:8px}
 }
 
+/* 항목 수정 (목록에서 바로 고치기) */
+.cl-card.editing{border-color:var(--accent);background:var(--panel-2);}
+.cl-edit{display:flex;flex-direction:column;gap:10px}
+.cl-edit-head{font-size:12.5px;font-weight:700;color:var(--accent-text,#b4a9ff);letter-spacing:-.01em}
+.cl-edit .cl-lab{margin-bottom:4px}
+.cl-edit input[disabled]{opacity:.55;cursor:not-allowed}
+.cl-edit-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.cl-edit-msg{font-size:12px;color:var(--muted);opacity:0;transition:opacity .15s}
+.cl-edit-msg.show{opacity:1}
+
+/* 입력칸 — 지금까지 브라우저 기본 모양에 맡겨둬서 환경에 따라 하얗게 보였다.
+   페이지 나머지와 같은 어두운 색으로 맞춘다. 날짜 선택창까지 어둡게 나오도록 color-scheme 도 지정. */
+:root{color-scheme:dark}
+.cl-panel .txt,.cl-panel .sel,.cl-edit .txt,.cl-edit .sel{
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;box-sizing:border-box;}
+.cl-panel .txt::placeholder,.cl-edit .txt::placeholder{color:var(--muted)}
+.cl-panel .txt:focus,.cl-panel .sel:focus,.cl-edit .txt:focus,.cl-edit .sel:focus{
+  outline:none;border-color:var(--accent)}
+.cl-panel .sel,.cl-edit .sel{cursor:pointer}
+.cl-edit-acts .btn{width:auto;margin-top:0;padding:9px 20px !important;font-size:13px !important}
+
 </style>
 </head>
 <body>
@@ -550,8 +572,8 @@ table tbody tr:hover td{background:#1b1e2c}
         <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
         <div class="mdrop">
           <a href="live.html">예산 · 목표</a>
-          <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
-          <a href="memo.html">메모</a>
+          <a href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="ab-test.html">A/B 테스트</a>
         </div>
       </div>
       <div class="mitem" data-menu>
@@ -1981,7 +2003,9 @@ const CL = {
   open: {},        // 항목 id -> 펼침 여부
   busy: {},        // clientKey -> 불러오는 중
   newTodo: { title:'', clientKey:'', owner:'', start:'', due:'', status:'todo', priority:'mid', memo:'' },
-  addStatus: ''
+  addStatus: '',
+  edit: null,      // 수정 중인 항목 id
+  editMsg: ''
 };
 
 /* ---------- 할 일 저장소 ---------- */
@@ -2313,6 +2337,10 @@ function clListHTML(){
       : '';
     const detail = (it.kind==='ab' && openNow) ? `<div class="cl-detail">${clDetailHTML(it)}</div>` : '';
 
+    if(CL.edit === it.id){
+      return `<div class="cl-card editing" data-clid="${clEsc(it.id)}" data-clkind="${it.kind}">${clEditHTML(it)}</div>`;
+    }
+
     return `<div class="cl-card${done?' done':''}${over?' over':''}" data-clid="${clEsc(it.id)}" data-clkind="${it.kind}">
       <div class="cl-head">
         <button type="button" class="cl-box${done?' on':''}" data-clcheck="${clEsc(it.id)}" title="완료 표시">✓</button>
@@ -2328,12 +2356,95 @@ function clListHTML(){
             <option value="doing"${it.status==='doing'?' selected':''}>진행 중</option>
             <option value="done"${it.status==='done'?' selected':''}>완료</option>
           </select>
+          <button class="cl-mini" data-cledit="${clEsc(it.id)}">✎ 수정</button>
           <button class="cl-del" data-cldel="${clEsc(it.id)}" title="삭제">✕</button>
         </div>
       </div>
       ${detail}
     </div>`;
   }).join('');
+}
+
+/* ---------- 항목 수정 ----------
+   목록에서 바로 고칠 수 있게 카드 자리를 그대로 입력칸으로 바꾼다.
+   A/B 테스트는 A안·B안 구성까지 여기서 바꾸면 이미 쌓인 비교 결과와 어긋나므로
+   이름·담당자·날짜·상태·우선순위·가설·결론만 고칠 수 있게 둔다. */
+function clEditHTML(it){
+  const gen = it.kind==='todo';
+  const clientOpts = ['<option value="">업체 없음</option>']
+    .concat(clientListCache.slice().sort((x,y)=>x.name.localeCompare(y.name,'ko'))
+      .map(c=>`<option value="${clEsc(c.key)}"${it.clientKey===c.key?' selected':''}>${clEsc(c.name)}</option>`)).join('');
+  return `<div class="cl-edit">
+    <div class="cl-edit-head">✎ ${gen?'할 일 수정':'A/B 테스트 수정'}</div>
+    <div class="${gen?'cl-form5':'cl-form4'}">
+      <div><label class="cl-lab">${gen?'할 일 내용':'테스트 이름'}</label>
+        <input class="txt" id="clEdTitle" value="${clEsc(it.title)}"></div>
+      <div><label class="cl-lab">업체</label>
+        ${gen?`<select class="sel" id="clEdClient">${clientOpts}</select>`
+             :`<input class="txt" value="${clEsc(clClientName(it.clientKey))}" disabled>`}</div>
+      <div><label class="cl-lab">담당자</label>
+        <input class="txt" id="clEdOwner" value="${clEsc(it.owner)}"></div>
+      ${gen?`<div><label class="cl-lab">시작일 (선택)</label>
+        <input class="txt" type="date" id="clEdStart" value="${clEsc(it.start)}"></div>`:''}
+      <div><label class="cl-lab">${gen?'마감일':'결과 확인일'}</label>
+        <input class="txt" type="date" id="clEdDue" value="${clEsc(it.due)}"></div>
+    </div>
+    <div class="cl-form3">
+      <div><label class="cl-lab">상태</label><select class="sel" id="clEdStatus">
+        <option value="todo"${it.status==='todo'?' selected':''}>할 일</option>
+        <option value="doing"${it.status==='doing'?' selected':''}>진행 중</option>
+        <option value="done"${it.status==='done'?' selected':''}>완료</option>
+      </select></div>
+      <div><label class="cl-lab">우선순위</label><select class="sel" id="clEdPrio">
+        <option value="high"${it.priority==='high'?' selected':''}>높음</option>
+        <option value="mid"${it.priority==='mid'?' selected':''}>보통</option>
+        <option value="low"${it.priority==='low'?' selected':''}>낮음</option>
+      </select></div>
+      <div><label class="cl-lab">${gen?'메모 (선택)':'가설 (선택)'}</label>
+        <input class="txt" id="clEdMemo" value="${clEsc(it.memo)}"></div>
+    </div>
+    ${gen?'':`<div class="cl-form3" style="grid-template-columns:1fr;">
+      <div><label class="cl-lab">결론 (선택)</label>
+        <input class="txt" id="clEdConc" value="${clEsc(it.conclusion)}"></div>
+    </div>`}
+    <div class="cl-edit-acts">
+      <button class="btn btn-accent" data-cleditsave="${clEsc(it.id)}">저장</button>
+      <button class="btn" data-cleditcancel="1">취소</button>
+      <span class="cl-edit-msg${CL.editMsg?' show':''}">${clEsc(CL.editMsg)}</span>
+    </div>
+  </div>`;
+}
+
+async function clEditSave(id){
+  const it = clFind(id);
+  if(!it) return;
+  const g = i => { const el=document.getElementById(i); return el ? el.value : ''; };
+  const setMsg = m => { CL.editMsg = m; renderChecklist(); };
+  const title = (g('clEdTitle')||'').trim();
+  if(!title){ setMsg(it.kind==='todo' ? '할 일 내용을 비워둘 수 없어요.' : '테스트 이름을 비워둘 수 없어요.'); return; }
+  const start = g('clEdStart') || null;
+  const due = g('clEdDue') || null;
+  if(start && due && start > due){ setMsg('시작일이 마감일보다 늦어요.'); return; }
+  const owner = (g('clEdOwner')||'').trim() || null;
+  const memo = (g('clEdMemo')||'').trim() || null;
+  const status = g('clEdStatus') || 'todo';
+  const priority = g('clEdPrio') || 'mid';
+  const clientKey = it.kind==='todo' ? (g('clEdClient') || null) : it.clientKey;
+  const conclusion = it.kind==='todo' ? '' : (g('clEdConc')||'').trim();
+
+  CL.editMsg = '저장 중…';
+  renderChecklist();
+
+  if(it.kind==='todo'){
+    const ok = await patchTodo(id, { title, clientKey, owner, start, due, status, priority, memo });
+    if(!ok){ CL.todos = await loadTodos(); setMsg('저장에 실패했어요. 저장된 내용은 그대로예요.'); return; }
+  } else {
+    const ok = await clPatchAb(it.clientKey, id, { name:title, owner, due, status, priority,
+      hypothesis: memo || '', conclusion });
+    if(!ok){ setMsg('저장에 실패했어요.'); return; }
+  }
+  CL.edit = null; CL.editMsg = '';
+  renderChecklist();
 }
 
 function clDetailHTML(it){
@@ -2547,6 +2658,24 @@ function clBind(){
   card.querySelectorAll('[data-cldel]').forEach(b=>{
     b.onclick = ()=> clDelete(b.dataset.cldel);
   });
+  card.querySelectorAll('[data-cledit]').forEach(b=>{
+    b.onclick = ()=>{ CL.edit = b.dataset.cledit; CL.editMsg=''; renderChecklist();
+      const el = document.getElementById('clEdTitle'); if(el) el.focus();
+    };
+  });
+  card.querySelectorAll('[data-cleditsave]').forEach(b=>{
+    b.onclick = ()=> clEditSave(b.dataset.cleditsave);
+  });
+  card.querySelectorAll('[data-cleditcancel]').forEach(b=>{
+    b.onclick = ()=>{ CL.edit = null; CL.editMsg=''; renderChecklist(); };
+  });
+  card.querySelectorAll('.cl-edit input, .cl-edit select').forEach(el=>{
+    el.onkeydown = (e)=>{
+      if(!CL.edit) return;
+      if(e.key==='Enter'){ e.preventDefault(); clEditSave(CL.edit); }
+      if(e.key==='Escape'){ CL.edit = null; CL.editMsg=''; renderChecklist(); }
+    };
+  });
   card.querySelectorAll('[data-clexp]').forEach(b=>{
     b.onclick = ()=> clToggleExpand(b.dataset.clexp);
   });
@@ -2612,6 +2741,7 @@ async function clPatchAb(clientKey, id, patch){
 async function clDelete(id){
   const it = clFind(id);
   if(!it) return;
+  if(CL.edit === id){ CL.edit = null; CL.editMsg=''; }
   if(!confirm('이 항목을 삭제할까요?')) return;
   if(it.kind==='todo'){
     const ok = await mutateTodos(list=>list.filter(x=>x.id!==id));
