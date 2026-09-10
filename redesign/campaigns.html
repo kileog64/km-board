@@ -524,11 +524,12 @@ table td.km-bad { color: var(--down); font-weight: 700; }
       </div>
     </nav><style id="km-menu-style">
   /* ── 상단 메뉴 (대메뉴 + 소메뉴) — 전 페이지 공통 ── */
-  .kmenu{display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
+  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
   .kmenu .mitem{position:relative;}
-  .kmenu .mbtn{display:flex;align-items:center;gap:5px;background:none;border:none;
-    color:var(--muted);font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;
-    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.4;font-family:inherit;
+  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
+  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
+    color:#a9adc2;font-size:12.5px;font-weight:500;padding:5px 11px;border-radius:7px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
     transition:background .12s ease,color .12s ease;}
   .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
   .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
