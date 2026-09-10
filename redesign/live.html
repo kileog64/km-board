@@ -207,7 +207,6 @@ function goalToState(g){
   g = g || {};
   return {
     b:  g.budgetTarget ? g.budgetTarget/10000 : 0,
-    cv: g.convTarget || 0,
     cp: (g.metric==='cpa' && g.target) ? g.target/10000 : 0,
     rs: (g.metric==='roas' && g.target) ? g.target : 0
   };
@@ -221,11 +220,15 @@ function fBudget(c){
   return {set:true,b,left,pct,daily:left>0?left/DL:0,
     over:left<0, tight:left>0 && (pct-DATE_PCT)>10};
 }
+// 목표 전환 건수는 따로 적지 않고 예산 ÷ 목표 전환당 비용으로 자동 계산한다.
+// (둘 다 만원 단위라 그대로 나누면 건수가 나옴 — 예: 2,000만원 ÷ 8만원 = 250건)
 function fConv(c){
-  const t=S[c.id]?.cv;
-  if(!t||t<=0) return {set:false};
+  const b=S[c.id]?.b, cp=S[c.id]?.cp;
+  if(!b||b<=0||!cp||cp<=0) return {set:false, needs:true};
+  const t=Math.floor(b/cp);
+  if(t<=0) return {set:false, needs:true};
   const pct=c.conv/t*100;
-  return {set:true,t,pct,behind:pct<DATE_PCT-5,good:pct>=DATE_PCT,left:Math.max(0,t-c.conv)};
+  return {set:true,t,pct,behind:pct<DATE_PCT-5,good:pct>=DATE_PCT,left:Math.max(0,t-c.conv),auto:true};
 }
 function fCpa(c){
   const t=S[c.id]?.cp;
@@ -305,23 +308,18 @@ function render(){
           </div>
         </div>`:`
         <div class="pane">
-          <div class="ptitle">전환 건수</div>
-          <div class="inrow">
-            <input class="n" data-f="cv" data-id="${c.id}" type="number" inputmode="numeric"
-                   placeholder="월 목표" value="${s.cv||''}">
-            <span class="unit">건</span>
-          </div>
+          <div class="ptitle">전환 건수 <span style="font-weight:400;opacity:.75">· 자동</span></div>
           ${cv.set?`
+            <div class="big" style="margin-top:2px;font-size:22px;color:${cv.good?'var(--good)':(cv.behind?'var(--bad)':'var(--tx)')}">${c.conv}건</div>
+            <div class="bigsub">목표 ${cv.t}건 · 예산 ÷ 전환당 비용</div>
             <div class="track">
               <div class="fill" style="width:${Math.min(100,cv.pct)}%;background:${cv.good?'var(--good)':(cv.behind?'var(--bad)':'var(--warn)')}"></div>
               <div class="marker" style="left:${DATE_PCT}%"></div>
             </div>
-            <div class="barlbl"><span>${c.conv} / ${cv.t}건</span>
+            <div class="barlbl"><span>${Math.round(cv.pct)}% 달성</span>
               <span>${cv.left?'남은 '+cv.left+'건':'목표 달성'}</span></div>
-            <div class="big" style="color:${cv.good?'var(--good)':(cv.behind?'var(--bad)':'var(--tx)')}">
-              ${Math.round(cv.pct)}%</div>
-            <div class="bigsub">날짜는 ${Math.round(DATE_PCT)}% 지남</div>
-          `:'<div class="empty">입력하면 달성률이 나옵니다</div>'}
+            <div class="bigsub" style="margin-top:5px">날짜는 ${Math.round(DATE_PCT)}% 지남</div>
+          `:'<div class="empty">예산과 전환당 비용을 넣으면<br>목표 건수가 자동으로 나옵니다</div>'}
         </div>`}
         ${isB2C?`
         <div class="pane">
@@ -417,7 +415,9 @@ function saveOne(id){
     }else{
       goal.metric='cpa';
       goal.target = s.cp>0 ? Math.round(s.cp*10000) : null;
-      goal.convTarget = s.cv>0 ? Math.round(s.cv) : null;
+      // 목표 건수는 사람이 적지 않고 예산 ÷ 전환당 비용으로 계산해서 저장 (대시보드도 같은 값을 봄)
+      const autoCv = fConv(c);
+      goal.convTarget = autoCv.set ? autoCv.t : null;
     }
     try{
       await userClientsRef().doc(c.id).set({ goal }, { merge:true });
