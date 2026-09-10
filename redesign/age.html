@@ -240,6 +240,30 @@
   .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));font-weight:700;}
   .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
+
+/* 캠페인별 · 광고그룹별 연령 */
+.cmp-search{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);
+  color:var(--tx);border-radius:8px;padding:7px 10px;font:inherit;font-size:12.5px;margin:10px 0 0;}
+.cmp-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;max-height:136px;overflow-y:auto;padding-right:2px;}
+.cmp-chip{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx);background:var(--panel-2);
+  padding:5px 10px;border-radius:13px;border:1px solid var(--border);max-width:260px;cursor:pointer;}
+.cmp-chip.on{background:rgba(139,124,255,.2);border-color:rgba(139,124,255,.55);}
+.cmp-chip.off{opacity:.42;cursor:not-allowed;}
+.cmp-chip input{accent-color:var(--accent);width:12px;height:12px;flex:none;}
+.cmp-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmp-chip i{font-style:normal;color:var(--muted);font-size:11px;flex:none;}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap;}
+.grp-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;}
+.grp-bar select{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);border-radius:8px;
+  padding:6px 10px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  flex:1 1 240px;min-width:0;max-width:100%;width:100%;box-sizing:border-box;}
+@media (max-width:640px){ .cmp-chip{max-width:100%;} }
+
+/* 좁은 화면에서 페이지 전체가 옆으로 밀리던 문제 — 표는 각자 가로 스크롤을 갖고 있어서
+   바깥 테두리를 화면 폭에 맞춰 잠가도 안이 잘리지 않는다. */
+.wrap{min-width:0;}
+.card .card{margin-bottom:10px;}
+.card .card:last-child{margin-bottom:0;}
 </style>
 </head>
 <body>
@@ -438,6 +462,18 @@ function blank(){ return {imp:0,clk:0,cost:0,conv:0,rev:0}; }
 function addTo(a,b){ a.imp+=b.imp||0; a.clk+=b.clk||0; a.cost+=b.cost||0;
   a.conv+=b.conv||0; a.rev+=b.rev||0; }
 
+// { 그룹번호: { age:{}, gender:{} } } 두 벌을 합친다
+function mergeGroups(dst, src){
+  if(!src) return;
+  Object.keys(src).forEach(gid=>{
+    const box = dst[gid] || (dst[gid] = { age:{}, gender:{} });
+    ['age','gender'].forEach(g=>{
+      Object.keys(src[gid][g]||{}).forEach(code=>{
+        const t = box[g][code] || (box[g][code]=blank()); addTo(t, src[gid][g][code]); });
+    });
+  });
+}
+
 function rowsOf(box, order){
   const keys=Object.keys(box||{});
   const known=(order||[]).filter(k=>keys.includes(k));
@@ -500,29 +536,66 @@ function renderSays(ageRows, genRows){
   return `<div class="says">${out.map(t=>'<div>· '+t+'</div>').join('')}</div>`;
 }
 
+const METRIC_COLORS = { cost:'#41b8e3', imp:'#8b7cff', clk:'#a89bff', conv:'#3ddc97', eff:'#f5a524' };
+function metricValue(r, k){ return k==='eff' ? (effOf(r)||0) : (r[k]||0); }
+function metricText(k, v){
+  if(k==='eff') return effFmt(v);
+  if(k==='cost') return won(v)+'원';
+  return num(v) + (k==='conv' ? '건' : '');
+}
+function metricName(k){ return k==='eff' ? effLabel() : (METRICS.find(m=>m.k===k)||{}).t; }
+
+/* 지표를 여러 개 고를 수 있게 했다.
+   단위가 서로 달라서(비용 수십만원 vs ROAS 수백) 한 축에 그대로 올리면 작은 쪽이 안 보인다.
+   그래서 두 개 이상 고르면 각 지표를 '자기 최댓값 = 100'으로 맞춰 나란히 그리고,
+   실제 숫자는 막대에 마우스를 올리면 보이게 한다. 하나만 고르면 지금처럼 실제 값 그대로 그린다. */
 function renderChart(ageRows){
   const wrap = document.getElementById('chartWrap');
   if(!wrap) return;
   if(chart){ chart.destroy(); chart=null; }
   const on = METRICS.filter(m=>m.on);
-  if(!on.length || !ageRows.length) return;
+  const note = document.getElementById('chartNote');
+  if(!on.length || !ageRows.length){
+    if(note) note.textContent = on.length ? '' : '지표를 하나 이상 골라주세요.';
+    return;
+  }
   const labels = ageRows.map(r=>ageLabel(r.code));
-  // 축을 두 개 쓰지 않는다 — 선택한 지표를 각각 별도 막대로 두면 단위가 섞여 왜곡되므로
-  // 지표는 하나만 그리고, 나머지는 표에서 읽게 한다.
-  const m = on[0];
-  const vals = ageRows.map(r => m.k==='eff' ? (effOf(r)||0) : r[m.k]);
+  const multi = on.length > 1;
+  const raw = {};
+  on.forEach(m=>{ raw[m.k] = ageRows.map(r=>metricValue(r, m.k)); });
+
+  const datasets = on.map(m=>{
+    const vals = raw[m.k];
+    const max = Math.max(...vals.map(v=>Math.abs(v)), 0) || 1;
+    return {
+      label: metricName(m.k),
+      data: multi ? vals.map(v=> v/max*100) : vals,
+      backgroundColor: METRIC_COLORS[m.k] || '#8b7cff',
+      borderRadius:4, borderSkipped:false,
+      _k: m.k, _raw: vals
+    };
+  });
+
+  if(note) note.textContent = multi
+    ? '지표마다 단위가 달라서, 각 지표의 가장 큰 값을 100으로 맞춰 나란히 그렸어요. 실제 숫자는 막대에 마우스를 올리면 나옵니다.'
+    : '';
+
   const ctx = document.getElementById('agChart');
   chart = new Chart(ctx, {
     type:'bar',
-    data:{ labels, datasets:[{ label: m.k==='eff'?effLabel():m.t, data:vals,
-      backgroundColor:'#8b7cff', borderRadius:4, borderSkipped:false }] },
+    data:{ labels, datasets },
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label:c=> (m.k==='eff'?effLabel():m.t)+' '
-          + (m.k==='eff' ? effFmt(c.parsed.y) : (m.k==='cost'? won(c.parsed.y)+'원' : num(c.parsed.y))) } } },
-      scales:{ x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
-        y:{ grid:{color:'#23253a'}, ticks:{color:'#a8abc4',font:{size:11},
-          callback:v=> m.k==='cost'? (v/10000)+'만' : num(v) } } } }
+      plugins:{
+        legend:{ display:multi, labels:{ color:'#a8abc4', font:{size:11}, boxWidth:12, boxHeight:12 } },
+        tooltip:{ callbacks:{ label:c=>{
+          const d = c.dataset;
+          return metricName(d._k) + ' ' + metricText(d._k, d._raw[c.dataIndex]);
+        } } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
+        y:{ grid:{color:'#23253a'},
+            ticks:{ color:'#a8abc4', font:{size:11},
+              callback:v=> multi ? v : (on[0].k==='cost' ? (v/10000)+'만' : num(v)) } } } }
   });
 }
 
@@ -541,6 +614,227 @@ function renderTable(title, sub, rows, labelFn){
       </tbody></table></div></div>`;
 }
 
+
+/* ─────────── 캠페인별 · 광고그룹별 연령 (2026-09-10 추가) ───────────
+   수집기가 월 파일 안에 광고그룹 단위 연령·성별을 같이 담아준다.
+     byGroup[그룹번호]        그 달 합계
+     byDate[날짜].groups[…]   하루치 (날짜 필터용)
+     groupInfo[그룹번호]      { n: 광고그룹 이름, c: 캠페인 이름 }
+   캠페인 단위 숫자는 같은 캠페인에 속한 광고그룹을 더해서 만든다.            */
+
+let cmpCamps = [];          // 비교할 캠페인 (최대 3개)
+let cmpMetric = 'conv';
+let cmpSearch = '';
+let agPick = null;          // 고른 광고그룹 번호
+let agOpen = false;         // 광고그룹 그래프 펼침 여부
+let cmpChart = null, grpChart = null;
+const GRP_METRICS = [
+  {k:'cost', t:'비용',   on:false},
+  {k:'imp',  t:'노출수', on:false},
+  {k:'clk',  t:'클릭수', on:false},
+  {k:'conv', t:'전환수', on:true},
+  {k:'eff',  t:'효율',   on:true}
+];
+const CMP_COLORS = ['#41b8e3','#8b7cff','#3ddc97','#f5a524','#ff6b85'];
+const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// 광고그룹을 캠페인으로 묶는다. 이름표가 없는 그룹은 번호로 대신 보여준다.
+function campaignTree(){
+  const G = (merged && merged.groups) || {}, I = (merged && merged.info) || {};
+  const byCamp = {};
+  Object.keys(G).forEach(gid=>{
+    const box = G[gid];
+    const has = Object.keys(box.age||{}).length || Object.keys(box.gender||{}).length;
+    if(!has) return;
+    const meta = I[gid] || {};
+    const camp = meta.c || '(캠페인 이름 없음)';
+    const name = meta.n || gid;
+    (byCamp[camp] || (byCamp[camp] = [])).push({ gid, name });
+  });
+  return Object.keys(byCamp).sort((a,b)=>a.localeCompare(b,'ko')).map(camp=>({
+    campaign: camp,
+    groups: byCamp[camp].sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+  }));
+}
+function sumBox(gids, which){
+  const G = (merged && merged.groups) || {}, out = {};
+  gids.forEach(gid=>{
+    const box = (G[gid] && G[gid][which]) || {};
+    Object.keys(box).forEach(code=>{
+      const t = out[code] || (out[code]=blank()); addTo(t, box[code]); });
+  });
+  return out;
+}
+
+/* ── 캠페인별 연령 비교 ── */
+function renderCmpCard(){
+  const tree = campaignTree();
+  if(!tree.length) return '';
+  const q = cmpSearch.trim().toLowerCase();
+  // 검색으로 걸러도 이미 고른 캠페인은 남겨둔다(안 그러면 해제할 방법이 없다)
+  const shown = tree.filter(t => !q || cmpCamps.includes(t.campaign) || t.campaign.toLowerCase().includes(q));
+  const chips = shown.length ? shown.map(t=>{
+    const on = cmpCamps.includes(t.campaign);
+    const off = !on && cmpCamps.length>=3;
+    return `<label class="cmp-chip${on?' on':''}${off?' off':''}" title="${esc2(t.campaign)}">
+      <input type="checkbox" class="cmp-camp" value="${esc2(t.campaign)}" ${on?'checked':''} ${off?'disabled':''}>
+      <span>${esc2(t.campaign)}</span><i>${t.groups.length}그룹</i></label>`;
+  }).join('') : `<span class="sub">'${esc2(cmpSearch)}'와 맞는 캠페인이 없어요.</span>`;
+
+  const metricBtns = METRICS.map(m=>
+    `<button class="pill${cmpMetric===m.k?' on':''}" data-cm="${m.k}">${m.k==='eff'?effLabel():m.t}</button>`).join('');
+
+  const body = cmpCamps.length
+    ? `<div class="pillrow" style="margin:10px 0 8px;">${metricBtns}</div>
+       <div class="chartbox" id="cmpWrap"><canvas id="cmpChart"></canvas></div>
+       <div class="sub" id="cmpNote" style="margin-top:8px;"></div>`
+    : `<div class="sub" style="margin-top:10px;">캠페인을 1개 이상 고르면 연령대별로 겹쳐서 비교할 수 있어요.</div>`;
+
+  return `<div class="card"><h3>캠페인별 연령 비교 <span class="sub" style="font-weight:400;">(최대 3개)</span></h3>
+    <div class="sub">${cmpCamps.length}/3 선택됨 · 전체 ${tree.length}개 캠페인</div>
+    ${tree.length>10 ? `<input class="cmp-search" id="cmpSearch" placeholder="캠페인 이름으로 걸러보기…" value="${esc2(cmpSearch)}">` : ''}
+    <div class="cmp-chips">${chips}</div>
+    ${body}</div>`;
+}
+function drawCmpChart(){
+  if(cmpChart){ cmpChart.destroy(); cmpChart=null; }
+  if(!cmpCamps.length || !document.getElementById('cmpChart')) return;
+  const tree = campaignTree();
+  const codes = AGE_ORDER.filter(c => Object.keys(merged.age||{}).includes(c))
+    .concat(Object.keys(merged.age||{}).filter(c=>!AGE_ORDER.includes(c)).sort());
+  const labels = codes.map(ageLabel);
+  const datasets = cmpCamps.map((camp,i)=>{
+    const node = tree.find(t=>t.campaign===camp);
+    const box = node ? sumBox(node.groups.map(g=>g.gid), 'age') : {};
+    return {
+      label: camp,
+      data: codes.map(c => metricValue(box[c] || blank(), cmpMetric)),
+      borderColor: CMP_COLORS[i % CMP_COLORS.length],
+      backgroundColor: CMP_COLORS[i % CMP_COLORS.length] + '33',
+      borderWidth:2, tension:.3, pointRadius:3, fill:false
+    };
+  });
+  const note = document.getElementById('cmpNote');
+  if(note) note.textContent = cmpMetric==='eff'
+    ? (isDB ? '전환당 비용은 낮을수록 좋아요. 전환이 없는 연령대는 0으로 그려집니다.'
+            : 'ROAS는 높을수록 좋아요. 비용이 없는 연령대는 0으로 그려집니다.')
+    : '';
+  cmpChart = new Chart(document.getElementById('cmpChart'), {
+    type:'line', data:{ labels, datasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, labels:{ color:'#a8abc4', font:{size:11}, boxWidth:12, boxHeight:12 } },
+        tooltip:{ callbacks:{ label:c=> c.dataset.label + ' · ' + metricName(cmpMetric) + ' ' + metricText(cmpMetric, c.raw) } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
+        y:{ grid:{color:'#23253a'}, beginAtZero:true,
+            ticks:{ color:'#a8abc4', font:{size:11}, precision:0,
+              callback:v=> cmpMetric==='cost' ? (v/10000)+'만' : num(v) } } } }
+  });
+}
+
+/* ── 광고그룹별 연령 분석 ── */
+function renderGrpCard(){
+  const tree = campaignTree();
+  if(!tree.length) return '';
+  const opts = [];
+  tree.forEach(t => t.groups.forEach(g => opts.push({ gid:g.gid, label: t.campaign + ' · ' + g.name })));
+  if(!opts.length) return '';
+  if(!agPick || !opts.some(o=>o.gid===agPick)) agPick = opts[0].gid;
+
+  const ageBox = sumBox([agPick], 'age'), genBox = sumBox([agPick], 'gender');
+  const rows = rowsOf(ageBox, AGE_ORDER);
+  const genRows = rowsOf(genBox, ['GNM','GNF','GNU']);
+  const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
+  const hasData = tot.imp>0 || tot.cost>0;
+
+  const best = rows.filter(r=>enough(r)).sort((a,b)=>{
+    const ea=effOf(a), eb=effOf(b);
+    if(ea===null) return 1; if(eb===null) return -1;
+    return isDB ? ea-eb : eb-ea;
+  })[0];
+
+  const chartPart = !agOpen ? '' : `
+    <div class="metricrow" id="grow">${GRP_METRICS.map(m=>
+      `<label><input type="checkbox" data-gk="${m.k}" ${m.on?'checked':''}
+        style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
+    <div class="sub" id="grpNote" style="margin:2px 0 8px;"></div>
+    <div class="chartbox" id="grpWrap"><canvas id="grpChart"></canvas></div>`;
+
+  return `<div class="card"><h3>광고그룹별 연령 분석 <span class="sub" style="font-weight:400;">— ${opts.length}개 광고그룹</span></h3>
+    <div class="grp-bar">
+      <span class="sub">캠페인 · 광고그룹</span>
+      <select id="grpSelect">${opts.map(o=>
+        `<option value="${esc2(o.gid)}" ${o.gid===agPick?'selected':''}>${esc2(o.label)}</option>`).join('')}</select>
+      <button class="pill${agOpen?' on':''}" id="grpToggle">${agOpen?'접기':'그래프 보기'}</button>
+    </div>
+    ${!hasData
+      ? `<div class="sub" style="margin-top:10px;">이 광고그룹은 고른 기간에 자료가 없어요.</div>`
+      : `${best ? `<div class="says" style="margin-top:10px;">이 광고그룹은 <b>${ageLabel(best.code)}</b>에서 가장 효율이 좋아요
+            (${effLabel()} ${effFmt(effOf(best))} · 전환 ${num(best.conv)}건 · 비용 ${won(best.cost)}원).</div>` : ''}
+         ${chartPart}
+         ${renderTable('이 광고그룹 연령대별 표', (mFrom===mTo?mFrom:(mFrom+' ~ '+mTo)), rows, ageLabel)}
+         ${genRows.length ? renderTable('이 광고그룹 성별', (mFrom===mTo?mFrom:(mFrom+' ~ '+mTo)), genRows, c=>GENDER_LABEL[c]||c) : ''}`}
+    </div>`;
+}
+function drawGrpChart(){
+  if(grpChart){ grpChart.destroy(); grpChart=null; }
+  if(!agOpen || !document.getElementById('grpChart')) return;
+  const rows = rowsOf(sumBox([agPick],'age'), AGE_ORDER);
+  const on = GRP_METRICS.filter(m=>m.on);
+  const note = document.getElementById('grpNote');
+  if(!on.length || !rows.length){ if(note) note.textContent = on.length?'':'지표를 하나 이상 골라주세요.'; return; }
+  const multi = on.length>1;
+  const datasets = on.map(m=>{
+    const vals = rows.map(r=>metricValue(r, m.k));
+    const max = Math.max(...vals.map(v=>Math.abs(v)), 0) || 1;
+    return { label: metricName(m.k), data: multi ? vals.map(v=>v/max*100) : vals,
+      backgroundColor: METRIC_COLORS[m.k] || '#8b7cff', borderRadius:4, borderSkipped:false,
+      _k:m.k, _raw:vals };
+  });
+  if(note) note.textContent = multi
+    ? '지표마다 단위가 달라서, 각 지표의 가장 큰 값을 100으로 맞춰 나란히 그렸어요. 실제 숫자는 막대에 마우스를 올리면 나옵니다.' : '';
+  grpChart = new Chart(document.getElementById('grpChart'), {
+    type:'bar', data:{ labels: rows.map(r=>ageLabel(r.code)), datasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:multi, labels:{ color:'#a8abc4', font:{size:11}, boxWidth:12, boxHeight:12 } },
+        tooltip:{ callbacks:{ label:c=> metricName(c.dataset._k) + ' ' + metricText(c.dataset._k, c.dataset._raw[c.dataIndex]) } } },
+      scales:{ x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
+        y:{ grid:{color:'#23253a'}, beginAtZero:true,
+          ticks:{ color:'#a8abc4', font:{size:11}, precision:0,
+          callback:v=> multi ? v : (on[0].k==='cost' ? (v/10000)+'만' : num(v)) } } } }
+  });
+}
+
+// 새로 그린 화면에 클릭 동작을 다시 붙인다
+function wireGroupUI(){
+  const s = document.getElementById('cmpSearch');
+  if(s) s.oninput = ()=>{ cmpSearch = s.value; const at = s.selectionStart; render(); 
+    const s2 = document.getElementById('cmpSearch'); if(s2){ s2.focus(); try{ s2.setSelectionRange(at,at); }catch(e){} } };
+  document.querySelectorAll('.cmp-camp').forEach(cb=>{
+    cb.onchange = ()=>{
+      const v = cb.value;
+      if(cb.checked){ if(cmpCamps.length<3 && !cmpCamps.includes(v)) cmpCamps.push(v); }
+      else cmpCamps = cmpCamps.filter(c=>c!==v);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-cm]').forEach(b=>{
+    b.onclick = ()=>{ cmpMetric = b.dataset.cm; render(); };
+  });
+  const sel = document.getElementById('grpSelect');
+  if(sel) sel.onchange = ()=>{ agPick = sel.value; render(); };
+  const tg = document.getElementById('grpToggle');
+  if(tg) tg.onclick = ()=>{ agOpen = !agOpen; render(); };
+  document.querySelectorAll('#grow input').forEach(cb=>{
+    cb.onchange = ()=>{
+      GRP_METRICS.forEach(m=>{ if(m.k===cb.dataset.gk) m.on = cb.checked; });
+      if(!GRP_METRICS.some(m=>m.on)) GRP_METRICS.forEach(m=>{ if(m.k===cb.dataset.gk) m.on = true; });
+      render();
+    };
+  });
+}
+
 function render(){
   const el=document.getElementById('body');
   if(!merged || !Object.keys(merged.age||{}).length){
@@ -552,21 +846,27 @@ function render(){
   const genRows = rowsOf(merged.gender, ['GNM','GNF','GNU']);
   el.innerHTML = renderReco(ageRows) + renderSays(ageRows, genRows)
     + `<div class="card"><h3>연령대별 성과</h3>
-        <div class="sub">나이 순 · 지표를 고르면 막대가 바뀝니다</div>
+        <div class="sub">나이 순 · 지표를 여러 개 골라 나란히 볼 수 있어요</div>
         <div class="metricrow" id="mrow">${METRICS.map(m=>
           `<label><input type="checkbox" data-k="${m.k}" ${m.on?'checked':''}
             style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
+        <div class="sub" id="chartNote" style="margin:2px 0 8px;"></div>
         <div class="chartbox" id="chartWrap"><canvas id="agChart"></canvas></div></div>`
     + renderTable('연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
-    + renderTable('성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c);
+    + renderTable('성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c)
+    + renderCmpCard() + renderGrpCard();
   document.querySelectorAll('#mrow input').forEach(cb=>{
     cb.onchange = ()=>{
       METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = cb.checked; });
-      if(cb.checked) METRICS.forEach(m=>{ if(m.k!==cb.dataset.k) m.on=false; });
+      // 전부 끄면 그릴 게 없으니 마지막 하나는 꺼지지 않게 한다
+      if(!METRICS.some(m=>m.on)){ METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = true; }); }
       render();
     };
   });
   renderChart(ageRows);
+  wireGroupUI();
+  drawCmpChart();
+  drawGrpChart();
 }
 
 // 월 파일을 받아 캐시. 날짜 필터는 파일 안의 byDate(일자별)로 다시 계산한다.
@@ -641,16 +941,18 @@ function clampDays(){
 }
 function recompute(){
   clampDays();
-  merged = { age:{}, gender:{} };
+  merged = { age:{}, gender:{}, groups:{}, info:{} };
   const useDays = !!(dayFrom || dayTo);
   Object.keys(monthCache).forEach(mk=>{
     if(mk<mFrom || mk>mTo) return;
     const d = monthCache[mk]; if(!d) return;
+    Object.assign(merged.info, d.groupInfo || {});
     if(!useDays){
       ['age','gender'].forEach(g=>{
         Object.keys(d[g]||{}).forEach(code=>{
           const t = merged[g][code] || (merged[g][code]=blank()); addTo(t, d[g][code]); });
       });
+      mergeGroups(merged.groups, d.byGroup);
       return;
     }
     Object.keys(d.byDate||{}).forEach(dk=>{
@@ -663,6 +965,7 @@ function recompute(){
         const t = merged.age[code] || (merged.age[code]=blank()); addTo(t, ageBox[code]); });
       Object.keys(genBox).forEach(code=>{
         const t = merged.gender[code] || (merged.gender[code]=blank()); addTo(t, genBox[code]); });
+      mergeGroups(merged.groups, box.groups);
     });
   });
   const range = (mFrom===mTo? mFrom : mFrom+' ~ '+mTo);
