@@ -6,6 +6,7 @@
 <title>연령 · 성별 · 광고 성과 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -167,8 +168,8 @@
   table.ag tr:last-child td{border-bottom:none;}
   table.ag tr.tot td{border-top:1px solid var(--border);font-weight:700;color:var(--tx);}
   .barcell{width:36%;}
-  .bar{height:11px;border-radius:0 4px 4px 0;background:var(--accent);min-width:2px;}
-  .bar.good{background:var(--good);} .bar.bad{background:var(--bad);}
+  .agbar{height:11px;border-radius:0 4px 4px 0;background:var(--accent);min-width:2px;}
+  .agbar.good{background:var(--good);} .agbar.bad{background:var(--bad);}
   .barwrap{background:#1b1d2e;border-radius:4px;overflow:hidden;}
   .flag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;margin-left:6px;}
   .flag.good{background:rgba(74,222,154,.16);color:var(--good);}
@@ -178,6 +179,30 @@
   .foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:18px;
     border-top:1px solid var(--border);padding-top:14px;}
   .foot b{color:var(--tx);}
+
+  /* 시간대별 페이지와 같은 결: 결론 먼저 → 문장 → 차트 → 표 */
+  .chead2{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+  .avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-weight:800;font-size:17px;color:#12131f;flex:none;}
+  .chead2 .nm2{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+  .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);}
+  .chead2 .desc{font-size:12px;color:var(--muted);width:100%;margin-top:-6px;}
+  .reco{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;}
+  @media(max-width:820px){.reco{grid-template-columns:1fr;}}
+  .rbox{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .rbox .rk{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .rbox .rk .d{width:7px;height:7px;border-radius:50%;}
+  .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
+  .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
+  .says{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.9;}
+  .says div+div{margin-top:4px;}
+  .says b{color:var(--tx);}
+  .metricrow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+  .metricrow label{display:flex;align-items:center;gap:5px;font-size:12px;
+    color:var(--tx);cursor:pointer;white-space:nowrap;}
+  .chartbox{height:300px;}
 </style>
 </head>
 <body>
@@ -233,30 +258,31 @@
       <span class="who" id="who"></span>
       <button class="btn" id="logoutBtn">로그아웃</button>
     </div>
-
   <div class="wrap">
-    <div class="bar">
-      <span class="brand">연령 · 성별</span>
-      <span class="stamp"><span class="dot"></span><span id="stampTxt">불러오는 중…</span></span>
+    <div class="chead2">
+      <div class="avatar" id="ava">·</div>
+      <span class="nm2" id="cname">—</span>
+      <span class="badge">연령 · 성별 전용 보기</span>
+      <div class="desc" id="cdesc"></div>
     </div>
 
     <div class="ctl">
-      <span class="lab">업체</span>
-      <select id="selClient"></select>
+      <span class="lab">업체</span><select id="selClient"></select>
       <span class="lab">기간</span>
-      <select id="selMonth"></select>
-      <span class="seg" id="segMetric"></span>
+      <select id="selFrom"></select><span class="lab">~</span><select id="selTo"></select>
+      <button class="btn" id="btnAll">전체</button>
     </div>
 
     <div id="body"></div>
 
     <p class="foot">
       네이버 <b>타겟팅 세그먼트 보고서</b>에서 연령·성별만 골라 집계합니다.
-      이 보고서에는 연령·성별·지역·요일이 한 파일에 섞여 오기 때문에 그대로 더하면 4배가 되고,
+      이 보고서엔 연령·성별·지역·요일이 한 파일에 섞여 오기 때문에 그대로 더하면 4배가 되고,
       연령만 골라내야 일별 총액과 맞습니다.<br>
       실측 대조(담은 2026-09-08): 연령 합계 노출 13,925 · 클릭 258 로 일별 보고서와 <b>완전히 일치</b>,
       비용만 반올림으로 2원 차이.<br>
       <b>알 수 없음</b>은 네이버가 연령을 판별하지 못한 노출입니다 — 빼지 않고 그대로 표시합니다.
+      효율 비교는 <b>전환 3건 이상</b>(B2C는 비용 10만원 이상)인 연령대만 합니다.
     </p>
   </div>
 </div>
@@ -315,167 +341,220 @@ document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
 const won = n => Math.round(n||0).toLocaleString('ko-KR');
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
 
-// 연령 코드 → 사람이 읽는 이름. 나이 순서를 그대로 유지한다(값 크기로 정렬하지 않음).
 const AGE_ORDER = ['AG0012','AG1318','AG1418','AG1924','AG2529','AG3034','AG3539',
                    'AG4044','AG4549','AG5054','AG5559','AG6099','AGXXXX'];
 function ageLabel(c){
   if(c === 'AGXXXX') return '알 수 없음';
   const m = /^AG(\d{2})(\d{2})$/.exec(c);
   if(!m) return c;
-  if(m[2] === '99') return m[1] + '세 이상';
+  if(m[2] === '99') return m[1] + '세+';
   return m[1] + '~' + m[2] + '세';
 }
 const GENDER_LABEL = { GNM:'남성', GNF:'여성', GNU:'알 수 없음' };
+const MIN_CONV = 3, MIN_COST = 100000;
 
+let clients=[], cur=null, isDB=true, allMonths=[], mFrom=null, mTo=null;
+let merged=null, chart=null;
 const METRICS = [
-  { k:'cost', t:'비용',    fmt:v=>won(v)+'원',  better:null },
-  { k:'conv', t:'전환수',  fmt:v=>num(v)+'건',  better:'high' },
-  { k:'eff',  t:'효율',    fmt:null,            better:null },
-  { k:'clk',  t:'클릭수',  fmt:v=>num(v)+'회',  better:'high' },
-  { k:'imp',  t:'노출수',  fmt:v=>num(v),       better:'high' }
+  {k:'cost', t:'비용',   on:false},
+  {k:'imp',  t:'노출수', on:false},
+  {k:'clk',  t:'클릭수', on:false},
+  {k:'conv', t:'전환수', on:true},
+  {k:'eff',  t:'효율',   on:true}
 ];
-let metric = 'cost';
-let clients = [], curClient = null, months = [], curMonth = null, data = null, isDB = true;
-
+const effLabel = () => isDB ? 'CPA' : 'ROAS';
 function effOf(r){
-  return isDB ? (r.conv > 0 ? r.cost / r.conv : null)
-              : (r.cost > 0 ? r.rev / r.cost * 100 : null);
+  return isDB ? (r.conv>0 ? r.cost/r.conv : null)
+              : (r.cost>0 ? r.rev/r.cost*100 : null);
 }
-const effLabel = () => isDB ? '전환당 비용' : 'ROAS';
-const effFmt = v => v === null ? '—' : (isDB ? won(v)+'원' : Math.round(v)+'%');
+const effFmt = v => v===null ? '—' : (isDB ? won(v)+'원' : Math.round(v)+'%');
+const enough = r => isDB ? r.conv>=MIN_CONV : r.cost>=MIN_COST;
+
+function blank(){ return {imp:0,clk:0,cost:0,conv:0,rev:0}; }
+function addTo(a,b){ a.imp+=b.imp||0; a.clk+=b.clk||0; a.cost+=b.cost||0;
+  a.conv+=b.conv||0; a.rev+=b.rev||0; }
 
 function rowsOf(box, order){
-  const keys = Object.keys(box || {});
-  const known = (order || []).filter(k => keys.includes(k));
-  const rest = keys.filter(k => !(order || []).includes(k)).sort();
-  return known.concat(rest).map(k => Object.assign({ code:k }, box[k]));
+  const keys=Object.keys(box||{});
+  const known=(order||[]).filter(k=>keys.includes(k));
+  const rest=keys.filter(k=>!(order||[]).includes(k)).sort();
+  return known.concat(rest).map(k=>Object.assign({code:k}, box[k]));
+}
+
+function renderReco(ageRows){
+  const tot = ageRows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
+  const avgEff = effOf(tot);
+  const ok = ageRows.filter(enough);
+  const thin = ageRows.filter(r=>!enough(r) && (r.cost>0||r.imp>0));
+  let good=[], goodSub='표본이 모자라 판단 보류';
+  if(ok.length>=2 && avgEff!==null){
+    const better = r => { const v=effOf(r); if(v===null) return false;
+      return isDB ? v < avgEff : v > avgEff; };
+    good = ok.filter(better).sort((a,b)=>{
+      const x=effOf(a), y=effOf(b); return isDB ? x-y : y-x; });
+    goodSub = isDB ? ('CPA가 평균('+won(avgEff)+'원)보다 낮음')
+                   : ('ROAS가 평균('+Math.round(avgEff)+'%)보다 높음');
+  }
+  const goodTxt = good.length ? good.slice(0,5).map(r=>ageLabel(r.code)).join(' · ') : '—';
+  const thinTxt = thin.length ? thin.slice(0,6).map(r=>ageLabel(r.code)).join(' · ') : '없음';
+  const thinSub = isDB ? ('전환 '+MIN_CONV+'건 미만 — 판단 보류')
+                       : ('비용 '+won(MIN_COST)+'원 미만 — 판단 보류');
+  return `<div class="reco">
+    <div class="rbox"><div class="rk"><span class="d" style="background:var(--good)"></span>더 붙일 연령</div>
+      <div class="rv">${goodTxt}</div><div class="rs">${goodSub}</div></div>
+    <div class="rbox"><div class="rk"><span class="d" style="background:var(--muted)"></span>표본이 부족한 연령</div>
+      <div class="rv" style="font-size:17px">${thinTxt}</div><div class="rs">${thinSub}</div></div>
+  </div>`;
+}
+
+function renderSays(ageRows, genRows){
+  const out=[];
+  const ok = ageRows.filter(enough);
+  if(ok.length){
+    const best = ok.slice().sort((a,b)=>{ const x=effOf(a),y=effOf(b);
+      return isDB ? x-y : y-x; })[0];
+    out.push(`가장 효율적인 연령대는 <b>${ageLabel(best.code)}</b>예요 (${effLabel()} ${effFmt(effOf(best))}, 전환 ${num(best.conv)}건 기준).`);
+    if(ok.length>=2){
+      const worst = ok.slice().sort((a,b)=>{ const x=effOf(a),y=effOf(b);
+        return isDB ? y-x : x-y; })[0];
+      if(worst.code!==best.code)
+        out.push(`<b>${ageLabel(worst.code)}</b>은 상대적으로 ${effLabel()}가 아쉬워요 (${effFmt(effOf(worst))}, 전환 ${num(worst.conv)}건 기준) — 예산 비중을 낮추는 걸 검토해보세요.`);
+    }
+  }
+  const byCost = ageRows.slice().sort((a,b)=>b.cost-a.cost);
+  const totCost = ageRows.reduce((a,r)=>a+r.cost,0);
+  if(byCost.length && totCost>0){
+    const t=byCost[0];
+    out.push(`비용은 <b>${ageLabel(t.code)}</b>에 가장 많이 나갔어요 (${won(t.cost)}원, 전체의 ${Math.round(t.cost/totCost*100)}).`);
+  }
+  const gm=genRows.find(r=>r.code==='GNM'), gf=genRows.find(r=>r.code==='GNF');
+  if(gm&&gf&&(gm.cost+gf.cost)>0){
+    const s=gm.cost+gf.cost;
+    out.push(`성별 비중은 남 ${Math.round(gm.cost/s*100)} : 여 ${Math.round(gf.cost/s*100)} 예요 (비용 기준, 알 수 없음 제외).`);
+  }
+  if(!out.length) return '';
+  return `<div class="says">${out.map(t=>'<div>· '+t+'</div>').join('')}</div>`;
+}
+
+function renderChart(ageRows){
+  const wrap = document.getElementById('chartWrap');
+  if(!wrap) return;
+  if(chart){ chart.destroy(); chart=null; }
+  const on = METRICS.filter(m=>m.on);
+  if(!on.length || !ageRows.length) return;
+  const labels = ageRows.map(r=>ageLabel(r.code));
+  // 축을 두 개 쓰지 않는다 — 선택한 지표를 각각 별도 막대로 두면 단위가 섞여 왜곡되므로
+  // 지표는 하나만 그리고, 나머지는 표에서 읽게 한다.
+  const m = on[0];
+  const vals = ageRows.map(r => m.k==='eff' ? (effOf(r)||0) : r[m.k]);
+  const ctx = document.getElementById('agChart');
+  chart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label: m.k==='eff'?effLabel():m.t, data:vals,
+      backgroundColor:'#8b7cff', borderRadius:4, borderSkipped:false }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:c=> (m.k==='eff'?effLabel():m.t)+' '
+          + (m.k==='eff' ? effFmt(c.parsed.y) : (m.k==='cost'? won(c.parsed.y)+'원' : num(c.parsed.y))) } } },
+      scales:{ x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
+        y:{ grid:{color:'#23253a'}, ticks:{color:'#a8abc4',font:{size:11},
+          callback:v=> m.k==='cost'? (v/10000)+'만' : num(v) } } } }
+  });
 }
 
 function renderTable(title, sub, rows, labelFn){
   if(!rows.length) return '';
-  const tot = rows.reduce((a,r)=>({imp:a.imp+r.imp,clk:a.clk+r.clk,cost:a.cost+r.cost,
-    conv:a.conv+r.conv,rev:a.rev+r.rev}),{imp:0,clk:0,cost:0,conv:0,rev:0});
-  const m = METRICS.find(x=>x.k===metric);
-  const val = r => metric==='eff' ? effOf(r) : r[metric];
-  // 효율은 표본이 너무 적으면 비교에서 뺀다 (전환 1건짜리가 1등으로 뜨는 걸 막음)
-  const cmp = rows.filter(r => metric!=='eff' || (isDB ? r.conv>=3 : r.cost>=100000));
-  const vals = cmp.map(val).filter(v=>v!==null && v>0);
-  let best=null, worst=null;
-  if(metric==='eff' && vals.length>=2){
-    const lowIsBetter = isDB;
-    best  = lowIsBetter ? Math.min(...vals) : Math.max(...vals);
-    worst = lowIsBetter ? Math.max(...vals) : Math.min(...vals);
-  }
-  const maxAbs = Math.max(...rows.map(r=>{ const v=val(r); return v===null?0:Math.abs(v); }), 1);
-  const body = rows.map(r=>{
-    const v = val(r);
-    const w = v===null ? 0 : Math.max(2, Math.abs(v)/maxAbs*100);
-    let cls='', flag='';
-    if(metric==='eff' && v!==null && cmp.includes(r)){
-      if(v===best){ cls='good'; flag='<span class="flag good">가장 좋음</span>'; }
-      else if(v===worst){ cls='bad'; flag='<span class="flag bad">가장 나쁨</span>'; }
-    }
-    return `<tr>
-      <td>${labelFn(r.code)}${flag}</td>
-      <td class="barcell"><div class="barwrap"><div class="bar ${cls}" style="width:${w}%"></div></div></td>
-      <td>${won(r.cost)}원</td>
-      <td>${num(r.imp)}</td>
-      <td>${num(r.clk)}</td>
-      <td>${num(r.conv)}건</td>
-      <td>${effFmt(effOf(r))}</td>
-    </tr>`;
-  }).join('');
-  return `<div class="card">
-    <h3>${title}</h3>
-    <div class="sub">${sub} · 막대는 <b>${m.t==='효율'?effLabel():m.t}</b> 기준</div>
+  const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
+  return `<div class="card"><h3>${title}</h3><div class="sub">${sub}</div>
     <div style="overflow-x:auto;"><table class="ag">
-      <thead><tr><th>구분</th><th></th><th>비용</th><th>노출</th><th>클릭</th><th>전환</th><th>${effLabel()}</th></tr></thead>
-      <tbody>${body}
-        <tr class="tot"><td>합계</td><td></td><td>${won(tot.cost)}원</td><td>${num(tot.imp)}</td>
+      <thead><tr><th>구분</th><th>비용</th><th>노출</th><th>클릭</th><th>전환</th><th>${effLabel()}</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${labelFn(r.code)}${enough(r)?'':'<span class="flag bad">표본 적음</span>'}</td>
+        <td>${won(r.cost)}원</td><td>${num(r.imp)}</td><td>${num(r.clk)}</td>
+        <td>${num(r.conv)}건</td><td>${effFmt(effOf(r))}</td></tr>`).join('')}
+        <tr class="tot"><td>합계</td><td>${won(tot.cost)}원</td><td>${num(tot.imp)}</td>
           <td>${num(tot.clk)}</td><td>${num(tot.conv)}건</td><td>${effFmt(effOf(tot))}</td></tr>
-      </tbody>
-    </table></div>
-  </div>`;
-}
-
-function renderTiles(ageRows){
-  if(!ageRows.length) return '';
-  const byCost = ageRows.slice().sort((a,b)=>b.cost-a.cost);
-  const top = byCost[0];
-  const totCost = ageRows.reduce((a,r)=>a+r.cost,0) || 1;
-  const cmp = ageRows.filter(r => isDB ? r.conv>=3 : r.cost>=100000);
-  let effTxt='—', effSub='표본이 적어 비교 보류';
-  if(cmp.length>=2){
-    const sorted = cmp.slice().sort((a,b)=>{
-      const x=effOf(a), y=effOf(b);
-      if(x===null) return 1; if(y===null) return -1;
-      return isDB ? x-y : y-x;
-    });
-    effTxt = ageLabel(sorted[0].code);
-    effSub = effLabel()+' '+effFmt(effOf(sorted[0]));
-  }
-  const g = data.gender||{};
-  const gm = (g.GNM&&g.GNM.cost)||0, gf=(g.GNF&&g.GNF.cost)||0;
-  const gsum = gm+gf;
-  const gTxt = gsum>0 ? '남 '+Math.round(gm/gsum*100)+' : 여 '+Math.round(gf/gsum*100) : '—';
-  return `<div class="tiles">
-    <div class="tile"><div class="k">비용이 가장 많은 연령</div>
-      <div class="v">${ageLabel(top.code)}</div>
-      <div class="s">${won(top.cost)}원 · 전체의 ${Math.round(top.cost/totCost*100)}</div></div>
-    <div class="tile"><div class="k">효율이 가장 좋은 연령</div>
-      <div class="v">${effTxt}</div><div class="s">${effSub}</div></div>
-    <div class="tile"><div class="k">성별 비중 (비용)</div>
-      <div class="v">${gTxt}</div><div class="s">알 수 없음 제외</div></div>
-  </div>`;
+      </tbody></table></div></div>`;
 }
 
 function render(){
-  const el = document.getElementById('body');
-  if(!data){
+  const el=document.getElementById('body');
+  if(!merged || !Object.keys(merged.age||{}).length){
     el.innerHTML = `<div class="empty">이 업체·기간은 아직 연령 데이터가 없습니다.<br>
       수집은 매일 새벽 자동으로 쌓입니다.</div>`;
     return;
   }
-  const ageRows = rowsOf(data.age, AGE_ORDER);
-  const genRows = rowsOf(data.gender, ['GNM','GNF','GNU']);
-  el.innerHTML = renderTiles(ageRows)
-    + renderTable('연령대별 성과', curMonth+' · 나이 순', ageRows, ageLabel)
-    + renderTable('성별 성과', curMonth, genRows, c=>GENDER_LABEL[c]||c);
-}
-
-function renderMetricSeg(){
-  document.getElementById('segMetric').innerHTML = METRICS.map(m=>
-    `<button data-k="${m.k}" class="${m.k===metric?'on':''}">${m.k==='eff'?effLabel():m.t}</button>`).join('');
-  document.querySelectorAll('#segMetric button').forEach(b=>{
-    b.onclick = ()=>{ metric = b.dataset.k; renderMetricSeg(); render(); };
+  const ageRows = rowsOf(merged.age, AGE_ORDER);
+  const genRows = rowsOf(merged.gender, ['GNM','GNF','GNU']);
+  el.innerHTML = renderReco(ageRows) + renderSays(ageRows, genRows)
+    + `<div class="card"><h3>연령대별 성과</h3>
+        <div class="sub">나이 순 · 지표를 고르면 막대가 바뀝니다</div>
+        <div class="metricrow" id="mrow">${METRICS.map(m=>
+          `<label><input type="checkbox" data-k="${m.k}" ${m.on?'checked':''}
+            style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
+        <div class="chartbox" id="chartWrap"><canvas id="agChart"></canvas></div></div>`
+    + renderTable('연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
+    + renderTable('성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c);
+  document.querySelectorAll('#mrow input').forEach(cb=>{
+    cb.onchange = ()=>{
+      METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = cb.checked; });
+      if(cb.checked) METRICS.forEach(m=>{ if(m.k!==cb.dataset.k) m.on=false; });
+      render();
+    };
   });
+  renderChart(ageRows);
 }
 
-async function loadMonth(){
-  data = null;
-  if(!curClient || !curMonth){ render(); return; }
-  const path = 'clients/'+curClient.id+'/'+curMonth+'__ageGender.json';
-  try{
-    const url = await storage.ref(path).getDownloadURL();
-    const res = await fetch(url);
-    data = await res.json();
-  }catch(e){ data = null; }
+async function loadRange(){
+  merged = { age:{}, gender:{} };
+  const pick = allMonths.filter(m => m>=mFrom && m<=mTo);
+  for(const mk of pick){
+    try{
+      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
+      const d = await (await fetch(url)).json();
+      ['age','gender'].forEach(g=>{
+        Object.keys(d[g]||{}).forEach(code=>{
+          const t = merged[g][code] || (merged[g][code]=blank());
+          addTo(t, d[g][code]);
+        });
+      });
+    }catch(e){}
+  }
+  document.getElementById('cdesc').textContent =
+    (mFrom===mTo? mFrom : mFrom+' ~ '+mTo) + ' 누적 · ' + (isDB?'DB형(전환당 비용)':'B2C형(ROAS)');
   render();
 }
 
-async function pickClient(id){
-  curClient = clients.find(c=>c.id===id) || clients[0];
-  if(!curClient) return;
-  isDB = curClient.bizType !== 'B2C';
-  months = (curClient.months||[]).map(m=>m.label).filter(Boolean).sort().reverse();
-  document.getElementById('selMonth').innerHTML =
-    months.map(m=>`<option value="${m}">${m}</option>`).join('');
-  curMonth = months[0] || null;
-  document.getElementById('stampTxt').textContent =
-    curClient.name + ' · ' + (isDB ? 'DB형' : 'B2C형');
-  renderMetricSeg();
-  await loadMonth();
+function fillMonthSelects(){
+  const opts = allMonths.slice().reverse().map(m=>`<option value="${m}">${m}</option>`).join('');
+  const f=document.getElementById('selFrom'), t=document.getElementById('selTo');
+  f.innerHTML=opts; t.innerHTML=opts;
+  f.value=mFrom; t.value=mTo;
 }
+
+async function pickClient(id){
+  cur = clients.find(c=>c.id===id) || clients[0];
+  if(!cur) return;
+  isDB = cur.bizType !== 'B2C';
+  allMonths = (cur.months||[]).map(m=>m.label).filter(Boolean).sort();
+  mTo = allMonths[allMonths.length-1] || null;
+  mFrom = mTo;
+  fillMonthSelects();
+  document.getElementById('cname').textContent = cur.name;
+  const av=document.getElementById('ava');
+  av.textContent = (cur.name||'·').slice(0,1);
+  av.style.background = cur.color || '#8b7cff';
+  METRICS.forEach(m=>{ m.on = (m.k==='eff'); });
+  await loadRange();
+}
+
+document.getElementById('selFrom').onchange = e=>{ mFrom=e.target.value;
+  if(mFrom>mTo){ mTo=mFrom; document.getElementById('selTo').value=mTo; } loadRange(); };
+document.getElementById('selTo').onchange = e=>{ mTo=e.target.value;
+  if(mTo<mFrom){ mFrom=mTo; document.getElementById('selFrom').value=mFrom; } loadRange(); };
+document.getElementById('btnAll').onclick = ()=>{
+  mFrom=allMonths[0]; mTo=allMonths[allMonths.length-1];
+  fillMonthSelects(); loadRange(); };
 
 auth.onAuthStateChanged(async (user)=>{
   if(!user){
@@ -485,16 +564,15 @@ auth.onAuthStateChanged(async (user)=>{
   }
   document.getElementById('authScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
-  document.getElementById('who').textContent = user.email;
+  document.getElementById('who').textContent=user.email;
   const snap = await db.collection('clients').get();
-  clients = [];
+  clients=[];
   snap.forEach(d=>{ const v=d.data()||{};
-    clients.push({ id:d.id, name:v.name||d.id, bizType:v.bizType, months:v.months||[] }); });
+    clients.push({id:d.id, name:v.name||d.id, bizType:v.bizType, color:v.color, months:v.months||[]}); });
   clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   document.getElementById('selClient').innerHTML =
     clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   document.getElementById('selClient').onchange = e=> pickClient(e.target.value);
-  document.getElementById('selMonth').onchange = e=>{ curMonth = e.target.value; loadMonth(); };
   await pickClient(clients[0] && clients[0].id);
 });
 </script>
