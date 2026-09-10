@@ -647,7 +647,7 @@ function renderTable(title, sub, rows, labelFn, showFlag){
      groupInfo[그룹번호]      { n: 광고그룹 이름, c: 캠페인 이름 }
    캠페인 단위 숫자는 같은 캠페인에 속한 광고그룹을 더해서 만든다.            */
 
-let grpCamp = null;         // 고른 캠페인
+let grpCamp = 'ALL';        // 'ALL'(전체 캠페인) 또는 캠페인 이름
 let agPick = 'ALL';         // 'ALL'(캠페인 전체) 또는 광고그룹 번호
 let agOpen = false;         // 광고그룹 그래프 펼침 여부
 let grpChart = null;
@@ -698,36 +698,51 @@ function sumBox(gids, which){
 }
 
 /* ── 캠페인 → 광고그룹 파고들기 ──
-   광고그룹 76개를 한 줄에 다 넣으면 고르기가 어렵다. 캠페인을 먼저 고르고
-   그 안의 광고그룹만 두 번째 칸에 담는다. 결과 표는 하나만 두고 고른 것을 따라간다. */
-function renderGrpCard(){
+   광고그룹을 한 줄에 다 넣으면 고르기가 어렵다. 캠페인을 먼저 고르고
+   그 안의 광고그룹만 두 번째 칸에 담는다. 첫 칸의 '전체 캠페인'을 고르면 계정 전체가 보인다. */
+function grpPicked(){
   const tree = campaignTree();
-  if(!tree.length) return '';
-  if(!grpCamp || !tree.some(t=>t.campaign===grpCamp)) grpCamp = topCampaigns(tree, 1)[0];
-  const node = tree.find(t=>t.campaign===grpCamp);
+  if(!grpCamp || (grpCamp !== 'ALL' && !tree.some(t=>t.campaign===grpCamp))) grpCamp = 'ALL';
+  const node = grpCamp === 'ALL' ? null : tree.find(t=>t.campaign===grpCamp);
   const groups = node ? node.groups : [];
-  if(agPick !== 'ALL' && !groups.some(g=>g.gid===agPick)) agPick = 'ALL';
+  if(grpCamp === 'ALL') agPick = 'ALL';
+  else if(agPick !== 'ALL' && !groups.some(g=>g.gid===agPick)) agPick = 'ALL';
 
-  const gids = (agPick === 'ALL') ? groups.map(g=>g.gid) : [agPick];
-  const ageBox = sumBox(gids, 'age'), genBox = sumBox(gids, 'gender');
-  const rows = rowsOf(ageBox, AGE_ORDER);
-  const genRows = rowsOf(genBox, ['GNM','GNF','GNU']);
+  let age, gender, what;
+  if(grpCamp === 'ALL'){
+    // 계정 전체는 광고그룹을 더한 값이 아니라 원본 합계를 그대로 쓴다
+    age = merged.age; gender = merged.gender; what = '전체 캠페인';
+  } else {
+    const gids = (agPick === 'ALL') ? groups.map(g=>g.gid) : [agPick];
+    age = sumBox(gids, 'age'); gender = sumBox(gids, 'gender');
+    what = (agPick === 'ALL') ? grpCamp : ((groups.find(g=>g.gid===agPick)||{}).name || agPick);
+  }
+  return { tree, groups, age, gender, what };
+}
+
+function renderGrpCard(){
+  const P = grpPicked();
+  const tree = P.tree, groups = P.groups;
+  if(!tree.length) return '';
+  const rows = rowsOf(P.age, AGE_ORDER);
+  const genRows = rowsOf(P.gender, ['GNM','GNF','GNU']);
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
   const hasData = tot.imp>0 || tot.cost>0;
-  const what = (agPick === 'ALL') ? grpCamp : ((groups.find(g=>g.gid===agPick)||{}).name || agPick);
 
   // 캠페인 칸에는 금액을 안 적는다 — 바로 아래 요약 줄에 같은 숫자가 또 나와서 길기만 하다
-  const campOpts = tree.map(t=>
-    `<option value="${esc2(t.campaign)}" ${t.campaign===grpCamp?'selected':''}>${esc2(t.campaign)} · ${t.groups.length}그룹</option>`
-  ).join('');
-  const grpOpts = [`<option value="ALL"${agPick==='ALL'?' selected':''}>이 캠페인 전체 (${groups.length}개 그룹 합계)</option>`]
-    .concat(groups.map(g=>{
-      const b = sumBox([g.gid],'age');
-      const c = Math.round(Object.keys(b).reduce((t,k)=>t+(b[k].cost||0),0));
-      return `<option value="${esc2(g.gid)}"${g.gid===agPick?' selected':''}>${esc2(g.name)} · ${won(c)}원</option>`;
-    })).join('');
+  const campOpts = [`<option value="ALL"${grpCamp==='ALL'?' selected':''}>전체 캠페인 (${tree.length}개)</option>`]
+    .concat(tree.map(t=>
+      `<option value="${esc2(t.campaign)}"${t.campaign===grpCamp?' selected':''}>${esc2(t.campaign)} · ${t.groups.length}그룹</option>`
+    )).join('');
+  const grpOpts = grpCamp === 'ALL'
+    ? `<option value="ALL" selected>캠페인을 골라야 볼 수 있어요</option>`
+    : [`<option value="ALL"${agPick==='ALL'?' selected':''}>이 캠페인 전체 (${groups.length}개 그룹 합계)</option>`]
+        .concat(groups.map(g=>{
+          const b = sumBox([g.gid],'age');
+          const c = Math.round(Object.keys(b).reduce((t,k)=>t+(b[k].cost||0),0));
+          return `<option value="${esc2(g.gid)}"${g.gid===agPick?' selected':''}>${esc2(g.name)} · ${won(c)}원</option>`;
+        })).join('');
 
-  // 가장 효율 좋은 연령대 — 표본이 충분한 것 중에서만 고른다
   const best = rows.filter(r=>enough(r)).sort((a,b)=>{
     const ea=effOf(a), eb=effOf(b);
     if(ea===null) return 1; if(eb===null) return -1;
@@ -744,18 +759,18 @@ function renderGrpCard(){
 
   const period = (mFrom===mTo ? mFrom : (mFrom+' ~ '+mTo));
   return `<div class="card"><h3>캠페인 · 광고그룹별 연령</h3>
-    <div class="sub">캠페인을 고르고, 그 안의 광고그룹까지 좁혀서 볼 수 있어요.</div>
+    <div class="sub">전체로도 보고, 캠페인·광고그룹까지 좁혀서도 볼 수 있어요.</div>
     <div class="grp-pick">
       <label><span class="grp-lab">캠페인</span>
         <select id="grpCampSel">${campOpts}</select></label>
       <label><span class="grp-lab">광고그룹</span>
-        <select id="grpSelect">${grpOpts}</select></label>
+        <select id="grpSelect"${grpCamp==='ALL'?' disabled':''}>${grpOpts}</select></label>
       <button class="pill${agOpen?' on':''}" id="grpToggle">${agOpen?'그래프 접기':'그래프 보기'}</button>
     </div>
     ${!hasData
-      ? `<div class="sub" style="margin-top:12px;">${esc2(what)}은(는) 고른 기간에 자료가 없어요.</div>`
+      ? `<div class="sub" style="margin-top:12px;">${esc2(P.what)}은(는) 고른 기간에 자료가 없어요.</div>`
       : `<div class="grp-sum">
-           <span><b>${esc2(what)}</b></span>
+           <span><b>${esc2(P.what)}</b></span>
            <span>비용 ${won(tot.cost)}원</span>
            <span>노출 ${num(tot.imp)}</span>
            <span>클릭 ${num(tot.clk)}</span>
@@ -774,11 +789,7 @@ function renderGrpCard(){
 function drawGrpChart(){
   if(grpChart){ grpChart.destroy(); grpChart=null; }
   if(!agOpen || !document.getElementById('grpChart')) return;
-  const tree = campaignTree();
-  const node = tree.find(t=>t.campaign===grpCamp);
-  const groups = node ? node.groups : [];
-  const gids = (agPick === 'ALL') ? groups.map(g=>g.gid) : [agPick];
-  const rows = rowsOf(sumBox(gids,'age'), AGE_ORDER);
+  const rows = rowsOf(grpPicked().age, AGE_ORDER);
   const on = GRP_METRICS.filter(m=>m.on);
   const note = document.getElementById('grpNote');
   if(!on.length || !rows.length){ if(note) note.textContent = on.length?'':'지표를 하나 이상 골라주세요.'; return; }

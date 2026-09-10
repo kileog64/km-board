@@ -2297,16 +2297,21 @@ function renderHourlyPage(data){
     (hgAdByCamp[cell.campaign] = hgAdByCamp[cell.campaign] || new Set()).add(cell.adgroup); }));
   Object.keys(hgAdByCamp).forEach(c=>{ hgAdByCamp[c] = [...hgAdByCamp[c]].sort((a,b)=>a.localeCompare(b,'ko')); });
 
-  if(!(key in hourGrpCamp) || !hgCamps.includes(hourGrpCamp[key])) hourGrpCamp[key] = hgCamps[0] || null;
+  // 첫 칸의 '전체 캠페인'을 고르면 계정 전체가 보인다 — 캠페인 하나를 고른 뒤 되돌아올 자리
+  if(!(key in hourGrpCamp) || (hourGrpCamp[key] !== 'ALL' && !hgCamps.includes(hourGrpCamp[key]))) hourGrpCamp[key] = 'ALL';
   const hgCamp = hourGrpCamp[key];
-  const hgAds = (hgCamp && hgAdByCamp[hgCamp]) || [];
-  if(!(key in hourGrpAd) || (hourGrpAd[key] !== 'ALL' && !hgAds.includes(hourGrpAd[key]))) hourGrpAd[key] = 'ALL';
+  const hgAds = (hgCamp !== 'ALL' && hgAdByCamp[hgCamp]) || [];
+  if(hgCamp === 'ALL') hourGrpAd[key] = 'ALL';
+  else if(!(key in hourGrpAd) || (hourGrpAd[key] !== 'ALL' && !hgAds.includes(hourGrpAd[key]))) hourGrpAd[key] = 'ALL';
   const hgAd = hourGrpAd[key];
   if(!(key in hourAdgroupOpen)) hourAdgroupOpen[key] = false;
   const agOpen = hourAdgroupOpen[key];
 
   let hgEnriched = null, hgByDayRange = false;
-  if(hgCamp){
+  if(hgCamp === 'ALL'){
+    hgEnriched = hourlyEnriched;   // 위쪽 '시간대별 성과'와 같은 값 (캠페인 필터·날짜 필터 반영됨)
+    hgByDayRange = hasHourlyDayFilter;
+  } else {
     if(hgAd === 'ALL'){
       if(hasHourlyDayFilter && dayRangeHasHcd){
         hgEnriched = enrich(aggHourlyByDateRange(months, new Set([hgCamp]), dayRangeState[key]).agg);
@@ -2325,7 +2330,7 @@ function renderHourlyPage(data){
       hgEnriched = enrich(aggAdgroupHourly(months, hgCamp, hgAd).agg);
     }
   }
-  const hgWhat = hgCamp ? (hgAd === 'ALL' ? hgCamp : hgAd) : '';
+  const hgWhat = hgCamp === 'ALL' ? '전체 캠페인' : (hgAd === 'ALL' ? hgCamp : hgAd);
 
   const initial = (data.name||'?').trim().charAt(0);
   const textColor = contrastText(data.color);
@@ -2454,24 +2459,27 @@ function renderHourlyPage(data){
         <span>📊 캠페인 · 광고그룹별 시간대</span>
         ${hgCamp ? `<button type="button" id="hgToggle" style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:14px;cursor:pointer;border:1px solid ${agOpen?'var(--accent)':'var(--border)'};background:${agOpen?'var(--accent-solid)':'var(--panel)'};color:${agOpen?'#fff':'var(--muted)'};">${agOpen?'그래프 접기':'그래프 보기'}</button>` : ''}
       </div>
-      ${!hgCamp ? `<div style="color:var(--muted);font-size:12px;">이 기간엔 캠페인별 시간대 데이터가 없어요.</div>` : `
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">캠페인을 고르고, 그 안의 광고그룹까지 좁혀서 볼 수 있어요.</div>
+      ${!hgEnriched ? `<div style="color:var(--muted);font-size:12px;">이 기간엔 시간대 데이터가 없어요.</div>` : `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">전체로도 보고, 캠페인·광고그룹까지 좁혀서도 볼 수 있어요.</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px;">
         <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0;">
           <span style="font-size:11.5px;color:var(--muted);">캠페인</span>
           <select id="hgCamp" style="width:100%;min-width:0;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;cursor:pointer;">
+            <option value="ALL"${hgCamp==='ALL'?' selected':''}>전체 캠페인 (${hgCamps.length}개)</option>
             ${hgCamps.map(c=>`<option value="${esc(c)}"${c===hgCamp?' selected':''}>${esc(displayCampaignName(c))} · ${(hgAdByCamp[c]||[]).length}그룹</option>`).join('')}
           </select>
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0;">
           <span style="font-size:11.5px;color:var(--muted);">광고그룹</span>
-          <select id="hgAd" ${hgAds.length?'':'disabled'} style="width:100%;min-width:0;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;cursor:${hgAds.length?'pointer':'not-allowed'};opacity:${hgAds.length?'1':'.55'};">
-            <option value="ALL"${hgAd==='ALL'?' selected':''}>이 캠페인 전체${hgAds.length?` (${hgAds.length}개 그룹)`:''}</option>
-            ${hgAds.map(a=>`<option value="${esc(a)}"${a===hgAd?' selected':''}>${esc(a)}</option>`).join('')}
+          <select id="hgAd" ${(hgCamp==='ALL'||!hgAds.length)?'disabled':''} style="width:100%;min-width:0;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;cursor:${(hgCamp==='ALL'||!hgAds.length)?'not-allowed':'pointer'};opacity:${(hgCamp==='ALL'||!hgAds.length)?'.55':'1'};">
+            ${hgCamp==='ALL'
+              ? `<option value="ALL" selected>캠페인을 골라야 볼 수 있어요</option>`
+              : `<option value="ALL"${hgAd==='ALL'?' selected':''}>이 캠페인 전체${hgAds.length?` (${hgAds.length}개 그룹)`:''}</option>
+            ${hgAds.map(a=>`<option value="${esc(a)}"${a===hgAd?' selected':''}>${esc(a)}</option>`).join('')}`}
           </select>
         </label>
       </div>
-      ${!hgAds.length ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">이 캠페인은 광고그룹 단위 시간대 데이터가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 컬럼이 있어야 채워져요.</div>` : ''}
+      ${(hgCamp!=='ALL' && !hgAds.length) ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">이 캠페인은 광고그룹 단위 시간대 데이터가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 컬럼이 있어야 채워져요.</div>` : ''}
       ${(hgAd!=='ALL' && hasHourlyDayFilter) ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;max-width:78ch;line-height:1.65;">⚠️ 광고그룹 데이터에는 날짜가 없어서 이것만 <b>고른 기간이 속한 달 전체</b> 기준이에요 — 위쪽 표와 기간이 다릅니다.</div>` : ''}
       ${(() => {
         if(!hgEnriched) return '';
