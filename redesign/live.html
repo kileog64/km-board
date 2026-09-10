@@ -166,6 +166,7 @@
           <a href="keywords.html">파워링크 키워드</a>
           <a href="shopping.html">쇼핑검색 상품</a>
           <a href="hourly.html">시간대</a>
+          <a href="age.html">연령 · 성별</a>
         </div>
       </div>
 
@@ -283,6 +284,155 @@
     if(pbtn) pbtn.classList.add('cur');
   });
 })();
+
+// ── 숫자 보정 3종 (index.html 대시보드와 똑같은 코드) ───────────────────────
+// 저장된 원본은 그대로 두고, 화면에 쓸 때만 맞춘다.
+//  ① 플레이스 광고 제외  ② 광고비 부가세 기준 통일  ③ 브랜드검색 정액제 계약금액 얹기
+// 이 셋이 없으면 대시보드와 금액이 어긋난다.
+const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
+  return v === '6' || v.indexOf('플레이스') >= 0; };
+/* ── 브랜드검색 정액제 비용 얹기 ────────────────────────────────────────────
+   브랜드검색광고는 정액제라 네이버 일별 리포트의 비용이 0원으로 온다. input.html에서
+   등록한 계약(brandContracts: 캠페인·시작월·종료월·계약금액)을 읽어, 계약 금액을 계약
+   기간의 각 달에 일수 비율로 나눠 그 달 그 캠페인의 비용으로 채운다. 월 합계(cost)에도
+   같은 금액을 더해서 대시보드 어디서 보든 숫자가 어긋나지 않게 한다.
+   금액 단위: 저장은 '원', 월/캠페인 데이터는 '만원' 단위라 10000으로 나눠서 넣는다.
+   이미 비용이 잡혀 있으면(정액제가 아닌 경우) 건드리지 않는다. */
+function __bcMonthDays(y,m){ return new Date(y,m,0).getDate(); }
+function __bcParseYM(v){ const mm=String(v||'').match(/^(\d{4})-(\d{2})$/); return mm?{y:+mm[1],m:+mm[2]}:null; }
+function __bcSplit(start,end,amount){
+  const s=__bcParseYM(start), e=__bcParseYM(end);
+  if(!s||!e||!(amount>0)) return {};
+  if(e.y*12+e.m < s.y*12+s.m) return {};
+  const spans=[]; let y=s.y,m=s.m,total=0;
+  while(y*12+m <= e.y*12+e.m){
+    const d=__bcMonthDays(y,m);
+    spans.push({label:y+'.'+String(m).padStart(2,'0'), days:d}); total+=d;
+    m++; if(m>12){ m=1; y++; }
+  }
+  if(!total) return {};
+  const out={}; let acc=0;
+  spans.forEach((sp,i)=>{
+    const c = (i===spans.length-1) ? (amount-acc) : Math.round(amount*sp.days/total);
+    if(i<spans.length-1) acc+=c;
+    out[sp.label]=(out[sp.label]||0)+c;
+  });
+  return out;
+}
+function applyBrandContracts(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  const contracts = data.brandContracts;
+  if(!Array.isArray(contracts) || !contracts.length) return data;
+  // 캠페인 → { 'YYYY.MM': 원 } 로 펼쳐둔다(계약이 여러 건이면 같은 달끼리 합산).
+  const byCamp = {};
+  contracts.forEach(ct=>{
+    if(!ct || !ct.campaign) return;
+    const split = __bcSplit(ct.start, ct.end, Number(ct.amount)||0);
+    const bucket = byCamp[ct.campaign] || (byCamp[ct.campaign]={});
+    Object.keys(split).forEach(lab=>{ bucket[lab]=(bucket[lab]||0)+split[lab]; });
+  });
+  data.months.forEach(m=>{
+    const lab = String(m.label||'');
+    let added = 0;
+    (m.campaigns||[]).forEach(c=>{
+      const won = byCamp[c.campaign] && byCamp[c.campaign][lab];
+      if(!won) return;
+      if(Number(c.cost)>0) return;   // 이미 실비용이 있으면 덮어쓰지 않는다
+      const man = won/10000;
+      c.cost = man;
+      c.__brandContractCost = true;  // 화면에서 '계약금액 기준'임을 표시할 때 쓴다
+      added += man;
+    });
+    if(added>0 && typeof m.cost==='number') m.cost = m.cost + added;
+  });
+  return data;
+}
+/* ── 광고비 기준 통일(부가세 제외) ──────────────────────────────────────────
+   네이버가 시기에 따라 부가세를 포함한 금액을 주기도 하고 뺀 금액을 주기도 해서,
+   2025.10~2026.03 구간은 캠페인·월 합계가 부가세 포함으로 저장돼 있다.
+   반면 하루치(daily)는 전 기간 부가세 제외로 통일돼 있다.
+   그래서 하루치를 기준으로 삼아 캠페인·월 합계를 같은 기준으로 낮춘다.
+   (원본은 그대로 두고 화면에 그릴 때만 맞춘다 — 플레이스 제외·브랜드검색 계약과 같은 방식)
+   · 2025.10~2026.02: 모든 캠페인이 정확히 1.1배라 환산이 정확함
+   · 2026.03: 달 중간에 기준이 바뀌어 캠페인마다 1.06~1.10로 제각각 — 월 합계는 정확히 맞고
+     캠페인 개별값은 최대 2% 안쪽 오차가 남음
+   · 2026.04 이후: 이미 같은 기준이라 건드리지 않음 */
+function normalizeCostBasis(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const dailySum = (m.daily||[]).reduce((a,x)=>a+(x.cost||0),0);
+    const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(c.cost||0),0);
+    if(!(dailySum>0) || !(campSum>0)) return;
+    const k = dailySum / campSum;
+    if(k > 0.999) return;   // 이미 같은 기준이면 그대로
+    if(k < 0.85)  return;   // 부가세 차이로 보기엔 너무 큰 격차 — 다른 원인이므로 손대지 않음
+    (m.campaigns||[]).forEach(c=>{ if(typeof c.cost === 'number') c.cost = c.cost * k; });
+    if(typeof m.cost === 'number') m.cost = dailySum;
+    m.__costRebased = true;   // 화면에서 "기준 맞춤" 표시가 필요할 때 쓴다
+  });
+  return data;
+}
+function stripPlaceCampaigns(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const camps = m.campaigns || [];
+    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
+    /* [중요] 플레이스는 두 갈래로 존재한다.
+       ① 캠페인 목록에 유형이 '플레이스'로 남아 있는 경우 → 아래에서 걸러낸다.
+       ② 수집기가 저장할 때 이미 캠페인 목록에서는 빼놨는데 하루치 상세에는 남아 있는 경우
+          → 캠페인 목록에 없으니 ①로는 절대 못 찾는다. 태림이 이 경우였고, 그래서
+            "월 합계 54,717,412 vs 일별 합계 58,723,251"처럼 화면 숫자가 어긋났다.
+            (차액 4,005,839원 = 하루치에만 있는 캠페인 77개의 합)
+       그래서 '캠페인 목록에 없는데 하루치에만 있는 캠페인'도 함께 제외 대상으로 잡는다. */
+    const known = new Set(camps.map(c=>c.campaign));
+    const orphanNames = new Set();
+    if(Array.isArray(m.dailyByCampaign)){
+      m.dailyByCampaign.forEach(r=>{ if(r && r.campaign && !known.has(r.campaign)) orphanNames.add(r.campaign); });
+    }
+    const names = new Set([...place.map(c=>c.campaign), ...orphanNames]);
+    if(!names.size) return;
+
+    // 하루치에서 뺄 몫을 미리 뽑아둔다(아래에서 dailyByCampaign을 걸러내기 전에).
+    const placeDailyRows = Array.isArray(m.dailyByCampaign)
+      ? m.dailyByCampaign.filter(r=>r && names.has(r.campaign)) : [];
+
+    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
+    // 월 합계에서 플레이스 몫 차감 (캠페인 목록에 남아 있던 것만 — 나머지는 애초에 월 합계에 없음)
+    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+      if(typeof m[k] === 'number'){
+        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
+        m[k] = Math.max(0, m[k] - sub);
+      }
+    });
+    // 하루치 합계(daily)에서도 같은 몫을 뺀다 — daily엔 캠페인 이름이 없으므로 날짜로 맞춘다.
+    if(Array.isArray(m.daily) && m.daily.length && placeDailyRows.length){
+      const byDate = {};
+      placeDailyRows.forEach(r=>{
+        if(!r || !r.date) return;
+        const b = byDate[r.date] || (byDate[r.date] = {cost:0,revenue:0,conv:0,impressions:0,clicks:0});
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{ b[k] += Number(r[k])||0; });
+      });
+      m.daily = m.daily.map(d=>{
+        const sub = d && d.date ? byDate[d.date] : null;
+        if(!sub) return d;
+        const out = { ...d };
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+          if(typeof out[k] === 'number') out[k] = Math.max(0, out[k] - (sub[k]||0));
+        });
+        return out;
+      });
+    }
+    // 캠페인 이름이 붙은 상세 배열에서도 제거
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+    // 캠페인별 지도형 데이터에서도 제거
+    ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
+     'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
+     'wasteSearchTermsByCampaign','expandSearchTermsByCampaign','adgroupsByCampaign']
+      .forEach(f=>{ const o=m[f]; if(o && typeof o==='object'){ names.forEach(n=>{ delete o[n]; }); } });
+  });
+  return data;
+}
 
 function userClientsRef(){
   if(!auth.currentUser) throw new Error('not signed in');
@@ -550,7 +700,7 @@ async function load(){
   const snap = await userClientsRef().get();
   const list=[];
   snap.forEach(doc=>{
-    const d=doc.data()||{};
+    const d=applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data()||{})));
     const mm=pickMonth(d.months);
     if(!mm) return;
     list.push({
