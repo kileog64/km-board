@@ -550,6 +550,19 @@ table td.km-bad { color: var(--down); font-weight: 700; }
   .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
   .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
   @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
+  /* 메뉴바 높이 정리 — 안에 든 것들이 20·28·34·39·42px로 제각각이라 바만 두꺼웠음.
+     .topbar 안에서만 크기를 맞춰서 한 줄로 보이게 함 (다른 화면엔 영향 없음). */
+  .topbar{padding:6px 12px;}
+  .topbar .kmenu .mbtn{padding:6px 11px;}
+  .topbar .client-switcher-btn{padding:6px 12px;font-size:12.5px;}
+  .topbar .export-btn{padding:6px 13px;font-size:12.5px;}
+  .topbar .alert-bell{display:inline-flex;align-items:center;}
+  /* 배치: 메뉴는 로고 옆, 업체선택·알림·이메일은 로그아웃 옆(오른쪽)으로 붙임.
+     업체선택과 로그아웃 둘 다 margin-left:auto라 빈 공간이 반씩 나뉘고 있었음 → 로그아웃 쪽을 품. */
+  .topbar .kmenu{margin-left:0;}
+  .topbar .client-switcher{margin-left:auto;}
+  .topbar #logoutBtn{margin-left:0;}
+  .topbar > style, .topbar > script{display:none;}
 </style><script>
 (function initKmMenu(){
   const items=[...document.querySelectorAll('.kmenu .mitem[data-menu]')];
