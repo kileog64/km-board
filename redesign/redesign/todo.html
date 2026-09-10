@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>할 일 목록</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+</script>
+<style>
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
+  .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
+  .status-msg.show{display:block;}
+  .status-msg.err{color:var(--down);}
+  .status-msg.ok{color:var(--up);}
+  .export-btn{background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;}
+  .panel{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:20px;}
+  .panel-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:14px;text-align:center;gap:10px;line-height:1.6;}
+  .sel, .txt{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'Pretendard',sans-serif;}
+  .sel:focus, .txt:focus{outline:none;border-color:var(--accent);}
+
+  /* ---- 새 항목 추가 폼 ---- */
+  .add-form{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;}
+  .add-form input[type=text]{width:100%;}
+  .add-form-row2{display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px;margin-top:8px;}
+
+  /* ---- 필터바 ---- */
+  .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+
+  /* ---- 목록 ---- */
+  .todo-row{display:grid;grid-template-columns:auto 1fr auto auto auto auto auto;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--border);}
+  .todo-row:last-child{border-bottom:none;}
+  .todo-row.done .todo-title{color:var(--muted);text-decoration:line-through;}
+  .todo-check{width:18px;height:18px;cursor:pointer;accent-color:var(--accent);flex-shrink:0;}
+  .todo-main{min-width:0;}
+  .todo-title{font-size:14px;font-weight:600;color:var(--text);word-break:break-word;}
+  .todo-memo{font-size:12px;color:var(--muted);margin-top:3px;word-break:break-word;}
+  .todo-tag{font-size:12px;padding:3px 9px;border-radius:10px;white-space:nowrap;font-weight:600;}
+  .todo-tag-client{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));}
+  .todo-tag-owner{background:rgba(255,255,255,.08);color:var(--muted);}
+  .todo-due{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .todo-due.overdue{color:var(--down);font-weight:700;}
+  .status-sel{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;}
+  .status-sel[data-status="todo"]{background:rgba(255,255,255,.06);color:var(--muted);}
+  .status-sel[data-status="doing"]{background:rgba(245,197,66,.15);color:#f5c542;}
+  .status-sel[data-status="done"]{background:rgba(74,222,154,.15);color:var(--up);}
+  .prio-sel{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;}
+  .prio-sel[data-prio="high"]{background:rgba(255,107,133,.15);color:var(--down);}
+  .prio-sel[data-prio="mid"]{background:rgba(255,255,255,.06);color:var(--muted);}
+  .prio-sel[data-prio="low"]{background:rgba(255,255,255,.04);color:var(--muted);}
+  .todo-delete-btn{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px;line-height:1;}
+  .todo-delete-btn:hover{color:var(--down);}
+  .group-title{font-size:14px;font-weight:700;color:var(--muted);margin:20px 0 6px;padding-top:4px;}
+  .group-title:first-child{margin-top:0;}
+
+/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
+   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
+table td, table th { white-space: nowrap; }
+table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
+table td.kw-name { min-width: 150px; }
+</style>
+
+<style id="km-redesign-skin">
+/* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
+:root{
+  --bg:#0e0f16;
+  --panel:#141622;
+  --panel-2:#171a27;
+  --border:#2b3044;
+  --text:#e8e9f2;
+  --muted:#8f94ab;
+  --radius:11px;
+}
+body{
+  background:#0e0f16 !important;
+  letter-spacing:-.006em;
+}
+
+/* 큰 카드 */
+.card{ border-radius:12px !important; padding:20px 22px !important; }
+.panel{ border-radius:11px !important; padding:16px 18px !important; }
+.panel-title{
+  font-size:15px !important; font-weight:600 !important;
+  letter-spacing:-.015em !important; margin-bottom:12px !important;
+}
+
+/* 목표 대비 KPI — 라벨은 조용하게, 숫자는 크게 */
+.kpi-row{ gap:10px !important; margin-bottom:20px !important; }
+.kpi{ border-radius:11px !important; padding:15px 17px !important; }
+.kpi-label{
+  text-transform:none !important; letter-spacing:0 !important;
+  font-weight:400 !important; font-size:12px !important;
+  color:var(--muted) !important; margin-bottom:6px !important;
+}
+.kpi-value{
+  font-size:25px !important; font-weight:600 !important;
+  letter-spacing:-.022em !important; font-variant-numeric:tabular-nums;
+}
+.kpi-note{
+  font-size:12.5px !important; font-weight:600 !important;
+  padding:4px 9px !important; border-radius:6px !important;
+}
+
+/* 배지 · 버튼 · 탭 */
+.badge{ border-radius:5px !important; font-size:11.5px !important; font-weight:600 !important; padding:2.5px 8px !important; }
+.btn{ border-radius:8px !important; font-weight:600 !important; font-size:13px !important; padding:11px !important; }
+.tabs{ gap:6px !important; }
+.tab{ border-radius:7px !important; padding:7px 12px !important; font-size:13px !important; }
+.export-btn{ border-radius:8px !important; font-size:12.5px !important; }
+
+/* 표 — 줄 간격 넓히고 숫자 자릿수 맞춤 */
+table{ font-variant-numeric:tabular-nums; }
+table th{ font-size:12px !important; font-weight:500 !important; color:var(--muted) !important; letter-spacing:0 !important; text-transform:none !important; }
+table td{ font-size:13.5px !important; }
+table td, table th{ padding-top:10px !important; padding-bottom:10px !important; }
+
+/* 왼쪽 필터 */
+.filter-panel{ border-radius:11px !important; }
+.filter-group-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
+.filter-item{ font-size:13px !important; }
+.section-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
+
+/* 업체 선택 */
+.client-switcher-btn{ border-radius:8px !important; font-size:13.5px !important; }
+.client-switcher-dropdown{ border-radius:11px !important; }
+.client-switcher-item{ font-size:13.5px !important; }
+
+/* 작은 글씨들 살짝 키움 */
+.lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
+
+/* 목표 대비 KPI — 4칸 + 진행 막대 */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
+.kpi-cell{background:var(--panel-2);padding:15px 17px}
+.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
+.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
+.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
+.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
+.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
+.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
+.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
+.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- 상단 필터 바 ---- */
+.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
+.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
+.filterbar .fb-g:last-child{border-right:0}
+.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
+.filterbar button{border-radius:7px!important}
+.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
+header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
+header.rep .totals{display:none}
+.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
+.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
+@media(max-width:900px){.filterbar .fb-g{border-right:0}}
+
+/* ---- 성과 인사이트 2단 ---- */
+.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
+.ins-col-good{border-left:3px solid var(--up)}
+.ins-col-warn{border-left:3px solid var(--down)}
+.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
+.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
+.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
+.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
+.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ins-neutral .ins-li{color:var(--muted)}
+#insightsPanel{border-left:0!important}
+@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
+
+.dc-two{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.dc-two{grid-template-columns:1fr}}
+
+/* ---- 큰 숫자 줄 ----
+   칸 수가 6개(DB)/7개(B2C)로 달라지고 화면 폭에 따라 줄바꿈되는데, grid로 하면 마지막 줄에 빈칸이 남는다.
+   flex + flex-grow 로 두면 남은 칸들이 늘어나 폭을 꽉 채운다. */
+.dc-kpi{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-kpi > div{flex:1 1 142px;min-width:0}
+
+.dc-kpi2{display:flex;flex-direction:column;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
+.dc-k-top,.dc-k-bot{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b}
+.dc-k-top > div,.dc-k-bot > div{flex:1 1 160px;min-width:0}
+
+/* ---- 표: 목업과 같은 모양으로 통일 ---- */
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+table thead tr{background:#1d2030}
+table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
+  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
+  text-transform:none!important;white-space:nowrap}
+table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
+table tbody tr:hover td{background:#1b1e2c}
+.panel table,.card table{border-radius:0}
+
+/* 줄 많은 표 — 높이를 잘라 안쪽 스크롤, 머리글 고정 */
+.dc-scroll{max-height:440px;overflow-y:auto;overflow-x:auto;border:1px solid #262a3b;border-radius:9px}
+.dc-scroll table{margin:0}
+.dc-scroll thead th{position:sticky;top:0;z-index:1;background:#1d2030}
+.dc-scroll td{padding-top:5px!important;padding-bottom:5px!important;font-size:12.5px!important}
+.dc-scroll th{padding-top:8px!important;padding-bottom:8px!important}
+.dc-scroll tbody tr:last-child td{border-bottom:0!important}
+.dc-scroll::-webkit-scrollbar{width:9px;height:9px}
+.dc-scroll::-webkit-scrollbar-thumb{background:#3f4468;border-radius:5px}
+.dc-scroll::-webkit-scrollbar-track{background:transparent}
+
+/* 카드·패널이 안쪽 표 때문에 늘어나지 않게 (안 그러면 화면 오른쪽이 잘림) */
+.wrap,.main-layout,.card,.panel,.chart-box{min-width:0}
+.card,.panel{overflow-x:hidden}
+.dc-scroll{overflow-x:auto}
+.dc-scroll-x{max-height:none;overflow-y:visible}
+.hr-scroll{overflow-x:auto}
+
+/* ---- 상단 메뉴바 ---- */
+.topbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;row-gap:6px;
+  margin:0 0 14px;padding:7px 12px;background:#12131c;border:1px solid #262a3b;border-radius:11px}
+.nv-logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;
+  letter-spacing:-.01em;color:#e8e9f2;margin-right:14px;white-space:nowrap}
+.nv-mark{width:20px;height:20px;border-radius:6px;background:#8b7cff;display:inline-block;flex-shrink:0}
+.nv{padding:5px 11px;border-radius:7px;font-size:12.5px;color:#a9adc2;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
+.nv:hover{background:#1b1e2c;color:#e8e9f2}
+.nv-on{background:#232640;color:#e8e9f2;font-weight:500}
+.nv-b{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;
+  margin-left:5px;border-radius:8px;background:#f5a524;color:#12131c;font-size:10px;font-weight:700;vertical-align:1px}
+.topbar .client-switcher{margin-left:auto}
+</style>
+</head>
+<body>
+
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 광고 성과 대시보드</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인하면 할 일 목록을 함께 볼 수 있어요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn">로그인</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">계정이 없으신가요? 관리자에게 계정 생성을 요청해주세요.</div>
+    <div class="status-msg" id="authStatus"></div>
+  </div>
+</div>
+
+<div class="wrap" id="mainApp" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;row-gap:10px;">
+    <h1 style="font-size:20px;margin:0;">✅ 할 일 목록</h1>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="nv-logo"><span class="nv-mark"></span>km-board</span><nav class="kmenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="live.html">예산 · 목표</a>
+          <a href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="ab-test.html">A/B 테스트</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav><style id="km-menu-style">
+  /* ── 상단 메뉴 (대메뉴 + 소메뉴) — 전 페이지 공통 ── */
+  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
+  .kmenu .mitem{position:relative;}
+  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
+  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
+    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
+    transition:background .12s ease,color .12s ease;}
+  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
+  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
+  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
+    background:var(--panel,#171829);border:1px solid var(--border,#33354a);border-radius:12px;
+    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  /* 버튼과 메뉴 사이 빈틈을 안 보이는 판으로 덮음 — 없으면 내려가다 바로 닫힘 */
+  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
+  .kmenu .mitem.on .mdrop{display:block;}
+  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent,#8b7cff);}
+  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
+  .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
+  @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
+  /* 배치 — 메뉴는 로고와 오른쪽 묶음 사이의 가운데.
+     바의 자로 잰 정중앙에 놓으면 오른쪽 묶음이 넓어서 눈에는 오른쪽으로 치우쳐 보임.
+     양옆 빈 공간을 똑같이 나누는 쪽이 실제로 가운데로 보임. */
+  .topbar .kmenu{margin-left:auto;margin-right:auto;}
+  .topbar .client-switcher{margin-left:0;}
+  .topbar #logoutBtn{margin-left:0;}
+  /* 이 블록이 topbar 안에 들어가 있어 flex 항목으로 잡히는 걸 막음 */
+  .topbar > style, .topbar > script{display:none;}
+</style><script>
+(function initKmMenu(){
+  const items=[...document.querySelectorAll('.kmenu .mitem[data-menu]')];
+  const closeAll=except=>items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+  items.forEach(it=>{
+    const btn=it.querySelector('.mbtn');
+    let closeTimer=null;
+    it.addEventListener('mouseenter',()=>{ clearTimeout(closeTimer); closeAll(it); it.classList.add('on'); });
+    it.addEventListener('mouseleave',()=>{ clearTimeout(closeTimer); closeTimer=setTimeout(()=>it.classList.remove('on'),260); });
+    btn.addEventListener('click',e=>{ e.preventDefault(); const open=it.classList.contains('on'); closeAll(it); it.classList.toggle('on',!open); });
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAll(null); });
+  const here=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
+    if((a.getAttribute('href')||'').toLowerCase()!==here) return;
+    a.classList.add('cur');
+    const p=a.closest('.mitem'), pb=p&&p.querySelector('button.mbtn');
+    if(pb) pb.classList.add('cur');
+  });
+})();
+</script><span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
+      <button class="export-btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px;">
+    <div class="panel-title">➕ 새 할 일 추가</div>
+    <div class="add-form">
+      <input type="text" class="txt" id="newTodoTitle" placeholder="할 일 내용 (예: SN라이프 키워드 점검)">
+      <select class="sel" id="newTodoClient"><option value="">업체 선택 (선택)</option></select>
+      <input type="text" class="txt" id="newTodoOwner" placeholder="담당자 (선택)">
+      <input type="date" class="txt" id="newTodoDue">
+      <button class="btn btn-accent" id="addTodoBtn" style="margin-top:0;width:auto;padding:9px 18px;">추가</button>
+    </div>
+    <div class="add-form-row2">
+      <select class="sel" id="newTodoStatus">
+        <option value="todo">상태: 할일</option>
+        <option value="doing">상태: 진행중</option>
+        <option value="done">상태: 완료</option>
+      </select>
+      <select class="sel" id="newTodoPrio">
+        <option value="high">우선순위: 높음</option>
+        <option value="mid" selected>우선순위: 보통</option>
+        <option value="low">우선순위: 낮음</option>
+      </select>
+      <input type="text" class="txt" id="newTodoMemo" placeholder="메모 / 설명 (선택)">
+    </div>
+    <div class="status-msg" id="todoAddStatus"></div>
+  </div>
+
+  <div class="filter-bar">
+    <select class="sel" id="filterClient"><option value="ALL">전체 업체</option></select>
+    <select class="sel" id="filterStatus">
+      <option value="ALL">전체 상태</option>
+      <option value="todo">할일</option>
+      <option value="doing">진행중</option>
+      <option value="done">완료</option>
+    </select>
+    <select class="sel" id="filterPrio">
+      <option value="ALL">전체 우선순위</option>
+      <option value="high">높음</option>
+      <option value="mid">보통</option>
+      <option value="low">낮음</option>
+    </select>
+    <select class="sel" id="sortMode">
+      <option value="due">마감일 빠른 순</option>
+      <option value="prio">우선순위 높은 순</option>
+      <option value="created">최근 등록 순</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;margin-left:auto;">
+      <input type="checkbox" id="hideDoneCheck" style="accent-color:var(--accent);"> 완료 항목 숨기기
+    </label>
+  </div>
+
+  <div class="panel">
+    <div id="todoList"></div>
+  </div>
+</div>
+
+<script>
+function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
+
+/* ---------- 인증 ---------- */
+let currentUserEmail = '';
+function authStatus(msg, type){
+  const el = document.getElementById('authStatus');
+  el.textContent = msg; el.className = 'status-msg show ' + (type||'');
+}
+document.getElementById('loginBtn').onclick = async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if(!email || !pw){ authStatus('이메일과 비밀번호를 입력해주세요.', 'err'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+  }catch(e){ authStatus('로그인 실패: ' + e.message, 'err'); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+/* ---------- 업체 목록 (드롭다운용) ---------- */
+function userClientsRef(){
+  if(!auth.currentUser) throw new Error('not signed in');
+  return db.collection('clients');
+}
+async function listClientsForDropdown(){
+  try{
+    const snap = await userClientsRef().get();
+    return snap.docs.map(d=>({ key:'client:'+d.id, name:(d.data()||{}).name || d.id }));
+  }catch(e){ console.error(e); return []; }
+}
+async function populateClientDropdowns(){
+  const clients = await listClientsForDropdown();
+  clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const optsPlain = clients.map(c=>`<option value="${c.key}">${c.name}</option>`).join('');
+  const newSel = document.getElementById('newTodoClient');
+  newSel.innerHTML = '<option value="">업체 선택 (선택)</option>' + optsPlain;
+  const filterSel = document.getElementById('filterClient');
+  filterSel.innerHTML = '<option value="ALL">전체 업체</option><option value="NONE">업체 없음(공통 업무)</option>' + optsPlain;
+  window.__todoClientNameMap = Object.fromEntries(clients.map(c=>[c.key, c.name]));
+}
+
+/* ---------- 할 일 저장소 (Firestore: config/todos 문서 안에 배열로 저장) ---------- */
+// 팀 전체가 공유하는 목록이라 업체 데이터(clients 컬렉션)와는 별도로 config 컬렉션에 둠.
+// 항목 수가 아주 많아지지 않는 한(문서 1MB 한도) 배열 하나로 충분히 단순하게 관리 가능.
+function todosRef(){ return db.collection('config').doc('todos'); }
+async function loadTodos(){
+  try{
+    const doc = await todosRef().get();
+    if(!doc.exists) return [];
+    return doc.data().items || [];
+  }catch(e){ console.error(e); return []; }
+}
+/* 팀 공용 목록이라 두 사람이 동시에 열어두는 일이 실제로 생김. 예전엔 화면에 들고 있던 배열을
+   통째로 덮어써서, A가 항목을 추가한 직후 B가 체크박스를 누르면 B의 저장이 A의 새 항목을 지웠음.
+   그래서 저장 직전에 트랜잭션으로 서버 값을 다시 읽고, 그 위에서 내가 바꾼 것만 반영함.
+   mutate(server) — 서버의 최신 배열을 받아서 새 배열을 돌려주는 함수. */
+async function mutateTodos(mutate){
+  try{
+    const ref = todosRef();
+    let applied = null;
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const server = (doc.exists && doc.data().items) || [];
+      applied = mutate(server.slice());
+      tx.set(ref, { items: applied }, { merge:true });
+    });
+    if(applied) todoItems = applied;
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+// 단일 항목 수정: id로 찾아서 그 항목의 필드만 바꿈(다른 사람이 추가/삭제한 항목은 그대로 둠)
+function patchTodo(id, patch){
+  return mutateTodos(list=>list.map(x=> x.id===id ? { ...x, ...patch } : x));
+}
+function newTodoId(){
+  return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+let todoItems = [];
+/* 저장이 실패했을 때 화면만 바뀐 채로 두면 "저장된 줄 알았는데 아니었다"가 된다.
+   실패한 작업 이름을 알려주고, 서버 값을 다시 읽어 화면을 실제 저장 상태로 되돌린다. */
+async function todoSaveFailed(what){
+  alert((what||'저장') + '에 실패했어요. 저장된 내용은 그대로예요 — 잠시 후 다시 시도해주세요.');
+  todoItems = await loadTodos();
+}
+let filterState = { client:'ALL', status:'ALL', prio:'ALL', sort:'due', hideDone:false };
+
+async function refreshTodoList(){
+  todoItems = await loadTodos();
+  await populateClientDropdowns();
+  renderTodoList();
+  // 이 화면에서는 방금 읽은 목록이 가장 최신이니 그걸로 바로 배지를 맞춘다.
+  setNavTodoBadge(todoItems.filter(t=>t && t.status!=='done').length);
+}
+
+function prioRank(p){ return p==='high' ? 0 : p==='low' ? 2 : 1; }
+function statusLabel(s){ return s==='doing' ? '진행중' : s==='done' ? '완료' : '할일'; }
+function prioLabel(p){ return p==='high' ? '높음' : p==='low' ? '낮음' : '보통'; }
+
+/* '<'만 막으면 '&lt;'를 입력했을 때 그대로 '<'로 렌더됨(& 를 먼저 안 바꿔서). 순서대로 전부 치환. */
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function todoRowHTML(t){
+  const clientName = t.clientKey ? (window.__todoClientNameMap[t.clientKey] || '알 수 없는 업체') : '';
+  const clientTag = clientName ? `<span class="todo-tag todo-tag-client">🏢 ${esc(clientName)}</span>` : '';
+  const ownerTag = t.owner ? `<span class="todo-tag todo-tag-owner">👤 ${esc(t.owner)}</span>` : '';
+  let dueHtml = '';
+  if(t.due){
+    const isOverdue = t.status!=='done' && t.due < new Date().toISOString().slice(0,10);
+    dueHtml = `<span class="todo-due ${isOverdue?'overdue':''}">${isOverdue?'⚠️ ':'📅 '}${t.due}</span>`;
+  }
+  const memoHtml = t.memo ? `<div class="todo-memo">${esc(t.memo)}</div>` : '';
+  return `
+    <div class="todo-row ${t.status==='done'?'done':''}" data-id="${esc(t.id)}">
+      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''} title="완료로 표시/해제">
+      <div class="todo-main">
+        <div class="todo-title">${esc(t.title)}</div>
+        ${memoHtml}
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${clientTag}${ownerTag}</div>
+      </div>
+      ${dueHtml || '<span></span>'}
+      <select class="status-sel" data-status="${t.status}" title="상태 변경">
+        <option value="todo" ${t.status==='todo'?'selected':''}>할일</option>
+        <option value="doing" ${t.status==='doing'?'selected':''}>진행중</option>
+        <option value="done" ${t.status==='done'?'selected':''}>완료</option>
+      </select>
+      <select class="prio-sel" data-prio="${t.priority}" title="우선순위 변경">
+        <option value="high" ${t.priority==='high'?'selected':''}>높음</option>
+        <option value="mid" ${t.priority==='mid'?'selected':''}>보통</option>
+        <option value="low" ${t.priority==='low'?'selected':''}>낮음</option>
+      </select>
+      <button class="todo-delete-btn" title="삭제">✕</button>
+    </div>`;
+}
+
+/* ================= 공통 디자인 조각 (목업 기준) ================= */
+const DC = { acc:'#8b7cff', acc2:'#b8aeff', mut:'#8f94ab', mut2:'#a9adc2', line:'#262a3b',
+             card:'#161823', head:'#1d2030', track:'#3f4468', up:'#3ddc97', dn:'#ff6b85', txt:'#e8e9f2' };
+const dcNum = n => Math.round(n||0).toLocaleString('ko-KR');
+const dcWon = man => dcNum((man||0)*10000)+'원';
+const dcSecHead = (title, sub, right) => `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+  <span style="font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:${DC.txt}">${title}</span>
+  ${sub?`<span style="font-size:11.5px;color:${DC.mut}">${sub}</span>`:''}
+  <div style="flex-grow:1"></div>${right||''}</div>`;
+const dcHr = `<div style="height:1px;background:${DC.line}"></div>`;
+
+/* 표에서 숫자 칸만 오른쪽 정렬 — 페이지마다 표 구조가 달라서 CSS로는 못 잡고, 그린 뒤에 내용을 보고 판단한다.
+   (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
+
+// 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
+function setNavTodoBadge(n){
+  const el=document.getElementById('navTodoBadge'); if(!el) return;
+  if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
+}
+/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
+   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
+   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
+async function loadNavTodoBadge(){
+  try{
+    if(typeof db === 'undefined' || !db) return;
+    const doc = await db.collection('config').doc('todos').get();
+    const items = (doc.exists && doc.data().items) || [];
+    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
+  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
+}
+(function(){
+  let tries = 0;
+  const timer = setInterval(()=>{
+    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
+      clearInterval(timer);
+      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
+    } else if(++tries > 60) clearInterval(timer);
+  }, 200);
+})();
+
+function dcAlignTables(root){
+  const scope = root || document;
+  scope.querySelectorAll('table').forEach(tb=>{
+    const body = tb.tBodies && tb.tBodies[0];
+    if(!body || !body.rows.length) return;
+    const head = tb.tHead && tb.tHead.rows[0];
+    const cols = Math.max(...[...body.rows].map(r=>r.cells.length));
+    for(let c=0;c<cols;c++){
+      let num=0, tot=0;
+      for(const row of body.rows){
+        const cell = row.cells[c];
+        if(!cell || cell.colSpan>1) continue;
+        const txt = (cell.textContent||'').trim();
+        if(!txt || txt==='-' || txt==='—') continue;
+        tot++;
+        if(/^[₩$]?[\d,.]+\s*(원|건|개|위|%|만|억)?/.test(txt) && /\d/.test(txt)) num++;
+      }
+      if(tot>=2 && num/tot >= 0.7){
+        for(const row of body.rows){ const cell=row.cells[c]; if(cell && cell.colSpan===1 && !cell.style.textAlign) cell.style.textAlign='right'; }
+        if(head && head.cells[c] && !head.cells[c].style.textAlign) head.cells[c].style.textAlign='right';
+      }
+    }
+  });
+}
+
+/* 줄이 많은 표는 화면을 끝없이 늘려서, 일정 높이로 잘라 안쪽에서만 스크롤되게 한다.
+   (머리글은 스크롤해도 위에 붙어 있어서 어느 칸인지 계속 보임) */
+function dcCompactTables(root){
+  const scope = root || document;
+  scope.querySelectorAll('table').forEach(tb=>{
+    if(tb.dataset.dcCompact) return;
+    const body = tb.tBodies && tb.tBodies[0];
+    if(!body) return;
+    if(tb.closest('.hr-scroll, .dc-scroll')) { tb.dataset.dcCompact='1'; return; }
+    const parent = tb.parentElement;
+    if(!parent) return;
+    // 줄이 많아서 세로로 길거나(16줄↑), 칸이 많아서 가로로 넓은(부모보다 큰) 표를 상자에 넣는다.
+    // 가로로 넓은 표를 그냥 두면 카드 전체가 늘어나서 화면 오른쪽이 잘림.
+    const tooTall = body.rows.length >= 16;
+    const tooWide = tb.scrollWidth > parent.clientWidth + 4;
+    if(!tooTall && !tooWide) return;
+    const wrap = document.createElement('div');
+    wrap.className = tooTall ? 'dc-scroll' : 'dc-scroll dc-scroll-x';
+    parent.insertBefore(wrap, tb);
+    wrap.appendChild(tb);
+    tb.dataset.dcCompact = '1';
+  });
+}
+// 화면이 다시 그려질 때마다 자동으로 정렬을 다시 적용 (페이지마다 렌더 함수가 달라서 한 곳에서 처리)
+(function(){
+  let t = null;
+  const run = ()=>{ t=null; try{ dcCompactTables(document); dcAlignTables(document); }catch(e){} };
+  const start = ()=>{
+    try{ new MutationObserver(()=>{ if(t) return; t=setTimeout(run,60); }).observe(document.body,{childList:true,subtree:true}); }catch(e){}
+    run();
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+// 큰 숫자 줄 — 윗줄은 결과(크게), 아랫줄은 과정(작게). 칸이 모자라면 남은 칸이 늘어나 폭을 채운다.
+function dcCellHTML(lab, val, delta, big){
+  const L = String(val).length;
+  const fs = big ? (L>17?21:L>13?24:27) : (L>17?15:L>13?17:19);
+  return `<div style="padding:${big?'16px 20px':'13px 20px'};background:${DC.card};min-width:0">
+    <div style="font-size:11.5px;color:${DC.mut};margin-bottom:${big?'7px':'5px'}">${lab}</div>
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap"><span class="m" style="font-size:${fs}px;font-weight:600;letter-spacing:-.025em;color:${DC.txt};white-space:nowrap">${val}</span>${delta||''}</div>
+  </div>`;
+}
+function dcDelta(now, prev, inv){
+  if(prev===null||prev===undefined||!isFinite(prev)||prev===0||now===null||!isFinite(now)) return '';
+  const p = (now/prev-1)*100, good = inv ? p<0 : p>0;
+  return `<span class="m" style="font-size:12px;color:${good?DC.up:DC.dn};margin-left:8px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}</span>`;
+}
+function dcKpi2HTML(top, bottom){
+  const r = arr => arr.filter(Boolean).map(c=>dcCellHTML(c[0], c[1], c[2], c[3])).join('');
+  return `<div class="dc-kpi2"><div class="dc-k-top">${r(top)}</div>${bottom&&bottom.length?`<div class="dc-k-bot">${r(bottom)}</div>`:''}</div>`;
+}
+// 표 조각
+const dcTh = (t,r) => `<th class="m" style="text-align:${r?'right':'left'};font-size:12px;font-weight:500;letter-spacing:.04em;color:${DC.mut};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${t}</th>`;
+const dcTd = (inner,r) => `<td class="m" style="text-align:${r?'right':'left'};padding:9px 14px;border-bottom:1px solid ${DC.line};white-space:nowrap">${inner}</td>`;
+const dcTable = (headHtml, bodyHtml) => `<div style="border:1px solid ${DC.line};border-radius:9px;overflow:hidden;background:${DC.card}">
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums">
+  <thead><tr style="background:${DC.head}">${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div></div>`;
+// 미니 스파크라인 (비용 추이)
+function dcSpark(vals, w, h){
+  const v = (vals||[]).filter(x=>isFinite(x));
+  if(v.length < 2) return '';
+  const W = w||84, H = h||22, max = Math.max(...v), min = Math.min(...v), span = (max-min)||1;
+  const pts = v.map((x,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(H - (x-min)/span*(H-2) - 1).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:middle;overflow:visible">
+    <polyline points="${pts}" fill="none" stroke="${DC.acc}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/></svg>`;
+}
+
+function renderTodoList(){
+  const el = document.getElementById('todoList');
+  let rows = todoItems.slice();
+
+  if(filterState.client==='NONE') rows = rows.filter(t=>!t.clientKey);
+  else if(filterState.client!=='ALL') rows = rows.filter(t=>t.clientKey===filterState.client);
+  if(filterState.status!=='ALL') rows = rows.filter(t=>t.status===filterState.status);
+  if(filterState.prio!=='ALL') rows = rows.filter(t=>t.priority===filterState.prio);
+  if(filterState.hideDone) rows = rows.filter(t=>t.status!=='done');
+
+  if(filterState.sort==='due'){
+    rows.sort((a,b)=>{
+      if(!a.due && !b.due) return (b.createdAt||0)-(a.createdAt||0);
+      if(!a.due) return 1;
+      if(!b.due) return -1;
+      return a.due.localeCompare(b.due);
+    });
+  } else if(filterState.sort==='prio'){
+    rows.sort((a,b)=> prioRank(a.priority)-prioRank(b.priority) || (b.createdAt||0)-(a.createdAt||0));
+  } else if(filterState.sort==='created'){
+    rows.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  }
+
+  if(!rows.length){
+    el.innerHTML = `<div class="empty-state"><div style="font-size:28px;">📭</div><div>조건에 맞는 할 일이 없어요.</div></div>`;
+    return;
+  }
+  el.innerHTML = rows.map(todoRowHTML).join('');
+
+  el.querySelectorAll('.todo-row').forEach(rowEl=>{
+    const id = rowEl.dataset.id;
+    const t = todoItems.find(x=>x.id===id);
+    if(!t) return;
+    rowEl.querySelector('.todo-check').onchange = async (e)=>{
+      const ok = await patchTodo(id, { status: e.target.checked ? 'done' : 'todo' });
+      if(!ok) await todoSaveFailed('완료 표시');
+      renderTodoList();
+    };
+    rowEl.querySelector('.status-sel').onchange = async (e)=>{
+      const ok = await patchTodo(id, { status: e.target.value });
+      if(!ok) await todoSaveFailed('상태 변경');
+      renderTodoList();
+    };
+    rowEl.querySelector('.prio-sel').onchange = async (e)=>{
+      const ok = await patchTodo(id, { priority: e.target.value });
+      if(!ok) await todoSaveFailed('중요도 변경');
+      renderTodoList();
+    };
+    rowEl.querySelector('.todo-delete-btn').onclick = async ()=>{
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      const ok = await mutateTodos(list=>list.filter(x=>x.id!==id));
+      if(!ok) await todoSaveFailed('삭제');
+      renderTodoList();
+    };
+  });
+}
+
+document.getElementById('addTodoBtn').onclick = async ()=>{
+  const titleEl = document.getElementById('newTodoTitle');
+  const title = titleEl.value.trim();
+  const statusMsg = document.getElementById('todoAddStatus');
+  function setMsg(msg, type){ statusMsg.textContent = msg; statusMsg.className = 'status-msg show ' + (type||''); }
+  if(!title){ setMsg('할 일 내용을 입력해주세요.', 'err'); return; }
+  const clientKey = document.getElementById('newTodoClient').value || null;
+  const owner = document.getElementById('newTodoOwner').value.trim() || null;
+  const due = document.getElementById('newTodoDue').value || null;
+  const status = document.getElementById('newTodoStatus').value;
+  const priority = document.getElementById('newTodoPrio').value;
+  const memo = document.getElementById('newTodoMemo').value.trim() || null;
+
+  const item = {
+    id: newTodoId(), title, clientKey, owner, due, status, priority, memo,
+    createdAt: Date.now(), createdBy: currentUserEmail
+  };
+  const ok = await mutateTodos(list=>[...list, item]);
+  if(ok){
+    setMsg('할 일을 추가했어요.', 'ok');
+    titleEl.value = '';
+    document.getElementById('newTodoOwner').value = '';
+    document.getElementById('newTodoDue').value = '';
+    document.getElementById('newTodoMemo').value = '';
+    document.getElementById('newTodoClient').value = '';
+    document.getElementById('newTodoStatus').value = 'todo';
+    document.getElementById('newTodoPrio').value = 'mid';
+    renderTodoList();
+  } else {
+    // 예전엔 여기서 todoItems.pop() 을 했는데, 추가는 저장이 성공했을 때만 목록에 반영되므로
+    // 실패했을 땐 방금 쓴 것이 아니라 '원래 있던 마지막 할 일'이 화면에서 사라졌다.
+    // 실패 시엔 목록을 건드리지 말고 서버 값을 다시 읽어와 화면을 원상태로 맞춘다.
+    todoItems = await loadTodos();
+    renderTodoList();
+    setMsg('추가에 실패했어요. 저장된 내용은 그대로예요 — 다시 시도해주세요.', 'err');
+  }
+};
+
+document.getElementById('filterClient').onchange = (e)=>{ filterState.client = e.target.value; renderTodoList(); };
+document.getElementById('filterStatus').onchange = (e)=>{ filterState.status = e.target.value; renderTodoList(); };
+document.getElementById('filterPrio').onchange = (e)=>{ filterState.prio = e.target.value; renderTodoList(); };
+document.getElementById('sortMode').onchange = (e)=>{ filterState.sort = e.target.value; renderTodoList(); };
+document.getElementById('hideDoneCheck').onchange = (e)=>{ filterState.hideDone = e.target.checked; renderTodoList(); };
+
+auth.onAuthStateChanged(async (user)=>{
+  if(user){
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('authUserEmail').textContent = user.email;
+    currentUserEmail = user.email;
+    await refreshTodoList();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+  }
+});
+
+if(FIREBASE_CONFIG.apiKey.includes('여기에')){
+  document.getElementById('authScreen').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:28px;">⚠️</div>
+      <div style="color:#ff5d7a;font-weight:600;">Firebase 설정이 아직 입력되지 않았어요.</div>
+      <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
+    </div>`;
+}
+</script>
+</body>
+</html>
