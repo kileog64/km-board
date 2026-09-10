@@ -49,9 +49,12 @@
   .mbtn.cur{color:var(--tx);background:rgba(139,124,255,.16);}
   .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
   .mitem.on .mcaret{transform:rotate(180deg);}
-  .mdrop{position:absolute;top:calc(100% + 6px);left:0;min-width:190px;background:var(--panel);
+  .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;background:var(--panel);
     border:1px solid var(--border);border-radius:12px;padding:6px;z-index:50;
     box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  /* 버튼과 메뉴 사이 빈틈을 눈에 안 보이는 판으로 덮어둔다.
+     안 그러면 마우스가 그 틈을 지나는 순간 메뉴 밖으로 나간 걸로 처리돼 바로 닫힘. */
+  .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
   .mitem.on .mdrop{display:block;}
   .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
     text-decoration:none;font-size:13px;white-space:nowrap;}
@@ -248,8 +251,16 @@
   items.forEach(it=>{
     const btn = it.querySelector('.mbtn');
     // 마우스로는 올리면 바로 펴지고, 손가락/클릭으로는 눌러서 펴고 닫음
-    it.addEventListener('mouseenter', ()=>{ closeAll(it); it.classList.add('on'); });
-    it.addEventListener('mouseleave', ()=> it.classList.remove('on'));
+    // 마우스가 잠깐 벗어나도 곧바로 닫지 않고 조금 기다린다 (대각선으로 내려갈 때 끊기지 않게)
+    let closeTimer = null;
+    it.addEventListener('mouseenter', ()=>{
+      clearTimeout(closeTimer);
+      closeAll(it); it.classList.add('on');
+    });
+    it.addEventListener('mouseleave', ()=>{
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(()=> it.classList.remove('on'), 260);
+    });
     btn.addEventListener('click', e=>{
       e.preventDefault();
       const open = it.classList.contains('on');
