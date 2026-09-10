@@ -521,7 +521,7 @@ table td.km-bad { color: var(--down); font-weight: 700; }
   .kmenu .mitem{position:relative;}
   /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
   .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
-    color:#a9adc2;font-size:12.5px;font-weight:500;padding:5px 11px;border-radius:7px;
+    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
     cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
     transition:background .12s ease,color .12s ease;}
   .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
@@ -543,18 +543,13 @@ table td.km-bad { color: var(--down); font-weight: 700; }
   .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
   .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
   @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
-  /* 메뉴바 높이 정리 — 안에 든 것들이 20·28·34·39·42px로 제각각이라 바만 두꺼웠음.
-     .topbar 안에서만 크기를 맞춰서 한 줄로 보이게 함 (다른 화면엔 영향 없음). */
-  .topbar{padding:6px 12px;}
-  .topbar .kmenu .mbtn{padding:6px 11px;}
-  .topbar .client-switcher-btn{padding:6px 12px;font-size:12.5px;}
-  .topbar .export-btn{padding:6px 13px;font-size:12.5px;}
-  .topbar .alert-bell{display:inline-flex;align-items:center;}
-  /* 배치: 메뉴는 로고 옆, 업체선택·알림·이메일은 로그아웃 옆(오른쪽)으로 붙임.
-     업체선택과 로그아웃 둘 다 margin-left:auto라 빈 공간이 반씩 나뉘고 있었음 → 로그아웃 쪽을 품. */
-  .topbar .kmenu{margin-left:0;}
-  .topbar .client-switcher{margin-left:auto;}
+  /* 배치 — 메뉴는 로고와 오른쪽 묶음 사이의 가운데.
+     바의 자로 잰 정중앙에 놓으면 오른쪽 묶음이 넓어서 눈에는 오른쪽으로 치우쳐 보임.
+     양옆 빈 공간을 똑같이 나누는 쪽이 실제로 가운데로 보임. */
+  .topbar .kmenu{margin-left:auto;margin-right:auto;}
+  .topbar .client-switcher{margin-left:0;}
   .topbar #logoutBtn{margin-left:0;}
+  /* 이 블록이 topbar 안에 들어가 있어 flex 항목으로 잡히는 걸 막음 */
   .topbar > style, .topbar > script{display:none;}
 </style><script>
 (function initKmMenu(){
