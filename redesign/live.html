@@ -44,7 +44,8 @@
   .mbtn{display:flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);
     font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;
     text-decoration:none;line-height:1.4;}
-  .mbtn:hover{background:var(--panel-2);color:var(--tx);}
+  .mbtn{transition:background .12s ease,color .12s ease;}
+  .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
   .mitem.on>.mbtn{background:var(--panel-2);color:var(--tx);}
   .mbtn.cur{color:var(--tx);background:rgba(139,124,255,.16);}
   .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
@@ -57,8 +58,11 @@
   .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
   .mitem.on .mdrop{display:block;}
   .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
-    text-decoration:none;font-size:13px;white-space:nowrap;}
-  .mdrop a:hover{background:var(--panel-2);color:var(--tx);}
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  /* 어디에 올라와 있는지 한눈에 보이도록 — 배경만으론 차이가 거의 안 보였음 */
+  .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent);}
   .mdrop a.cur{color:var(--tx);background:rgba(139,124,255,.16);font-weight:600;}
   .mdrop .msep{height:1px;background:var(--border);margin:5px 8px;}
   .navright{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
