@@ -487,7 +487,83 @@ table td.km-bad { color: var(--down); font-weight: 700; }
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
   <div class="topbar">
     <a href="index.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;">📊 대시보드</a>
-    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><a class="nv" href="index.html">대시보드</a><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><span class="nv nv-on">쇼핑검색 상품</span><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a><a class="nv" href="changelog.html">개발 이력</a>
+    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><nav class="kmenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="live.html">예산 · 목표</a>
+          <a href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="ab-test.html">A/B 테스트</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav><style id="km-menu-style">
+  /* ── 상단 메뉴 (대메뉴 + 소메뉴) — 전 페이지 공통 ── */
+  .kmenu{display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
+  .kmenu .mitem{position:relative;}
+  .kmenu .mbtn{display:flex;align-items:center;gap:5px;background:none;border:none;
+    color:var(--muted);font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.4;font-family:inherit;
+    transition:background .12s ease,color .12s ease;}
+  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
+  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
+  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
+    background:var(--panel,#171829);border:1px solid var(--border,#33354a);border-radius:12px;
+    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  /* 버튼과 메뉴 사이 빈틈을 안 보이는 판으로 덮음 — 없으면 내려가다 바로 닫힘 */
+  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
+  .kmenu .mitem.on .mdrop{display:block;}
+  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent,#8b7cff);}
+  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
+  .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
+  @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
+</style><script>
+(function initKmMenu(){
+  const items=[...document.querySelectorAll('.kmenu .mitem[data-menu]')];
+  const closeAll=except=>items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+  items.forEach(it=>{
+    const btn=it.querySelector('.mbtn');
+    let closeTimer=null;
+    it.addEventListener('mouseenter',()=>{ clearTimeout(closeTimer); closeAll(it); it.classList.add('on'); });
+    it.addEventListener('mouseleave',()=>{ clearTimeout(closeTimer); closeTimer=setTimeout(()=>it.classList.remove('on'),260); });
+    btn.addEventListener('click',e=>{ e.preventDefault(); const open=it.classList.contains('on'); closeAll(it); it.classList.toggle('on',!open); });
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAll(null); });
+  const here=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
+    if((a.getAttribute('href')||'').toLowerCase()!==here) return;
+    a.classList.add('cur');
+    const p=a.closest('.mitem'), pb=p&&p.querySelector('button.mbtn');
+    if(pb) pb.classList.add('cur');
+  });
+})();
+</script>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
       <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
