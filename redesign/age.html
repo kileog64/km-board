@@ -487,8 +487,19 @@ function mergeGroups(dst, src){
   });
 }
 
+/* 네이버가 새 연령 칸(AG0013 같은 것)을 주면 예전에는 맨 뒤로 밀렸다.
+   연령은 코드에서 시작 나이를 뽑아 숫자 순으로 세운다. '알 수 없음'만 맨 뒤. */
+function ageRank(c){
+  if(c === 'AGXXXX') return 9999;
+  const m = /^AG(\d{2})(\d{2})$/.exec(c);
+  return m ? Number(m[1]) : 9998;
+}
 function rowsOf(box, order){
   const keys=Object.keys(box||{});
+  if(order === AGE_ORDER){
+    return keys.slice().sort((a,b)=> ageRank(a)-ageRank(b) || a.localeCompare(b))
+      .map(k=>Object.assign({code:k}, box[k]));
+  }
   const known=(order||[]).filter(k=>keys.includes(k));
   const rest=keys.filter(k=>!(order||[]).includes(k)).sort();
   return known.concat(rest).map(k=>Object.assign({code:k}, box[k]));
@@ -636,14 +647,10 @@ function renderTable(title, sub, rows, labelFn, showFlag){
      groupInfo[그룹번호]      { n: 광고그룹 이름, c: 캠페인 이름 }
    캠페인 단위 숫자는 같은 캠페인에 속한 광고그룹을 더해서 만든다.            */
 
-let cmpCamps = [];          // 비교할 캠페인 (최대 3개)
-let cmpMetric = 'conv';
-let cmpSearch = '';
-let cmpTouched = false;     // 사장님이 직접 체크를 건드렸는지
 let grpCamp = null;         // 고른 캠페인
 let agPick = 'ALL';         // 'ALL'(캠페인 전체) 또는 광고그룹 번호
 let agOpen = false;         // 광고그룹 그래프 펼침 여부
-let cmpChart = null, grpChart = null;
+let grpChart = null;
 const GRP_METRICS = [
   {k:'cost', t:'비용',   on:false},
   {k:'imp',  t:'노출수', on:false},
@@ -651,7 +658,6 @@ const GRP_METRICS = [
   {k:'conv', t:'전환수', on:true},
   {k:'eff',  t:'효율',   on:true}
 ];
-const CMP_COLORS = ['#41b8e3','#8b7cff','#3ddc97','#f5a524','#ff6b85'];
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // 광고그룹을 캠페인으로 묶는다. 이름표가 없는 그룹은 번호로 대신 보여준다.
@@ -689,76 +695,6 @@ function sumBox(gids, which){
       const t = out[code] || (out[code]=blank()); addTo(t, box[code]); });
   });
   return out;
-}
-
-/* ── 캠페인별 연령 비교 ── */
-function renderCmpCard(){
-  const tree = campaignTree();
-  if(!tree.length) return '';
-  // 빈 화면부터 보여주면 뭘 하는 칸인지 모른다. 비용이 제일 큰 캠페인 하나를 미리 골라둔다.
-  if(!cmpTouched && !cmpCamps.length) cmpCamps = topCampaigns(tree, 1);
-  cmpCamps = cmpCamps.filter(c=>tree.some(t=>t.campaign===c));
-  const q = cmpSearch.trim().toLowerCase();
-  // 검색으로 걸러도 이미 고른 캠페인은 남겨둔다(안 그러면 해제할 방법이 없다)
-  const shown = tree.filter(t => !q || cmpCamps.includes(t.campaign) || t.campaign.toLowerCase().includes(q));
-  const chips = shown.length ? shown.map(t=>{
-    const on = cmpCamps.includes(t.campaign);
-    const off = !on && cmpCamps.length>=3;
-    return `<label class="cmp-chip${on?' on':''}${off?' off':''}" title="${esc2(t.campaign)}">
-      <input type="checkbox" class="cmp-camp" value="${esc2(t.campaign)}" ${on?'checked':''} ${off?'disabled':''}>
-      <span>${esc2(t.campaign)}</span><i>${t.groups.length}그룹</i></label>`;
-  }).join('') : `<span class="sub">'${esc2(cmpSearch)}'와 맞는 캠페인이 없어요.</span>`;
-
-  const metricBtns = METRICS.map(m=>
-    `<button class="pill${cmpMetric===m.k?' on':''}" data-cm="${m.k}">${m.k==='eff'?effLabel():m.t}</button>`).join('');
-
-  const body = cmpCamps.length
-    ? `<div class="pillrow" style="margin:10px 0 8px;">${metricBtns}</div>
-       <div class="chartbox" id="cmpWrap"><canvas id="cmpChart"></canvas></div>
-       <div class="sub" id="cmpNote" style="margin-top:8px;"></div>`
-    : `<div class="sub" style="margin-top:10px;">캠페인을 1개 이상 고르면 연령대별로 겹쳐서 비교할 수 있어요.</div>`;
-
-  return `<div class="card"><h3>캠페인별 연령 비교 <span class="sub" style="font-weight:400;">(최대 3개)</span></h3>
-    <div class="sub">${cmpCamps.length}/3 선택됨 · 전체 ${tree.length}개 캠페인</div>
-    ${tree.length>10 ? `<input class="cmp-search" id="cmpSearch" placeholder="캠페인 이름으로 걸러보기…" value="${esc2(cmpSearch)}">` : ''}
-    <div class="cmp-chips">${chips}</div>
-    ${body}</div>`;
-}
-function drawCmpChart(){
-  if(cmpChart){ cmpChart.destroy(); cmpChart=null; }
-  if(!cmpCamps.length || !document.getElementById('cmpChart')) return;
-  const tree = campaignTree();
-  const codes = AGE_ORDER.filter(c => Object.keys(merged.age||{}).includes(c))
-    .concat(Object.keys(merged.age||{}).filter(c=>!AGE_ORDER.includes(c)).sort());
-  const labels = codes.map(ageLabel);
-  const datasets = cmpCamps.map((camp,i)=>{
-    const node = tree.find(t=>t.campaign===camp);
-    const box = node ? sumBox(node.groups.map(g=>g.gid), 'age') : {};
-    return {
-      label: camp,
-      data: codes.map(c => metricValue(box[c] || blank(), cmpMetric)),
-      borderColor: CMP_COLORS[i % CMP_COLORS.length],
-      backgroundColor: CMP_COLORS[i % CMP_COLORS.length] + '33',
-      borderWidth:2, tension:.3, pointRadius:3, fill:false
-    };
-  });
-  const note = document.getElementById('cmpNote');
-  if(note) note.textContent = cmpMetric==='eff'
-    ? (isDB ? '전환당 비용은 낮을수록 좋아요. 전환이 없는 연령대는 0으로 그려집니다.'
-            : 'ROAS는 높을수록 좋아요. 비용이 없는 연령대는 0으로 그려집니다.')
-    : '';
-  cmpChart = new Chart(document.getElementById('cmpChart'), {
-    type:'line', data:{ labels, datasets },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ display:true, labels:{ color:'#a8abc4', font:{size:11}, boxWidth:12, boxHeight:12 } },
-        tooltip:{ callbacks:{ label:c=> c.dataset.label + ' · ' + metricName(cmpMetric) + ' ' + metricText(cmpMetric, c.raw) } } },
-      scales:{
-        x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
-        y:{ grid:{color:'#23253a'}, beginAtZero:true,
-            ticks:{ color:'#a8abc4', font:{size:11}, precision:0,
-              callback:v=> cmpMetric==='cost' ? (v/10000)+'만' : num(v) } } } }
-  });
 }
 
 /* ── 캠페인 → 광고그룹 파고들기 ──
@@ -870,21 +806,6 @@ function drawGrpChart(){
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
 function wireGroupUI(){
-  const s = document.getElementById('cmpSearch');
-  if(s) s.oninput = ()=>{ cmpSearch = s.value; const at = s.selectionStart; render(); 
-    const s2 = document.getElementById('cmpSearch'); if(s2){ s2.focus(); try{ s2.setSelectionRange(at,at); }catch(e){} } };
-  document.querySelectorAll('.cmp-camp').forEach(cb=>{
-    cb.onchange = ()=>{
-      const v = cb.value;
-      cmpTouched = true;
-      if(cb.checked){ if(cmpCamps.length<3 && !cmpCamps.includes(v)) cmpCamps.push(v); }
-      else cmpCamps = cmpCamps.filter(c=>c!==v);
-      render();
-    };
-  });
-  document.querySelectorAll('[data-cm]').forEach(b=>{
-    b.onclick = ()=>{ cmpMetric = b.dataset.cm; render(); };
-  });
   const csel = document.getElementById('grpCampSel');
   if(csel) csel.onchange = ()=>{ grpCamp = csel.value; agPick = 'ALL'; render(); };
   const sel = document.getElementById('grpSelect');
@@ -919,7 +840,7 @@ function render(){
         <div class="chartbox" id="chartWrap"><canvas id="agChart"></canvas></div></div>`
     + renderTable('연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
     + renderTable('성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c)
-    + renderCmpCard() + renderGrpCard();
+    + renderGrpCard();
   document.querySelectorAll('#mrow input').forEach(cb=>{
     cb.onchange = ()=>{
       METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = cb.checked; });
@@ -930,7 +851,6 @@ function render(){
   });
   renderChart(ageRows);
   wireGroupUI();
-  drawCmpChart();
   drawGrpChart();
 }
 
