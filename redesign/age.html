@@ -203,6 +203,43 @@
   .metricrow label{display:flex;align-items:center;gap:5px;font-size:12px;
     color:var(--tx);cursor:pointer;white-space:nowrap;}
   .chartbox{height:300px;}
+
+  /* 기간 위젯 — 대시보드·캠페인·키워드 페이지와 같은 형식 */
+  :root{ --accent-solid:#6354d6; }
+  .filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);
+    border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px;}
+  .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;
+    border-right:1px solid var(--border);}
+  .fb-g:last-child{border-right:0;}
+  .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600;}
+  .fb-btn{background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .fb-btn:hover{color:var(--tx);}
+  .fb-sel{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+    border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .pill{border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;
+    cursor:pointer;font-family:inherit;background:var(--panel-2);color:var(--muted);}
+  .pill.on{background:var(--accent-solid);color:#fff;border-color:var(--accent-solid);}
+  .pill:disabled{opacity:.45;cursor:default;}
+  .fb-date{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+    border-radius:6px;padding:3px 6px;font-size:12px;font-family:inherit;}
+
+  /* 업체 선택 — 다른 페이지와 동일한 상단 드롭다운 */
+  .client-switcher{position:relative;display:inline-block;}
+  .client-switcher-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-size:14px;font-weight:600;color:var(--tx);min-width:170px;}
+  .client-switcher-btn .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-btn .chev{margin-left:auto;font-size:12px;color:var(--muted);}
+  .client-switcher-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:50;width:280px;max-height:360px;overflow-y:auto;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:none;}
+  .client-switcher-dropdown.open{display:block;}
+  .client-switcher-search{width:100%;box-sizing:border-box;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--tx);font-size:14px;outline:none;position:sticky;top:0;background:var(--panel-2);}
+  .client-switcher-biztabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:37px;background:var(--panel-2);z-index:1;}
+  .client-switcher-biztab{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 0;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent-text,var(--accent));background:rgba(139,124,255,.03);}
+  .client-switcher-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:14px;color:var(--tx);}
+  .client-switcher-item:hover{background:var(--panel);}
+  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));font-weight:700;}
+  .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
 </style>
 </head>
 <body>
@@ -254,6 +291,18 @@
         </div>
       </div>
     </nav>
+    <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
+          <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
+          <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
+            <input class="client-switcher-search" id="clientSwitcherSearch" placeholder="업체 검색...">
+            <div class="client-switcher-biztabs" id="clientSwitcherBizTabs">
+              <button class="client-switcher-biztab active" data-biztype="ALL" type="button">전체</button>
+              <button class="client-switcher-biztab" data-biztype="DB" type="button">DB</button>
+              <button class="client-switcher-biztab" data-biztype="B2C" type="button">B2C</button>
+            </div>
+            <div id="clientSwitcherList"></div>
+          </div>
+        </div>
     <div class="navright">
       <span class="who" id="who"></span>
       <button class="btn" id="logoutBtn">로그아웃</button>
@@ -266,11 +315,26 @@
       <div class="desc" id="cdesc"></div>
     </div>
 
-    <div class="ctl">
-      <span class="lab">업체</span><select id="selClient"></select>
-      <span class="lab">기간</span>
-      <select id="selFrom"></select><span class="lab">~</span><select id="selTo"></select>
-      <button class="btn" id="btnAll">전체</button>
+    <div class="filterbar">
+      <div class="fb-g"><span class="fb-lab">기간</span>
+        <button class="fb-btn" id="mPrev" title="이전(더 과거)으로 구간 이동">◀</button>
+        <select class="fb-sel" id="selFrom" title="시작 월"></select>
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <select class="fb-sel" id="selTo" title="종료 월"></select>
+        <button class="fb-btn" id="mNext" title="다음(더 최신)으로 구간 이동">▶</button>
+        <button class="fb-btn" id="btnAll" title="전체 기간 누적으로 보기">전체</button>
+      </div>
+      <div class="fb-g">
+        <span class="fb-lab">📆 날짜 선택</span>
+        <span id="dayPresets" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+        <button class="pill" id="dayCustomToggle" style="border-style:dashed;">📅 직접 선택</button>
+      </div>
+      <div class="fb-g" id="dayCustomBox" style="display:none;">
+        <input class="fb-date" type="date" id="dayStart">
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <input class="fb-date" type="date" id="dayEnd">
+        <button class="fb-btn" id="dayReset">✕ 날짜 필터 해제</button>
+      </div>
     </div>
 
     <div id="body"></div>
@@ -505,24 +569,97 @@ function render(){
   renderChart(ageRows);
 }
 
-async function loadRange(){
+// 월 파일을 받아 캐시. 날짜 필터는 파일 안의 byDate(일자별)로 다시 계산한다.
+let monthCache = {};
+let dayFrom = null, dayTo = null, dayPreset = 'all';
+
+const DAY_PRESETS = [
+  {k:'yesterday', t:'어제'}, {k:'last7', t:'최근 7일'}, {k:'thisMonth', t:'이번달'},
+  {k:'lastMonth', t:'지난달'}, {k:'all', t:'전체 기간'}
+];
+const ymd = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+const dash = k => k ? k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8) : '';
+const undash = v => v ? v.replace(/-/g,'') : null;
+
+function allDayKeys(){
+  const out=[];
+  Object.keys(monthCache).forEach(mk=>{
+    if(mk<mFrom || mk>mTo) return;
+    Object.keys((monthCache[mk]||{}).byDate||{}).forEach(k=>out.push(k));
+  });
+  return out.sort();
+}
+function applyPreset(k){
+  dayPreset = k;
+  const keys = allDayKeys();
+  if(!keys.length){ dayFrom=dayTo=null; return; }
+  const min=keys[0], max=keys[keys.length-1];
+  const now=new Date();
+  if(k==='all'){ dayFrom=null; dayTo=null; return; }
+  if(k==='yesterday'){ const d=new Date(now); d.setDate(d.getDate()-1);
+    dayFrom=dayTo=ymd(d); }
+  else if(k==='last7'){ const e=new Date(now); e.setDate(e.getDate()-1);
+    const st=new Date(e); st.setDate(st.getDate()-6); dayFrom=ymd(st); dayTo=ymd(e); }
+  else if(k==='thisMonth'){ dayFrom=ymd(new Date(now.getFullYear(),now.getMonth(),1));
+    dayTo=ymd(now); }
+  else if(k==='lastMonth'){ const f=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const l=new Date(now.getFullYear(),now.getMonth(),0); dayFrom=ymd(f); dayTo=ymd(l); }
+  // 보유 범위를 벗어나면 보유 범위로 자른다
+  if(dayFrom && dayFrom<min) dayFrom=min;
+  if(dayTo && dayTo>max) dayTo=max;
+}
+function recompute(){
   merged = { age:{}, gender:{} };
-  const pick = allMonths.filter(m => m>=mFrom && m<=mTo);
-  for(const mk of pick){
-    try{
-      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
-      const d = await (await fetch(url)).json();
+  const useDays = !!(dayFrom || dayTo);
+  Object.keys(monthCache).forEach(mk=>{
+    if(mk<mFrom || mk>mTo) return;
+    const d = monthCache[mk]; if(!d) return;
+    if(!useDays){
       ['age','gender'].forEach(g=>{
         Object.keys(d[g]||{}).forEach(code=>{
-          const t = merged[g][code] || (merged[g][code]=blank());
-          addTo(t, d[g][code]);
-        });
+          const t = merged[g][code] || (merged[g][code]=blank()); addTo(t, d[g][code]); });
       });
-    }catch(e){}
-  }
+      return;
+    }
+    Object.keys(d.byDate||{}).forEach(dk=>{
+      if(dayFrom && dk<dayFrom) return;
+      if(dayTo && dk>dayTo) return;
+      const box = d.byDate[dk] || {};
+      // 예전 형식(연령만 바로 들어있던 것)도 읽히게 처리
+      const ageBox = box.age || box, genBox = box.gender || {};
+      Object.keys(ageBox).forEach(code=>{
+        const t = merged.age[code] || (merged.age[code]=blank()); addTo(t, ageBox[code]); });
+      Object.keys(genBox).forEach(code=>{
+        const t = merged.gender[code] || (merged.gender[code]=blank()); addTo(t, genBox[code]); });
+    });
+  });
+  const range = (mFrom===mTo? mFrom : mFrom+' ~ '+mTo);
+  const dayTxt = (dayFrom||dayTo) ? ' · '+dash(dayFrom)+' ~ '+dash(dayTo) : '';
   document.getElementById('cdesc').textContent =
-    (mFrom===mTo? mFrom : mFrom+' ~ '+mTo) + ' 누적 · ' + (isDB?'DB형(전환당 비용)':'B2C형(ROAS)');
+    range + dayTxt + ' 누적 · ' + (isDB?'DB형(전환당 비용)':'B2C형(ROAS)');
+  renderDayPresets();
   render();
+}
+function renderDayPresets(){
+  const has = allDayKeys().length>0;
+  document.getElementById('dayPresets').innerHTML = DAY_PRESETS.map(p=>
+    `<button class="pill ${dayPreset===p.k?'on':''}" data-p="${p.k}" ${has?'':'disabled'}>${p.t}</button>`).join('');
+  document.querySelectorAll('#dayPresets .pill').forEach(b=>{
+    b.onclick = ()=>{ document.getElementById('dayCustomBox').style.display='none';
+      applyPreset(b.dataset.p); recompute(); };
+  });
+}
+
+async function loadRange(){
+  const pick = allMonths.filter(m => m>=mFrom && m<=mTo);
+  for(const mk of pick){
+    if(monthCache[mk] !== undefined) continue;
+    try{
+      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
+      monthCache[mk] = await (await fetch(url)).json();
+    }catch(e){ monthCache[mk] = null; }
+  }
+  recompute();
 }
 
 function fillMonthSelects(){
@@ -531,6 +668,67 @@ function fillMonthSelects(){
   f.innerHTML=opts; t.innerHTML=opts;
   f.value=mFrom; t.value=mTo;
 }
+
+
+// ── 업체 선택 드롭다운 (다른 페이지와 같은 동작 · 선택은 페이지 간 공유) ──
+const ACTIVE_CLIENT_STORAGE = 'ad_dashboard_active_client';
+function getStoredActiveClient(){
+  try{ return localStorage.getItem(ACTIVE_CLIENT_STORAGE) || null; }catch(e){ return null; } }
+function setStoredActiveClient(id){
+  try{ localStorage.setItem(ACTIVE_CLIENT_STORAGE, 'client:'+id); }catch(e){} }
+let switcherBiz = 'ALL';
+
+function renderClientSwitcher(term){
+  const list = document.getElementById('clientSwitcherList');
+  if(!list) return;
+  const q = (term||'').trim().toLowerCase();
+  const rows = clients.filter(c=>{
+    if(switcherBiz==='DB'  && c.bizType==='B2C') return false;
+    if(switcherBiz==='B2C' && c.bizType!=='B2C') return false;
+    return !q || (c.name||'').toLowerCase().includes(q);
+  });
+  list.innerHTML = rows.length ? rows.map(c=>`
+    <div class="client-switcher-item${cur&&cur.id===c.id?' active':''}" data-id="${c.id}">
+      <span class="dot" style="background:${c.color||'#8b7cff'};"></span>
+      <span>${c.name}</span>
+      <span class="biz">${c.bizType==='B2C'?'B2C':'DB'}</span>
+    </div>`).join('')
+    : '<div style="padding:14px;color:var(--muted);font-size:12px;">업체가 없어요.</div>';
+  list.querySelectorAll('.client-switcher-item').forEach(el=>{
+    el.onclick = ()=>{
+      document.getElementById('clientSwitcherDropdown').classList.remove('open');
+      pickClient(el.dataset.id);
+    };
+  });
+}
+function syncSwitcherBtn(){
+  if(!cur) return;
+  document.getElementById('clientSwitcherLabel').textContent = cur.name;
+  document.getElementById('clientSwitcherDot').style.background = cur.color || '#8b7cff';
+}
+document.getElementById('clientSwitcherBtn').onclick = (e)=>{
+  e.stopPropagation();
+  const d = document.getElementById('clientSwitcherDropdown');
+  d.classList.toggle('open');
+  if(d.classList.contains('open')){
+    const inp = document.getElementById('clientSwitcherSearch');
+    if(inp){ inp.value=''; renderClientSwitcher(''); inp.focus(); }
+  }
+};
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#clientSwitcher'))
+    document.getElementById('clientSwitcherDropdown').classList.remove('open');
+});
+const _sIn = document.getElementById('clientSwitcherSearch');
+if(_sIn) _sIn.oninput = e=> renderClientSwitcher(e.target.value);
+document.querySelectorAll('.client-switcher-biztab').forEach(btn=>{
+  btn.onclick = ()=>{
+    switcherBiz = btn.dataset.biztype || 'ALL';
+    document.querySelectorAll('.client-switcher-biztab')
+      .forEach(b=> b.classList.toggle('active', b===btn));
+    renderClientSwitcher(document.getElementById('clientSwitcherSearch').value);
+  };
+});
 
 async function pickClient(id){
   cur = clients.find(c=>c.id===id) || clients[0];
@@ -541,20 +739,58 @@ async function pickClient(id){
   mFrom = mTo;
   fillMonthSelects();
   document.getElementById('cname').textContent = cur.name;
+  setStoredActiveClient(cur.id);
+  syncSwitcherBtn();
+  renderClientSwitcher('');
   const av=document.getElementById('ava');
   av.textContent = (cur.name||'·').slice(0,1);
   av.style.background = cur.color || '#8b7cff';
   METRICS.forEach(m=>{ m.on = (m.k==='eff'); });
+  monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
   await loadRange();
 }
 
+function shiftRange(dir){
+  const iF=allMonths.indexOf(mFrom), iT=allMonths.indexOf(mTo);
+  const span=iT-iF;
+  let nF=iF+dir, nT=iT+dir;
+  if(nF<0){ nF=0; nT=span; }
+  if(nT>allMonths.length-1){ nT=allMonths.length-1; nF=nT-span; }
+  mFrom=allMonths[nF]; mTo=allMonths[nT];
+  fillMonthSelects(); loadRange();
+}
 document.getElementById('selFrom').onchange = e=>{ mFrom=e.target.value;
   if(mFrom>mTo){ mTo=mFrom; document.getElementById('selTo').value=mTo; } loadRange(); };
 document.getElementById('selTo').onchange = e=>{ mTo=e.target.value;
   if(mTo<mFrom){ mFrom=mTo; document.getElementById('selFrom').value=mFrom; } loadRange(); };
+document.getElementById('mPrev').onclick = ()=> shiftRange(-1);
+document.getElementById('mNext').onclick = ()=> shiftRange(1);
 document.getElementById('btnAll').onclick = ()=>{
   mFrom=allMonths[0]; mTo=allMonths[allMonths.length-1];
-  fillMonthSelects(); loadRange(); };
+  applyPreset('all'); fillMonthSelects(); loadRange(); };
+document.getElementById('dayCustomToggle').onclick = ()=>{
+  const box=document.getElementById('dayCustomBox');
+  const open = box.style.display==='none';
+  box.style.display = open ? 'flex' : 'none';
+  if(open){
+    const keys=allDayKeys();
+    if(keys.length){
+      document.getElementById('dayStart').min=dash(keys[0]);
+      document.getElementById('dayStart').max=dash(keys[keys.length-1]);
+      document.getElementById('dayEnd').min=dash(keys[0]);
+      document.getElementById('dayEnd').max=dash(keys[keys.length-1]);
+      document.getElementById('dayStart').value=dash(dayFrom||keys[0]);
+      document.getElementById('dayEnd').value=dash(dayTo||keys[keys.length-1]);
+    }
+  }
+};
+document.getElementById('dayStart').onchange = e=>{ dayFrom=undash(e.target.value);
+  dayPreset=''; recompute(); };
+document.getElementById('dayEnd').onchange = e=>{ dayTo=undash(e.target.value);
+  dayPreset=''; recompute(); };
+document.getElementById('dayReset').onclick = ()=>{
+  document.getElementById('dayCustomBox').style.display='none';
+  applyPreset('all'); recompute(); };
 
 auth.onAuthStateChanged(async (user)=>{
   if(!user){
@@ -570,10 +806,13 @@ auth.onAuthStateChanged(async (user)=>{
   snap.forEach(d=>{ const v=d.data()||{};
     clients.push({id:d.id, name:v.name||d.id, bizType:v.bizType, color:v.color, months:v.months||[]}); });
   clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-  document.getElementById('selClient').innerHTML =
-    clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-  document.getElementById('selClient').onchange = e=> pickClient(e.target.value);
-  await pickClient(clients[0] && clients[0].id);
+  // 다른 페이지에서 고른 업체를 그대로 이어받는다 (페이지 간 공유)
+  const storedKey = getStoredActiveClient();
+  const storedId = storedKey ? storedKey.replace(/^client:/,'') : null;
+  const start = (storedId && clients.some(c=>c.id===storedId)) ? storedId
+              : (clients[0] && clients[0].id);
+  renderClientSwitcher('');
+  await pickClient(start);
 });
 </script>
 </body>
