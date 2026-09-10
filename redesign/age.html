@@ -575,7 +575,7 @@ let dayFrom = null, dayTo = null, dayPreset = 'all';
 
 const DAY_PRESETS = [
   {k:'yesterday', t:'어제'}, {k:'last7', t:'최근 7일'}, {k:'thisMonth', t:'이번달'},
-  {k:'lastMonth', t:'지난달'}, {k:'all', t:'전체 기간'}
+  {k:'lastMonth', t:'지난달'}, {k:'all', t:'날짜 전체'}
 ];
 const ymd = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 const dash = k => k ? k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8) : '';
@@ -589,26 +589,58 @@ function allDayKeys(){
   });
   return out.sort();
 }
+/* 버튼이 가리키는 날짜 구간을 달력 기준으로 계산한다 (자료 보유 여부와 무관). */
+function presetRange(k){
+  const now = new Date();
+  if(k==='yesterday'){ const d=new Date(now); d.setDate(d.getDate()-1); return [ymd(d), ymd(d)]; }
+  if(k==='last7'){ const e=new Date(now); e.setDate(e.getDate()-1);
+    const st=new Date(e); st.setDate(st.getDate()-6); return [ymd(st), ymd(e)]; }
+  if(k==='thisMonth'){ return [ymd(new Date(now.getFullYear(),now.getMonth(),1)), ymd(now)]; }
+  if(k==='lastMonth'){ const f=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const l=new Date(now.getFullYear(),now.getMonth(),0); return [ymd(f), ymd(l)]; }
+  return null;   // 'all'
+}
+const monthOf = key => key.slice(0,4)+'.'+key.slice(4,6);
+
+/* 그 구간에 걸치는 달 중 우리가 자료를 가진 달. 하나도 없으면 빈 배열. */
+function monthsForPreset(k){
+  const r = presetRange(k);
+  if(!r) return allMonths.slice();
+  const a = monthOf(r[0]), b = monthOf(r[1]);
+  return allMonths.filter(m => m>=a && m<=b);
+}
+
+/* 예전에는 지금 보고 있는 달 안에서만 날짜를 잘랐다. 그래서 '지난달'을 눌렀는데
+   화면이 이번 달을 보고 있으면 시작일(8/1)은 지난달, 종료일은 이번 달 자료의 첫날 이전으로
+   잘려서 8/1 ~ 7/31 처럼 앞뒤가 뒤집힌 구간이 되고 화면이 텅 비었다.
+   이제는 버튼을 누르면 월 선택도 그 달로 같이 옮긴다. */
 function applyPreset(k){
   dayPreset = k;
-  const keys = allDayKeys();
-  if(!keys.length){ dayFrom=dayTo=null; return; }
-  const min=keys[0], max=keys[keys.length-1];
-  const now=new Date();
   if(k==='all'){ dayFrom=null; dayTo=null; return; }
-  if(k==='yesterday'){ const d=new Date(now); d.setDate(d.getDate()-1);
-    dayFrom=dayTo=ymd(d); }
-  else if(k==='last7'){ const e=new Date(now); e.setDate(e.getDate()-1);
-    const st=new Date(e); st.setDate(st.getDate()-6); dayFrom=ymd(st); dayTo=ymd(e); }
-  else if(k==='thisMonth'){ dayFrom=ymd(new Date(now.getFullYear(),now.getMonth(),1));
-    dayTo=ymd(now); }
-  else if(k==='lastMonth'){ const f=new Date(now.getFullYear(),now.getMonth()-1,1);
-    const l=new Date(now.getFullYear(),now.getMonth(),0); dayFrom=ymd(f); dayTo=ymd(l); }
-  // 보유 범위를 벗어나면 보유 범위로 자른다
-  if(dayFrom && dayFrom<min) dayFrom=min;
-  if(dayTo && dayTo>max) dayTo=max;
+  const r = presetRange(k);
+  if(!r){ dayFrom=dayTo=null; return; }
+  dayFrom = r[0]; dayTo = r[1];
+  const ms = monthsForPreset(k);
+  if(ms.length){ mFrom = ms[0]; mTo = ms[ms.length-1]; fillMonthSelects(); }
+}
+
+/* 월 파일을 불러온 뒤, 실제 있는 날짜에 맞춰 구간을 좁힌다.
+   좁혔더니 앞뒤가 뒤집히면(= 그 기간 자료가 아예 없음) 구간을 지우고 안내한다. */
+let presetEmpty = false;
+function clampDays(){
+  presetEmpty = false;
+  if(!dayFrom && !dayTo) return;
+  const keys = allDayKeys();
+  if(!keys.length){ presetEmpty = true; dayFrom=dayTo=null; return; }
+  const min=keys[0], max=keys[keys.length-1];
+  let f = dayFrom, t = dayTo;
+  if(f && f<min) f=min;
+  if(t && t>max) t=max;
+  if(f && t && f>t){ presetEmpty = true; dayFrom=dayTo=null; return; }
+  dayFrom=f; dayTo=t;
 }
 function recompute(){
+  clampDays();
   merged = { age:{}, gender:{} };
   const useDays = !!(dayFrom || dayTo);
   Object.keys(monthCache).forEach(mk=>{
@@ -634,19 +666,27 @@ function recompute(){
     });
   });
   const range = (mFrom===mTo? mFrom : mFrom+' ~ '+mTo);
-  const dayTxt = (dayFrom||dayTo) ? ' · '+dash(dayFrom)+' ~ '+dash(dayTo) : '';
+  const dayTxt = presetEmpty
+    ? ' · 고른 기간에는 아직 자료가 없어요'
+    : ((dayFrom||dayTo) ? ' · '+dash(dayFrom)+' ~ '+dash(dayTo) : '');
   document.getElementById('cdesc').textContent =
     range + dayTxt + ' 누적 · ' + (isDB?'DB형(전환당 비용)':'B2C형(ROAS)');
   renderDayPresets();
   render();
 }
 function renderDayPresets(){
-  const has = allDayKeys().length>0;
-  document.getElementById('dayPresets').innerHTML = DAY_PRESETS.map(p=>
-    `<button class="pill ${dayPreset===p.k?'on':''}" data-p="${p.k}" ${has?'':'disabled'}>${p.t}</button>`).join('');
+  const anyMonth = allMonths.length>0;
+  document.getElementById('dayPresets').innerHTML = DAY_PRESETS.map(p=>{
+    // 그 기간에 걸치는 달을 하나도 안 가지고 있으면 눌러도 소용없으니 꺼둔다
+    const ok = anyMonth && (p.k==='all' || monthsForPreset(p.k).length>0);
+    const tip = ok ? '' : ' title="그 기간 자료가 아직 없어요"';
+    return `<button class="pill ${dayPreset===p.k?'on':''}" data-p="${p.k}"${tip} ${ok?'':'disabled'}>${p.t}</button>`;
+  }).join('');
   document.querySelectorAll('#dayPresets .pill').forEach(b=>{
     b.onclick = ()=>{ document.getElementById('dayCustomBox').style.display='none';
-      applyPreset(b.dataset.p); recompute(); };
+      applyPreset(b.dataset.p);
+      loadRange();   // 달이 바뀌었을 수 있으니 그 달 파일을 먼저 불러온다
+    };
   });
 }
 
