@@ -33,10 +33,38 @@
     color:var(--tx);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;
     line-height:1.5;font-variant-numeric:tabular-nums;}
   input,button{font-family:inherit;}
-  .nav{max-width:1180px;margin:0 auto;padding:14px 20px 0;display:flex;justify-content:flex-end;
-    align-items:center;gap:10px;flex-wrap:wrap;row-gap:6px;}
-  .nav a{font-size:12px;color:var(--accent);text-decoration:none;}
-  .nav .who{font-size:12px;color:var(--muted);margin-left:6px;}
+  /* ── 상단 메뉴바 (드롭다운) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ── */
+  .topbar{max-width:1180px;margin:14px auto 0;padding:10px 16px;display:flex;align-items:center;
+    gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:14px;flex-wrap:wrap;row-gap:8px;}
+  .brandmark{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;
+    letter-spacing:-.02em;margin-right:6px;white-space:nowrap;}
+  .brandmark .bdot{width:16px;height:16px;border-radius:5px;background:var(--accent);flex:none;}
+  .menu{display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
+  .mitem{position:relative;}
+  .mbtn{display:flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);
+    font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;
+    text-decoration:none;line-height:1.4;}
+  .mbtn:hover{background:var(--panel-2);color:var(--tx);}
+  .mitem.on>.mbtn{background:var(--panel-2);color:var(--tx);}
+  .mbtn.cur{color:var(--tx);background:rgba(139,124,255,.16);}
+  .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .mitem.on .mcaret{transform:rotate(180deg);}
+  .mdrop{position:absolute;top:calc(100% + 6px);left:0;min-width:190px;background:var(--panel);
+    border:1px solid var(--border);border-radius:12px;padding:6px;z-index:50;
+    box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  .mitem.on .mdrop{display:block;}
+  .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;}
+  .mdrop a:hover{background:var(--panel-2);color:var(--tx);}
+  .mdrop a.cur{color:var(--tx);background:rgba(139,124,255,.16);font-weight:600;}
+  .mdrop .msep{height:1px;background:var(--border);margin:5px 8px;}
+  .navright{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .navright .who{font-size:12px;color:var(--muted);}
+  @media(max-width:760px){
+    .topbar{margin:10px 12px 0;}
+    .navright{margin-left:0;width:100%;justify-content:flex-end;}
+    .mdrop{left:auto;right:0;}
+  }
   .btn{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
     border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
   .btn-accent{background:var(--accent);border-color:var(--accent);color:#12131f;font-weight:700;}
@@ -120,16 +148,44 @@
 </div>
 
 <div id="mainApp" style="display:none;">
-  <div class="nav">
-    <a href="index.html">📊 대시보드</a>
-    <a href="overview.html">🗂️ 전체 업체 개요</a>
-    <a href="todo.html">✅ 할 일 목록</a>
-    <a href="campaigns.html">📣 캠페인</a>
-    <a href="keywords.html">🔑 키워드</a>
-    <a href="hourly.html">⏰ 시간대별</a>
-    <a href="input.html" id="inputLink">+ 데이터 입력</a>
-    <span class="who" id="who"></span>
-    <button class="btn" id="logoutBtn">로그아웃</button>
+  <div class="topbar">
+    <span class="brandmark"><span class="bdot"></span>km-board</span>
+    <nav class="menu" id="mainMenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="live.html">예산 · 목표</a>
+          <a href="todo.html">할 일</a>
+          <a href="ab-test.html">A/B 테스트</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html" id="inputLink">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav>
+    <div class="navright">
+      <span class="who" id="who"></span>
+      <button class="btn" id="logoutBtn">로그아웃</button>
+    </div>
   </div>
 
   <div class="wrap">
@@ -184,6 +240,38 @@
 </div>
 
 <script>
+// ── 상단 메뉴 (대메뉴 + 소메뉴) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ──
+(function initMenu(){
+  const items = [...document.querySelectorAll('.mitem[data-menu]')];
+  const closeAll = except => items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+
+  items.forEach(it=>{
+    const btn = it.querySelector('.mbtn');
+    // 마우스로는 올리면 바로 펴지고, 손가락/클릭으로는 눌러서 펴고 닫음
+    it.addEventListener('mouseenter', ()=>{ closeAll(it); it.classList.add('on'); });
+    it.addEventListener('mouseleave', ()=> it.classList.remove('on'));
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      const open = it.classList.contains('on');
+      closeAll(it);
+      it.classList.toggle('on', !open);
+    });
+  });
+
+  document.addEventListener('click', e=>{ if(!e.target.closest('.mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+
+  // 지금 보고 있는 페이지를 대메뉴·소메뉴 양쪽에 표시
+  const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  document.querySelectorAll('.menu a[href]').forEach(a=>{
+    if(a.getAttribute('href').toLowerCase() !== here) return;
+    a.classList.add('cur');
+    const parent = a.closest('.mitem');
+    const pbtn = parent && parent.querySelector('button.mbtn');
+    if(pbtn) pbtn.classList.add('cur');
+  });
+})();
+
 function userClientsRef(){
   if(!auth.currentUser) throw new Error('not signed in');
   return db.collection('clients');
