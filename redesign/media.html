@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>연령 · 성별 · 광고 성과 대시보드</title>
+<title>매체 · 기기 · 광고 성과 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -174,6 +174,7 @@
   .flag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;margin-left:6px;}
   .flag.good{background:rgba(74,222,154,.16);color:var(--good);}
   .flag.bad{background:rgba(255,107,133,.16);color:var(--bad);}
+  .flag:not(.good):not(.bad){background:rgba(168,171,196,.14);color:var(--muted);font-weight:600;}
   .empty{background:var(--panel);border:1px solid var(--border);border-radius:12px;
     padding:26px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8;}
   .foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:18px;
@@ -283,7 +284,7 @@
 
 <div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
   <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
-    <h2 style="margin:0 0 4px;font-size:20px;">📊 연령 · 성별</h2>
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 매체 · 기기</h2>
     <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인해주세요.</div>
     <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
     <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
@@ -308,6 +309,7 @@
           <a href="shopping.html">쇼핑검색 상품</a>
           <a href="hourly.html">시간대</a>
           <a href="age.html">연령 · 성별</a>
+          <a href="media.html">매체 · 기기</a>
           <a href="media.html">매체 · 기기</a>
         </div>
       </div>
@@ -351,7 +353,7 @@
     <div class="chead2">
       <div class="avatar" id="ava">·</div>
       <span class="nm2" id="cname">—</span>
-      <span class="badge">연령 · 성별 전용 보기</span>
+      <span class="badge">매체 · 기기 전용 보기</span>
       <div class="desc" id="cdesc"></div>
     </div>
 
@@ -380,13 +382,18 @@
     <div id="body"></div>
 
     <p class="foot">
-      네이버 <b>타겟팅 세그먼트 보고서</b>에서 연령·성별만 골라 집계합니다.
-      이 보고서엔 연령·성별·지역·요일이 한 파일에 섞여 오기 때문에 그대로 더하면 4배가 되고,
-      연령만 골라내야 일별 총액과 맞습니다.<br>
-      실측 대조(담은 2026-09-08): 연령 합계 노출 13,925 · 클릭 258 로 일별 보고서와 <b>완전히 일치</b>,
-      비용만 반올림으로 2원 차이.<br>
-      <b>알 수 없음</b>은 네이버가 연령을 판별하지 못한 노출입니다 — 빼지 않고 그대로 표시합니다.
-      효율 비교는 <b>전환 3건 이상</b>(B2C는 비용 10만원 이상)인 연령대만 합니다.
+      네이버 <b>매체 보고서</b>(광고가 실제로 걸린 지면)를 기기(PC · 모바일)와 함께 집계합니다.<br>
+      지면 번호는 블로그 하나하나까지 나뉘어 있어 업체에 따라 <b>50만 개가 넘습니다</b>.
+      그대로는 화면이 못 버티기 때문에 수집기가 주소를 보고
+      <b>네이버 통합검색 · 네이버 쇼핑 · 네이버 블로그 · 네이버 카페</b>처럼 묶어서 저장합니다
+      (네이버가 아닌 곳은 도메인 단위로 묶습니다).<br>
+      실측 대조(담은 2026.08 · 2026.09): 매체 합계 <b>비용 · 노출 · 클릭이 월 합계와 완전히 일치</b>합니다.<br>
+      <b>전환만 과거 데이터에서 1~3% 적게 나옵니다.</b> 네이버는 전환을 '전환이 일어난 날' 기준으로 주는데,
+      클릭이 며칠 전이면 그날 그 지면에 붙일 줄이 없어 빠지던 것이었습니다.
+      2026-09-11에 수집기를 고쳐서 <b>그 뒤로 모으는 날짜는 정확히 맞습니다.</b>
+      이미 지나간 날짜는 네이버에서 전환 보고서를 다시 받아야 복구되는데, 전 업체 13개월이면 수십 시간이 걸려
+      비용·노출·클릭이 이미 정확한 만큼 그대로 두었습니다.<br>
+      효율 비교는 <b>전환 3건 이상</b>(B2C는 비용 10만원 이상)인 지면만 합니다.
     </p>
   </div>
 </div>
@@ -445,20 +452,22 @@ document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
 const won = n => Math.round(n||0).toLocaleString('ko-KR');
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
 
-const AGE_ORDER = ['AG0012','AG1318','AG1418','AG1924','AG2529','AG3034','AG3539',
-                   'AG4044','AG4549','AG5054','AG5559','AG6099','AGXXXX'];
-function ageLabel(c){
-  if(c === 'AGXXXX') return '알 수 없음';
-  const m = /^AG(\d{2})(\d{2})$/.exec(c);
-  if(!m) return c;
-  if(m[2] === '99') return m[1] + '세+';
-  return m[1] + '~' + m[2] + '세';
-}
-const GENDER_LABEL = { GNM:'남성', GNF:'여성', GNU:'알 수 없음' };
+/* ─────────── 매체(지면) · 기기 ───────────
+   수집기가 월 파일 안에 '지면 묶음 × 기기' 단위로 담아준다.
+     rows[]              그 달 합계  { media, device, impressions, clicks, cost, conv, revenue, codes }
+     byDate[날짜][키]    하루치 [노출, 클릭, 비용, 전환, 매출]   (키 = "매체|기기")
+   비용·매출은 만원 단위로 저장돼 있어서 화면에 낼 때 10000을 곱한다.
+   지면 번호(블로그 하나하나)는 수십만 개라 그대로 두면 화면이 못 버틴다.
+   그래서 수집기가 mediaGroups.json 으로 '네이버 블로그', '네이버 통합검색' 처럼 묶어서 저장한다. */
+
+const MAN = 10000;                    // 저장 단위(만원) → 원
 const MIN_CONV = 3, MIN_COST = 100000;
 
 let clients=[], cur=null, isDB=true, allMonths=[], mFrom=null, mTo=null;
 let merged=null, chart=null;
+let devPick = 'ALL';                  // 'ALL' | 'PC' | '모바일' …
+let medPick = 'ALL';                  // 'ALL' | 매체 이름
+
 const METRICS = [
   {k:'cost', t:'비용',   on:false},
   {k:'imp',  t:'노출수', on:false},
@@ -478,93 +487,138 @@ function blank(){ return {imp:0,clk:0,cost:0,conv:0,rev:0}; }
 function addTo(a,b){ a.imp+=b.imp||0; a.clk+=b.clk||0; a.cost+=b.cost||0;
   a.conv+=b.conv||0; a.rev+=b.rev||0; }
 
-// { 그룹번호: { age:{}, gender:{} } } 두 벌을 합친다
-function mergeGroups(dst, src){
-  if(!src) return;
-  Object.keys(src).forEach(gid=>{
-    const box = dst[gid] || (dst[gid] = { age:{}, gender:{} });
-    ['age','gender'].forEach(g=>{
-      Object.keys(src[gid][g]||{}).forEach(code=>{
-        const t = box[g][code] || (box[g][code]=blank()); addTo(t, src[gid][g][code]); });
-    });
-  });
+const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* 키는 "매체|기기". 매체 이름 안에 '|'가 들어올 일은 없지만
+   혹시 몰라 마지막 '|'를 기준으로 자른다. */
+function splitKey(k){
+  const i = k.lastIndexOf('|');
+  return i<0 ? {m:k, d:'PC'} : {m:k.slice(0,i), d:k.slice(i+1)};
+}
+const CELLS = () => (merged && merged.cells) || {};
+
+// 기기 선택만 적용 — '지면별' 카드가 쓴다
+function aggMedia(){
+  const out={}, C=CELLS();
+  Object.keys(C).forEach(k=>{ const s=splitKey(k);
+    if(devPick!=='ALL' && s.d!==devPick) return;
+    const t=out[s.m]||(out[s.m]=blank()); addTo(t,C[k]); });
+  return out;
+}
+// 지면 선택만 적용 — '기기별' 카드가 쓴다
+function aggDevice(){
+  const out={}, C=CELLS();
+  Object.keys(C).forEach(k=>{ const s=splitKey(k);
+    if(medPick!=='ALL' && s.m!==medPick) return;
+    const t=out[s.d]||(out[s.d]=blank()); addTo(t,C[k]); });
+  return out;
+}
+// 둘 다 적용 — 맨 위 요약 줄
+function aggPick(){
+  const t=blank(), C=CELLS();
+  Object.keys(C).forEach(k=>{ const s=splitKey(k);
+    if(devPick!=='ALL' && s.d!==devPick) return;
+    if(medPick!=='ALL' && s.m!==medPick) return;
+    addTo(t,C[k]); });
+  return t;
+}
+// 비용 큰 순으로 줄 세운다
+function rowsOf(box){
+  return Object.keys(box||{}).map(k=>Object.assign({code:k}, box[k]))
+    .sort((a,b)=> b.cost-a.cost || a.code.localeCompare(b.code,'ko'));
+}
+function allDevices(){
+  const set={}, C=CELLS();
+  Object.keys(C).forEach(k=>{ set[splitKey(k).d]=true; });
+  // 모바일을 먼저 보여준다 — 대부분 모바일 비중이 크다
+  return Object.keys(set).sort((a,b)=> (a==='모바일'?-1:0)-(b==='모바일'?-1:0) || a.localeCompare(b,'ko'));
 }
 
-/* 네이버가 새 연령 칸(AG0013 같은 것)을 주면 예전에는 맨 뒤로 밀렸다.
-   연령은 코드에서 시작 나이를 뽑아 숫자 순으로 세운다. '알 수 없음'만 맨 뒤. */
-function ageRank(c){
-  if(c === 'AGXXXX') return 9999;
-  const m = /^AG(\d{2})(\d{2})$/.exec(c);
-  return m ? Number(m[1]) : 9998;
-}
-function rowsOf(box, order){
-  const keys=Object.keys(box||{});
-  if(order === AGE_ORDER){
-    return keys.slice().sort((a,b)=> ageRank(a)-ageRank(b) || a.localeCompare(b))
-      .map(k=>Object.assign({code:k}, box[k]));
-  }
-  const known=(order||[]).filter(k=>keys.includes(k));
-  const rest=keys.filter(k=>!(order||[]).includes(k)).sort();
-  return known.concat(rest).map(k=>Object.assign({code:k}, box[k]));
+function pickWhat(){
+  const d = devPick==='ALL' ? '' : devPick;
+  const m = medPick==='ALL' ? '' : medPick;
+  if(d && m) return m + ' · ' + d;
+  if(m) return m;
+  if(d) return d + ' 전체 지면';
+  return '계정 전체';
 }
 
-function renderReco(ageRows){
-  const tot = ageRows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
-  const avgEff = effOf(tot);
-  const ok = ageRows.filter(enough);
-  const thin = ageRows.filter(r=>!enough(r) && (r.cost>0||r.imp>0));
-  let good=[], goodSub='표본이 모자라 판단 보류';
-  if(ok.length>=2 && avgEff!==null){
-    const better = r => { const v=effOf(r); if(v===null) return false;
-      return isDB ? v < avgEff : v > avgEff; };
-    good = ok.filter(better).sort((a,b)=>{
-      const x=effOf(a), y=effOf(b); return isDB ? x-y : y-x; });
-    goodSub = isDB ? ('CPA가 평균('+won(avgEff)+'원)보다 낮음')
-                   : ('ROAS가 평균('+Math.round(avgEff)+'%)보다 높음');
-  }
-  const goodTxt = good.length ? good.slice(0,5).map(r=>ageLabel(r.code)).join(' · ') : '—';
-  const thinTxt = thin.length ? thin.slice(0,6).map(r=>ageLabel(r.code)).join(' · ') : '없음';
-  const thinSub = isDB ? ('전환 '+MIN_CONV+'건 미만 — 판단 보류')
-                       : ('비용 '+won(MIN_COST)+'원 미만 — 판단 보류');
-  return `<div class="reco">
-    <div class="rbox"><div class="rk"><span class="d" style="background:var(--good)"></span>더 붙일 연령</div>
-      <div class="rv">${goodTxt}</div><div class="rs">${goodSub}</div></div>
-    <div class="rbox"><div class="rk"><span class="d" style="background:var(--muted)"></span>표본이 부족한 연령</div>
-      <div class="rv" style="font-size:17px">${thinTxt}</div><div class="rs">${thinSub}</div></div>
-  </div>`;
+/* 화면 맨 위의 고르는 칸.
+   여기서 고른 기기·지면이 아래 그래프와 표에 그대로 반영된다 (한 세트). */
+function renderPickCard(){
+  const devs = allDevices();
+  const meds = rowsOf(aggMedia());
+  const tot = aggPick();
+  const hasData = tot.imp>0 || tot.cost>0;
+
+  const devOpts = [`<option value="ALL"${devPick==='ALL'?' selected':''}>전체 기기 (PC + 모바일)</option>`]
+    .concat(devs.map(d=>`<option value="${esc2(d)}"${d===devPick?' selected':''}>${esc2(d)}</option>`)).join('');
+  const medOpts = [`<option value="ALL"${medPick==='ALL'?' selected':''}>전체 지면 (${meds.length}곳)</option>`]
+    .concat(meds.map(r=>
+      `<option value="${esc2(r.code)}"${r.code===medPick?' selected':''}>${esc2(r.code)} · ${won(r.cost*MAN)}원</option>`
+    )).join('');
+
+  return `<div class="card"><h3>어떤 걸 볼까요</h3>
+    <div class="sub">기기를 고르면 <b>지면별 표</b>가, 지면을 고르면 <b>기기별 표</b>가 그 숫자로 바뀝니다.
+      맨 아래 <b>정확한 수치</b> 표는 둘 다 반영합니다.</div>
+    <div class="grp-pick">
+      <label><span class="grp-lab">기기</span>
+        <select id="devSelect">${devOpts}</select></label>
+      <label><span class="grp-lab">지면</span>
+        <select id="medSelect">${medOpts}</select></label>
+    </div>
+    ${!hasData
+      ? `<div class="sub" style="margin-top:12px;">${esc2(pickWhat())}은(는) 고른 기간에 자료가 없어요.</div>`
+      : `<div class="grp-sum">
+           <span><b>${esc2(pickWhat())}</b></span>
+           <span>비용 ${won(tot.cost*MAN)}원</span>
+           <span>노출 ${num(tot.imp)}</span>
+           <span>클릭 ${num(tot.clk)}</span>
+           <span>전환 ${num(tot.conv)}건</span>
+           <span>${effLabel()} ${effFmt(effOf(scaled(tot)))}</span>
+         </div>`}
+    </div>`;
 }
 
-function renderSays(ageRows, genRows){
+// 효율은 원 단위로 계산해야 CPA가 맞다
+function scaled(r){ return {imp:r.imp, clk:r.clk, cost:(r.cost||0)*MAN, conv:r.conv, rev:(r.rev||0)*MAN}; }
+
+function renderSays(medRows, devRows){
   const out=[];
-  const ok = ageRows.filter(enough);
-  if(ok.length){
-    const best = ok.slice().sort((a,b)=>{ const x=effOf(a),y=effOf(b);
-      return isDB ? x-y : y-x; })[0];
-    out.push(`가장 효율적인 연령대는 <b>${ageLabel(best.code)}</b>예요 (${effLabel()} ${effFmt(effOf(best))}, 전환 ${num(best.conv)}건 기준).`);
-    if(ok.length>=2){
-      const worst = ok.slice().sort((a,b)=>{ const x=effOf(a),y=effOf(b);
-        return isDB ? y-x : x-y; })[0];
-      if(worst.code!==best.code)
-        out.push(`<b>${ageLabel(worst.code)}</b>은 상대적으로 ${effLabel()}가 아쉬워요 (${effFmt(effOf(worst))}, 전환 ${num(worst.conv)}건 기준) — 예산 비중을 낮추는 걸 검토해보세요.`);
+  const totCost = medRows.reduce((a,r)=>a+r.cost,0);
+
+  const mob = devRows.find(r=>r.code==='모바일'), pc = devRows.find(r=>r.code==='PC');
+  if(mob && pc && (mob.cost+pc.cost)>0){
+    const s=mob.cost+pc.cost;
+    out.push(`${medPick==='ALL'?'':'<b>'+esc2(medPick)+'</b>의 '}비용 비중은 모바일 ${Math.round(mob.cost/s*100)}% : PC ${Math.round(pc.cost/s*100)}% 예요.`);
+    const em=effOf(scaled(mob)), ep=effOf(scaled(pc));
+    if(em!==null && ep!==null && enough(scaled(mob)) && enough(scaled(pc))){
+      const mobBetter = isDB ? em<ep : em>ep;
+      out.push(`${effLabel()}는 <b>${mobBetter?'모바일':'PC'}</b> 쪽이 더 좋아요 (모바일 ${effFmt(em)} · PC ${effFmt(ep)}).`);
     }
   }
-  const byCost = ageRows.slice().sort((a,b)=>b.cost-a.cost);
-  const totCost = ageRows.reduce((a,r)=>a+r.cost,0);
-  if(byCost.length && totCost>0){
-    const t=byCost[0];
-    out.push(`비용은 <b>${ageLabel(t.code)}</b>에 가장 많이 나갔어요 (${won(t.cost)}원, 전체의 ${Math.round(t.cost/totCost*100)}).`);
+  if(medRows.length && totCost>0){
+    const t=medRows[0];
+    out.push(`비용은 <b>${esc2(t.code)}</b>에 가장 많이 나갔어요 (${won(t.cost*MAN)}원, 전체의 ${Math.round(t.cost/totCost*100)}%).`);
   }
-  const gm=genRows.find(r=>r.code==='GNM'), gf=genRows.find(r=>r.code==='GNF');
-  if(gm&&gf&&(gm.cost+gf.cost)>0){
-    const s=gm.cost+gf.cost;
-    out.push(`성별 비중은 남 ${Math.round(gm.cost/s*100)} : 여 ${Math.round(gf.cost/s*100)} 예요 (비용 기준, 알 수 없음 제외).`);
+  const ok = medRows.filter(r=>enough(scaled(r)));
+  if(ok.length){
+    const best = ok.slice().sort((a,b)=>{ const x=effOf(scaled(a)), y=effOf(scaled(b));
+      return isDB ? x-y : y-x; })[0];
+    out.push(`가장 효율적인 지면은 <b>${esc2(best.code)}</b>예요 (${effLabel()} ${effFmt(effOf(scaled(best)))}, 전환 ${num(best.conv)}건 기준).`);
+    if(ok.length>=2){
+      const worst = ok.slice().sort((a,b)=>{ const x=effOf(scaled(a)), y=effOf(scaled(b));
+        return isDB ? y-x : x-y; })[0];
+      if(worst.code!==best.code)
+        out.push(`<b>${esc2(worst.code)}</b>은 ${effLabel()}가 아쉬워요 (${effFmt(effOf(scaled(worst)))}, 전환 ${num(worst.conv)}건 기준) — 제외하거나 비중을 낮추는 걸 검토해보세요.`);
+    }
   }
   if(!out.length) return '';
   return `<div class="says">${out.map(t=>'<div>· '+t+'</div>').join('')}</div>`;
 }
 
 const METRIC_COLORS = { cost:'#41b8e3', imp:'#8b7cff', clk:'#a89bff', conv:'#3ddc97', eff:'#f5a524' };
-function metricValue(r, k){ return k==='eff' ? (effOf(r)||0) : (r[k]||0); }
+function metricValue(r, k){ const s=scaled(r); return k==='eff' ? (effOf(s)||0) : (k==='cost' ? s.cost : (r[k]||0)); }
 function metricText(k, v){
   if(k==='eff') return effFmt(v);
   if(k==='cost') return won(v)+'원';
@@ -572,24 +626,23 @@ function metricText(k, v){
 }
 function metricName(k){ return k==='eff' ? effLabel() : (METRICS.find(m=>m.k===k)||{}).t; }
 
-/* 지표를 여러 개 고를 수 있게 했다.
-   단위가 서로 달라서(비용 수십만원 vs ROAS 수백) 한 축에 그대로 올리면 작은 쪽이 안 보인다.
-   그래서 두 개 이상 고르면 각 지표를 '자기 최댓값 = 100'으로 맞춰 나란히 그리고,
-   실제 숫자는 막대에 마우스를 올리면 보이게 한다. 하나만 고르면 지금처럼 실제 값 그대로 그린다. */
-function renderChart(ageRows){
+const CHART_TOP = 12;   // 지면이 많으면 막대가 뭉개진다. 비용 상위 12곳만 그린다.
+
+function renderChart(rows){
   const wrap = document.getElementById('chartWrap');
   if(!wrap) return;
   if(chart){ chart.destroy(); chart=null; }
   const on = METRICS.filter(m=>m.on);
   const note = document.getElementById('chartNote');
-  if(!on.length || !ageRows.length){
+  const use = rows.slice(0, CHART_TOP);
+  if(!on.length || !use.length){
     if(note) note.textContent = on.length ? '' : '지표를 하나 이상 골라주세요.';
     return;
   }
-  const labels = ageRows.map(r=>ageLabel(r.code));
+  const labels = use.map(r=>r.code);
   const multi = on.length > 1;
   const raw = {};
-  on.forEach(m=>{ raw[m.k] = ageRows.map(r=>metricValue(r, m.k)); });
+  on.forEach(m=>{ raw[m.k] = use.map(r=>metricValue(r, m.k)); });
 
   const datasets = on.map(m=>{
     const vals = raw[m.k];
@@ -603,9 +656,10 @@ function renderChart(ageRows){
     };
   });
 
-  if(note) note.textContent = multi
+  const cut = rows.length > CHART_TOP ? `비용 상위 ${CHART_TOP}곳만 그렸어요 (전체 ${rows.length}곳). ` : '';
+  if(note) note.textContent = cut + (multi
     ? '지표마다 단위가 달라서, 각 지표의 가장 큰 값을 100으로 맞춰 나란히 그렸어요. 실제 숫자는 막대에 마우스를 올리면 나옵니다.'
-    : '';
+    : '');
 
   const ctx = document.getElementById('agChart');
   chart = new Chart(ctx, {
@@ -619,14 +673,16 @@ function renderChart(ageRows){
           return metricName(d._k) + ' ' + metricText(d._k, d._raw[c.dataIndex]);
         } } } },
       scales:{
-        x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
+        x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11},
+            callback:function(v){ const s=String(this.getLabelForValue(v));
+              return s.length>10 ? s.slice(0,10)+'…' : s; } } },
         y:{ grid:{color:'#23253a'},
             ticks:{ color:'#a8abc4', font:{size:11},
               callback:v=> multi ? v : (on[0].k==='cost' ? (v/10000)+'만' : num(v)) } } } }
   });
 }
 
-function renderTable(title, sub, rows, labelFn, showFlag){
+function renderTable(title, sub, rows, showFlag){
   if(showFlag === undefined) showFlag = true;
   if(!rows.length) return '';
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
@@ -634,163 +690,75 @@ function renderTable(title, sub, rows, labelFn, showFlag){
     <div style="overflow-x:auto;"><table class="ag">
       <thead><tr><th>구분</th><th>비용</th><th>노출</th><th>클릭</th><th>전환</th><th>${effLabel()}</th></tr></thead>
       <tbody>${rows.map(r=>`<tr>
-        <td>${labelFn(r.code)}${(showFlag && !enough(r))?'<span class="flag bad">표본 적음</span>':''}</td>
-        <td>${won(r.cost)}원</td><td>${num(r.imp)}</td><td>${num(r.clk)}</td>
-        <td>${num(r.conv)}건</td><td>${effFmt(effOf(r))}</td></tr>`).join('')}
-        <tr class="tot"><td>합계</td><td>${won(tot.cost)}원</td><td>${num(tot.imp)}</td>
-          <td>${num(tot.clk)}</td><td>${num(tot.conv)}건</td><td>${effFmt(effOf(tot))}</td></tr>
+        <td>${esc2(r.code)}${(showFlag && !enough(scaled(r)))?'<span class="flag bad">표본 적음</span>':''}</td>
+        <td>${won(r.cost*MAN)}원</td><td>${num(r.imp)}</td><td>${num(r.clk)}</td>
+        <td>${num(r.conv)}건</td><td>${effFmt(effOf(scaled(r)))}</td></tr>`).join('')}
+        <tr class="tot"><td>합계</td><td>${won(tot.cost*MAN)}원</td><td>${num(tot.imp)}</td>
+          <td>${num(tot.clk)}</td><td>${num(tot.conv)}건</td><td>${effFmt(effOf(scaled(tot)))}</td></tr>
       </tbody></table></div></div>`;
 }
 
-
-/* ─────────── 캠페인별 · 광고그룹별 연령 (2026-09-10 추가) ───────────
-   수집기가 월 파일 안에 광고그룹 단위 연령·성별을 같이 담아준다.
-     byGroup[그룹번호]        그 달 합계
-     byDate[날짜].groups[…]   하루치 (날짜 필터용)
-     groupInfo[그룹번호]      { n: 광고그룹 이름, c: 캠페인 이름 }
-   캠페인 단위 숫자는 같은 캠페인에 속한 광고그룹을 더해서 만든다.            */
-
-let grpCamp = 'ALL';        // 'ALL'(전체 캠페인) 또는 캠페인 이름
-let agPick = 'ALL';         // 'ALL'(캠페인 전체) 또는 광고그룹 번호
-const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-// 광고그룹을 캠페인으로 묶는다. 이름표가 없는 그룹은 번호로 대신 보여준다.
-function campaignTree(){
-  const G = (merged && merged.groups) || {}, I = (merged && merged.info) || {};
-  const byCamp = {};
-  Object.keys(G).forEach(gid=>{
-    const box = G[gid];
-    const has = Object.keys(box.age||{}).length || Object.keys(box.gender||{}).length;
-    if(!has) return;
-    const meta = I[gid] || {};
-    const camp = meta.c || '(캠페인 이름 없음)';
-    const name = meta.n || gid;
-    (byCamp[camp] || (byCamp[camp] = [])).push({ gid, name });
-  });
-  return Object.keys(byCamp).sort((a,b)=>a.localeCompare(b,'ko')).map(camp=>({
-    campaign: camp,
-    groups: byCamp[camp].sort((a,b)=>a.name.localeCompare(b.name,'ko'))
-  }));
-}
-// 비용이 큰 캠페인부터. 화면을 열면 제일 큰 캠페인이 먼저 보이게 하려고 쓴다.
-function campCost(node){
-  const b = sumBox(node.groups.map(g=>g.gid), 'age');
-  return Object.keys(b).reduce((t,c)=>t+(b[c].cost||0), 0);
-}
-function topCampaigns(tree, n){
-  return tree.slice().sort((a,b)=>campCost(b)-campCost(a)).slice(0, n).map(t=>t.campaign);
-}
-
-function sumBox(gids, which){
-  const G = (merged && merged.groups) || {}, out = {};
-  gids.forEach(gid=>{
-    const box = (G[gid] && G[gid][which]) || {};
-    Object.keys(box).forEach(code=>{
-      const t = out[code] || (out[code]=blank()); addTo(t, box[code]); });
-  });
-  return out;
-}
-
-/* ── 캠페인 → 광고그룹 파고들기 ──
-   광고그룹을 한 줄에 다 넣으면 고르기가 어렵다. 캠페인을 먼저 고르고
-   그 안의 광고그룹만 두 번째 칸에 담는다. 첫 칸의 '전체 캠페인'을 고르면 계정 전체가 보인다. */
-function grpPicked(){
-  const tree = campaignTree();
-  if(!grpCamp || (grpCamp !== 'ALL' && !tree.some(t=>t.campaign===grpCamp))) grpCamp = 'ALL';
-  const node = grpCamp === 'ALL' ? null : tree.find(t=>t.campaign===grpCamp);
-  const groups = node ? node.groups : [];
-  if(grpCamp === 'ALL') agPick = 'ALL';
-  else if(agPick !== 'ALL' && !groups.some(g=>g.gid===agPick)) agPick = 'ALL';
-
-  let age, gender, what;
-  if(grpCamp === 'ALL'){
-    // 계정 전체는 광고그룹을 더한 값이 아니라 원본 합계를 그대로 쓴다
-    age = merged.age; gender = merged.gender; what = '전체 캠페인';
-  } else {
-    const gids = (agPick === 'ALL') ? groups.map(g=>g.gid) : [agPick];
-    age = sumBox(gids, 'age'); gender = sumBox(gids, 'gender');
-    what = (agPick === 'ALL') ? grpCamp : ((groups.find(g=>g.gid===agPick)||{}).name || agPick);
-  }
-  return { tree, groups, age, gender, what };
-}
-
-/* 화면 맨 위의 고르는 칸.
-   여기서 고른 캠페인·광고그룹이 아래 추천·그래프·표에 그대로 반영된다 (한 세트). */
-function renderGrpCard(){
-  const P = grpPicked();
-  const tree = P.tree, groups = P.groups;
-  if(!tree.length) return '';
-  const rows = rowsOf(P.age, AGE_ORDER);
+/* 맨 아래 '정확한 수치' — 지면 × 기기 한 줄씩. 고른 기기·지면이 둘 다 걸린다. */
+function renderCross(sub){
+  const C = CELLS();
+  const rows = Object.keys(C).map(k=>{ const s=splitKey(k);
+      return Object.assign({media:s.m, device:s.d}, C[k]); })
+    .filter(r=> (devPick==='ALL' || r.device===devPick) && (medPick==='ALL' || r.media===medPick))
+    .sort((a,b)=> b.cost-a.cost);
+  if(!rows.length) return '';
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
-  const hasData = tot.imp>0 || tot.cost>0;
-
-  // 캠페인 칸에는 금액을 안 적는다 — 바로 아래 요약 줄에 같은 숫자가 또 나와서 길기만 하다
-  const campOpts = [`<option value="ALL"${grpCamp==='ALL'?' selected':''}>전체 캠페인 (${tree.length}개)</option>`]
-    .concat(tree.map(t=>
-      `<option value="${esc2(t.campaign)}"${t.campaign===grpCamp?' selected':''}>${esc2(t.campaign)} · ${t.groups.length}그룹</option>`
-    )).join('');
-  const grpOpts = grpCamp === 'ALL'
-    ? `<option value="ALL" selected>캠페인을 골라야 볼 수 있어요</option>`
-    : [`<option value="ALL"${agPick==='ALL'?' selected':''}>이 캠페인 전체 (${groups.length}개 그룹 합계)</option>`]
-        .concat(groups.map(g=>{
-          const b = sumBox([g.gid],'age');
-          const c = Math.round(Object.keys(b).reduce((t,k)=>t+(b[k].cost||0),0));
-          return `<option value="${esc2(g.gid)}"${g.gid===agPick?' selected':''}>${esc2(g.name)} · ${won(c)}원</option>`;
-        })).join('');
-
-  return `<div class="card"><h3>어떤 걸 볼까요</h3>
-    <div class="sub">캠페인과 광고그룹을 고르면 <b>아래 추천·그래프·표가 모두 그 숫자로</b> 바뀝니다.</div>
-    <div class="grp-pick">
-      <label><span class="grp-lab">캠페인</span>
-        <select id="grpCampSel">${campOpts}</select></label>
-      <label><span class="grp-lab">광고그룹</span>
-        <select id="grpSelect"${grpCamp==='ALL'?' disabled':''}>${grpOpts}</select></label>
-    </div>
-    ${!hasData
-      ? `<div class="sub" style="margin-top:12px;">${esc2(P.what)}은(는) 고른 기간에 자료가 없어요.</div>`
-      : `<div class="grp-sum">
-           <span><b>${esc2(P.what)}</b></span>
-           <span>비용 ${won(tot.cost)}원</span>
-           <span>노출 ${num(tot.imp)}</span>
-           <span>클릭 ${num(tot.clk)}</span>
-           <span>전환 ${num(tot.conv)}건</span>
-           <span>${effLabel()} ${effFmt(effOf(tot))}</span>
-         </div>`}
-    </div>`;
+  return `<div class="card"><h3>${esc2(pickWhat())} · 지면 × 기기 정확한 수치</h3>
+    <div class="sub">${sub} · 비용 큰 순 · 묶음 안에 든 지면 개수도 같이 보여줍니다</div>
+    <div style="overflow-x:auto;"><table class="ag">
+      <thead><tr><th>지면</th><th>기기</th><th>비용</th><th>노출</th><th>클릭</th><th>전환</th><th>${effLabel()}</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${esc2(r.media)}${r.codes?`<span class="flag">${num(r.codes)}개 지면</span>`:''}</td>
+        <td>${esc2(r.device)}</td>
+        <td>${won(r.cost*MAN)}원</td><td>${num(r.imp)}</td><td>${num(r.clk)}</td>
+        <td>${num(r.conv)}건</td><td>${effFmt(effOf(scaled(r)))}</td></tr>`).join('')}
+        <tr class="tot"><td>합계</td><td></td><td>${won(tot.cost*MAN)}원</td><td>${num(tot.imp)}</td>
+          <td>${num(tot.clk)}</td><td>${num(tot.conv)}건</td><td>${effFmt(effOf(scaled(tot)))}</td></tr>
+      </tbody></table></div></div>`;
 }
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
-function wireGroupUI(){
-  const csel = document.getElementById('grpCampSel');
-  if(csel) csel.onchange = ()=>{ grpCamp = csel.value; agPick = 'ALL'; render(); };
-  const sel = document.getElementById('grpSelect');
-  if(sel) sel.onchange = ()=>{ agPick = sel.value; render(); };
+function wirePickUI(){
+  const dsel = document.getElementById('devSelect');
+  if(dsel) dsel.onchange = ()=>{ devPick = dsel.value; render(); };
+  const msel = document.getElementById('medSelect');
+  if(msel) msel.onchange = ()=>{ medPick = msel.value; render(); };
 }
 
 function render(){
   const el=document.getElementById('body');
-  if(!merged || !Object.keys(merged.age||{}).length){
-    el.innerHTML = `<div class="empty">이 업체·기간은 아직 연령 데이터가 없습니다.<br>
+  if(!merged || !Object.keys(merged.cells||{}).length){
+    el.innerHTML = `<div class="empty">이 업체·기간은 아직 매체(지면) 자료가 없습니다.<br>
       수집은 매일 새벽 자동으로 쌓입니다.</div>`;
     return;
   }
-  /* 맨 위 '어떤 걸 볼까요' 칸에서 고른 캠페인·광고그룹이
-     아래 추천·그래프·표에 전부 반영된다. 기본값 '전체 캠페인'은 계정 전체와 같다. */
-  const GP = grpPicked();
-  const gpWhat = (GP.tree && GP.tree.length) ? GP.what : '';
-  const gpTag = gpWhat ? (gpWhat + ' · ') : '';
-  const ageRows = rowsOf(GP.age, AGE_ORDER);
-  const genRows = rowsOf(GP.gender, ['GNM','GNF','GNU']);
-  el.innerHTML = renderGrpCard() + renderReco(ageRows) + renderSays(ageRows, genRows)
-    + `<div class="card"><h3>${esc2(gpTag)}연령대별 성과</h3>
-        <div class="sub">나이 순 · 지표를 여러 개 골라 나란히 볼 수 있어요</div>
+  // 고른 지면이 이 기간에 없으면 '전체'로 되돌린다
+  const medBox = aggMedia();
+  if(medPick!=='ALL' && !medBox[medPick]) medPick='ALL';
+  if(devPick!=='ALL' && allDevices().indexOf(devPick)<0) devPick='ALL';
+
+  const medRows = rowsOf(aggMedia());
+  const devRows = rowsOf(aggDevice());
+  const range = (mFrom===mTo ? mFrom : (mFrom+' ~ '+mTo));
+  const devTag = devPick==='ALL' ? '' : (devPick + ' · ');
+  const medTag = medPick==='ALL' ? '' : (medPick + ' · ');
+
+  el.innerHTML = renderPickCard() + renderSays(medRows, devRows)
+    + `<div class="card"><h3>${esc2(devTag)}지면별 성과</h3>
+        <div class="sub">비용 큰 순 · 지표를 여러 개 골라 나란히 볼 수 있어요</div>
         <div class="metricrow" id="mrow">${METRICS.map(m=>
           `<label><input type="checkbox" data-k="${m.k}" ${m.on?'checked':''}
             style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
         <div class="sub" id="chartNote" style="margin:2px 0 8px;"></div>
         <div class="chartbox" id="chartWrap"><canvas id="agChart"></canvas></div></div>`
-    + renderTable(esc2(gpTag)+'연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
-    + renderTable(esc2(gpTag)+'성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c);
+    + renderTable(esc2(devTag)+'지면별 표', range, medRows)
+    + renderTable(esc2(medTag)+'기기별 표', range, devRows)
+    + renderCross(range);
+
   document.querySelectorAll('#mrow input').forEach(cb=>{
     cb.onchange = ()=>{
       METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = cb.checked; });
@@ -799,9 +767,10 @@ function render(){
       render();
     };
   });
-  renderChart(ageRows);
-  wireGroupUI();
+  renderChart(medRows);
+  wirePickUI();
 }
+
 
 // 월 파일을 받아 캐시. 날짜 필터는 파일 안의 byDate(일자별)로 다시 계산한다.
 let monthCache = {};
@@ -875,31 +844,39 @@ function clampDays(){
 }
 function recompute(){
   clampDays();
-  merged = { age:{}, gender:{}, groups:{}, info:{} };
+  merged = { cells:{} };
   const useDays = !!(dayFrom || dayTo);
   Object.keys(monthCache).forEach(mk=>{
     if(mk<mFrom || mk>mTo) return;
     const d = monthCache[mk]; if(!d) return;
-    Object.assign(merged.info, d.groupInfo || {});
     if(!useDays){
-      ['age','gender'].forEach(g=>{
-        Object.keys(d[g]||{}).forEach(code=>{
-          const t = merged[g][code] || (merged[g][code]=blank()); addTo(t, d[g][code]); });
+      (d.rows||[]).forEach(r=>{
+        const k = r.media + '|' + r.device;
+        const t = merged.cells[k] || (merged.cells[k] = blank());
+        t.imp += r.impressions||0; t.clk += r.clicks||0; t.cost += r.cost||0;
+        t.conv += r.conv||0; t.rev += r.revenue||0;
+        // 묶음 안의 지면 개수는 더하지 않고 가장 큰 달 기준으로 둔다 (달마다 겹치기 때문)
+        t.codes = Math.max(t.codes||0, r.codes||0);
       });
-      mergeGroups(merged.groups, d.byGroup);
       return;
     }
-    Object.keys(d.byDate||{}).forEach(dk=>{
+    const bd = d.byDate || {};
+    Object.keys(bd).forEach(dk=>{
       if(dayFrom && dk<dayFrom) return;
       if(dayTo && dk>dayTo) return;
-      const box = d.byDate[dk] || {};
-      // 예전 형식(연령만 바로 들어있던 것)도 읽히게 처리
-      const ageBox = box.age || box, genBox = box.gender || {};
-      Object.keys(ageBox).forEach(code=>{
-        const t = merged.age[code] || (merged.age[code]=blank()); addTo(t, ageBox[code]); });
-      Object.keys(genBox).forEach(code=>{
-        const t = merged.gender[code] || (merged.gender[code]=blank()); addTo(t, genBox[code]); });
-      mergeGroups(merged.groups, box.groups);
+      const box = bd[dk] || {};
+      Object.keys(box).forEach(k=>{
+        const c = box[k] || [];
+        const t = merged.cells[k] || (merged.cells[k] = blank());
+        t.imp += c[0]||0; t.clk += c[1]||0; t.cost += c[2]||0;
+        t.conv += c[3]||0; t.rev += c[4]||0;
+      });
+    });
+    // 날짜로 자를 때도 '묶음 안 지면 개수'는 월 합계 쪽 숫자를 빌려 쓴다
+    (d.rows||[]).forEach(r=>{
+      const k = r.media + '|' + r.device;
+      const t = merged.cells[k];
+      if(t) t.codes = Math.max(t.codes||0, r.codes||0);
     });
   });
   const range = (mFrom===mTo? mFrom : mFrom+' ~ '+mTo);
@@ -911,6 +888,7 @@ function recompute(){
   renderDayPresets();
   render();
 }
+
 function renderDayPresets(){
   const anyMonth = allMonths.length>0;
   document.getElementById('dayPresets').innerHTML = DAY_PRESETS.map(p=>{
@@ -932,8 +910,10 @@ async function loadRange(){
   for(const mk of pick){
     if(monthCache[mk] !== undefined) continue;
     try{
-      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
-      monthCache[mk] = await (await fetch(url)).json();
+      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__mediaStats.json').getDownloadURL();
+      const raw = await (await fetch(url)).json();
+      // 상세 파일은 {"value": …} 로 한 겹 싸여 저장된다 (연령 파일만 예외)
+      monthCache[mk] = (raw && raw.value !== undefined) ? raw.value : raw;
     }catch(e){ monthCache[mk] = null; }
   }
   recompute();
@@ -1022,7 +1002,7 @@ async function pickClient(id){
   const av=document.getElementById('ava');
   av.textContent = (cur.name||'·').slice(0,1);
   av.style.background = cur.color || '#8b7cff';
-  METRICS.forEach(m=>{ m.on = (m.k==='eff'); });
+  METRICS.forEach(m=>{ m.on = (m.k==='eff' || m.k==='conv'); });
   monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
   await loadRange();
 }
