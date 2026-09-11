@@ -649,15 +649,6 @@ function renderTable(title, sub, rows, labelFn, showFlag){
 
 let grpCamp = 'ALL';        // 'ALL'(전체 캠페인) 또는 캠페인 이름
 let agPick = 'ALL';         // 'ALL'(캠페인 전체) 또는 광고그룹 번호
-let agOpen = false;         // 광고그룹 그래프 펼침 여부
-let grpChart = null;
-const GRP_METRICS = [
-  {k:'cost', t:'비용',   on:false},
-  {k:'imp',  t:'노출수', on:false},
-  {k:'clk',  t:'클릭수', on:false},
-  {k:'conv', t:'전환수', on:true},
-  {k:'eff',  t:'효율',   on:true}
-];
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // 광고그룹을 캠페인으로 묶는다. 이름표가 없는 그룹은 번호로 대신 보여준다.
@@ -720,12 +711,13 @@ function grpPicked(){
   return { tree, groups, age, gender, what };
 }
 
+/* 화면 맨 위의 고르는 칸.
+   여기서 고른 캠페인·광고그룹이 아래 추천·그래프·표에 그대로 반영된다 (한 세트). */
 function renderGrpCard(){
   const P = grpPicked();
   const tree = P.tree, groups = P.groups;
   if(!tree.length) return '';
   const rows = rowsOf(P.age, AGE_ORDER);
-  const genRows = rowsOf(P.gender, ['GNM','GNF','GNU']);
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
   const hasData = tot.imp>0 || tot.cost>0;
 
@@ -743,29 +735,13 @@ function renderGrpCard(){
           return `<option value="${esc2(g.gid)}"${g.gid===agPick?' selected':''}>${esc2(g.name)} · ${won(c)}원</option>`;
         })).join('');
 
-  const best = rows.filter(r=>enough(r)).sort((a,b)=>{
-    const ea=effOf(a), eb=effOf(b);
-    if(ea===null) return 1; if(eb===null) return -1;
-    return isDB ? ea-eb : eb-ea;
-  })[0];
-  const thin = hasData && !rows.some(r=>enough(r));
-
-  const chartPart = !agOpen ? '' : `
-    <div class="metricrow" id="grow">${GRP_METRICS.map(m=>
-      `<label><input type="checkbox" data-gk="${m.k}" ${m.on?'checked':''}
-        style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
-    <div class="sub" id="grpNote" style="margin:2px 0 8px;"></div>
-    <div class="chartbox" id="grpWrap"><canvas id="grpChart"></canvas></div>`;
-
-  const period = (mFrom===mTo ? mFrom : (mFrom+' ~ '+mTo));
-  return `<div class="card"><h3>캠페인 · 광고그룹별 연령</h3>
-    <div class="sub">전체로도 보고, 캠페인·광고그룹까지 좁혀서도 볼 수 있어요. <b>이 칸에서 고른 것만</b> 아래 요약·그래프·표에 나옵니다 — 위쪽 표는 계정 전체입니다.</div>
+  return `<div class="card"><h3>어떤 걸 볼까요</h3>
+    <div class="sub">캠페인과 광고그룹을 고르면 <b>아래 추천·그래프·표가 모두 그 숫자로</b> 바뀝니다.</div>
     <div class="grp-pick">
       <label><span class="grp-lab">캠페인</span>
         <select id="grpCampSel">${campOpts}</select></label>
       <label><span class="grp-lab">광고그룹</span>
         <select id="grpSelect"${grpCamp==='ALL'?' disabled':''}>${grpOpts}</select></label>
-      <button class="pill${agOpen?' on':''}" id="grpToggle">${agOpen?'그래프 접기':'그래프 보기'}</button>
     </div>
     ${!hasData
       ? `<div class="sub" style="margin-top:12px;">${esc2(P.what)}은(는) 고른 기간에 자료가 없어요.</div>`
@@ -776,43 +752,8 @@ function renderGrpCard(){
            <span>클릭 ${num(tot.clk)}</span>
            <span>전환 ${num(tot.conv)}건</span>
            <span>${effLabel()} ${effFmt(effOf(tot))}</span>
-         </div>
-         ${best ? `<div class="says" style="margin-top:10px;">여기서는 <b>${ageLabel(best.code)}</b>이(가) 가장 효율이 좋아요
-            (${effLabel()} ${effFmt(effOf(best))} · 전환 ${num(best.conv)}건 · 비용 ${won(best.cost)}원).</div>` : ''}
-         ${thin ? `<div class="sub" style="margin-top:10px;">전환이 아직 적어서 연령대별 순위는 참고만 하세요.
-            ${isDB?('전환 '+MIN_CONV+'건'):('비용 '+won(MIN_COST)+'원')} 넘는 연령대가 아직 없습니다.</div>` : ''}
-         ${chartPart}
-         ${renderTable(esc2(P.what)+' · 연령대별', period, rows, ageLabel, false)}
-         ${genRows.length ? renderTable(esc2(P.what)+' · 성별', period, genRows, c=>GENDER_LABEL[c]||c, false) : ''}`}
+         </div>`}
     </div>`;
-}
-function drawGrpChart(){
-  if(grpChart){ grpChart.destroy(); grpChart=null; }
-  if(!agOpen || !document.getElementById('grpChart')) return;
-  const rows = rowsOf(grpPicked().age, AGE_ORDER);
-  const on = GRP_METRICS.filter(m=>m.on);
-  const note = document.getElementById('grpNote');
-  if(!on.length || !rows.length){ if(note) note.textContent = on.length?'':'지표를 하나 이상 골라주세요.'; return; }
-  const multi = on.length>1;
-  const datasets = on.map(m=>{
-    const vals = rows.map(r=>metricValue(r, m.k));
-    const max = Math.max(...vals.map(v=>Math.abs(v)), 0) || 1;
-    return { label: metricName(m.k), data: multi ? vals.map(v=>v/max*100) : vals,
-      backgroundColor: METRIC_COLORS[m.k] || '#8b7cff', borderRadius:4, borderSkipped:false,
-      _k:m.k, _raw:vals };
-  });
-  if(note) note.textContent = multi
-    ? '지표마다 단위가 달라서, 각 지표의 가장 큰 값을 100으로 맞춰 나란히 그렸어요. 실제 숫자는 막대에 마우스를 올리면 나옵니다.' : '';
-  grpChart = new Chart(document.getElementById('grpChart'), {
-    type:'bar', data:{ labels: rows.map(r=>ageLabel(r.code)), datasets },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:multi, labels:{ color:'#a8abc4', font:{size:11}, boxWidth:12, boxHeight:12 } },
-        tooltip:{ callbacks:{ label:c=> metricName(c.dataset._k) + ' ' + metricText(c.dataset._k, c.dataset._raw[c.dataIndex]) } } },
-      scales:{ x:{ grid:{display:false}, ticks:{color:'#a8abc4',font:{size:11}} },
-        y:{ grid:{color:'#23253a'}, beginAtZero:true,
-          ticks:{ color:'#a8abc4', font:{size:11}, precision:0,
-          callback:v=> multi ? v : (on[0].k==='cost' ? (v/10000)+'만' : num(v)) } } } }
-  });
 }
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
@@ -821,15 +762,6 @@ function wireGroupUI(){
   if(csel) csel.onchange = ()=>{ grpCamp = csel.value; agPick = 'ALL'; render(); };
   const sel = document.getElementById('grpSelect');
   if(sel) sel.onchange = ()=>{ agPick = sel.value; render(); };
-  const tg = document.getElementById('grpToggle');
-  if(tg) tg.onclick = ()=>{ agOpen = !agOpen; render(); };
-  document.querySelectorAll('#grow input').forEach(cb=>{
-    cb.onchange = ()=>{
-      GRP_METRICS.forEach(m=>{ if(m.k===cb.dataset.gk) m.on = cb.checked; });
-      if(!GRP_METRICS.some(m=>m.on)) GRP_METRICS.forEach(m=>{ if(m.k===cb.dataset.gk) m.on = true; });
-      render();
-    };
-  });
 }
 
 function render(){
@@ -839,19 +771,23 @@ function render(){
       수집은 매일 새벽 자동으로 쌓입니다.</div>`;
     return;
   }
-  const ageRows = rowsOf(merged.age, AGE_ORDER);
-  const genRows = rowsOf(merged.gender, ['GNM','GNF','GNU']);
-  el.innerHTML = renderReco(ageRows) + renderSays(ageRows, genRows)
-    + `<div class="card"><h3>연령대별 성과</h3>
+  /* 맨 위 '어떤 걸 볼까요' 칸에서 고른 캠페인·광고그룹이
+     아래 추천·그래프·표에 전부 반영된다. 기본값 '전체 캠페인'은 계정 전체와 같다. */
+  const GP = grpPicked();
+  const gpWhat = (GP.tree && GP.tree.length) ? GP.what : '';
+  const gpTag = gpWhat ? (gpWhat + ' · ') : '';
+  const ageRows = rowsOf(GP.age, AGE_ORDER);
+  const genRows = rowsOf(GP.gender, ['GNM','GNF','GNU']);
+  el.innerHTML = renderGrpCard() + renderReco(ageRows) + renderSays(ageRows, genRows)
+    + `<div class="card"><h3>${esc2(gpTag)}연령대별 성과</h3>
         <div class="sub">나이 순 · 지표를 여러 개 골라 나란히 볼 수 있어요</div>
         <div class="metricrow" id="mrow">${METRICS.map(m=>
           `<label><input type="checkbox" data-k="${m.k}" ${m.on?'checked':''}
             style="accent-color:var(--accent);width:13px;height:13px;">${m.k==='eff'?effLabel():m.t}</label>`).join('')}</div>
         <div class="sub" id="chartNote" style="margin:2px 0 8px;"></div>
         <div class="chartbox" id="chartWrap"><canvas id="agChart"></canvas></div></div>`
-    + renderTable('연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
-    + renderTable('성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c)
-    + renderGrpCard();
+    + renderTable(esc2(gpTag)+'연령대별 표', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), ageRows, ageLabel)
+    + renderTable(esc2(gpTag)+'성별', mFrom===mTo?mFrom:(mFrom+' ~ '+mTo), genRows, c=>GENDER_LABEL[c]||c);
   document.querySelectorAll('#mrow input').forEach(cb=>{
     cb.onchange = ()=>{
       METRICS.forEach(m=>{ if(m.k===cb.dataset.k) m.on = cb.checked; });
@@ -862,7 +798,6 @@ function render(){
   });
   renderChart(ageRows);
   wireGroupUI();
-  drawGrpChart();
 }
 
 // 월 파일을 받아 캐시. 날짜 필터는 파일 안의 byDate(일자별)로 다시 계산한다.
