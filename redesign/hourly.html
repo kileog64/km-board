@@ -934,6 +934,9 @@ function normalizeCostBasis(data){
   return data;
 }
 function stripPlaceCampaigns(data){
+  /* 2026-09-11: 플레이스를 다시 보여주기로 함 — 수집기가 플레이스를 정상 저장하므로
+     화면에서 걸러내면 네이버 관리자 화면 금액과 어긋난다. 아래 옛 제외 로직은 그대로 두되 쓰지 않는다. */
+  return data;
   if(!data || !Array.isArray(data.months)) return data;
   data.months.forEach(m=>{
     const camps = m.campaigns || [];
@@ -2348,7 +2351,7 @@ function renderHourlyPage(data){
           <div class="period" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span>${hasHourlyDayFilter
               ? `📆 ${dayRangeState[key].start||dayBoundsMinHr} ~ ${dayRangeState[key].end||dayBoundsMaxHr} 날짜 필터 적용 중`
-              : `${isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} (${months.length}개 기간) 누적` : (months[0] ? months[0].label : '-')} 기준`} · 캠페인 필터 적용됨</span>
+              : `${isMultiMonth ? `${months[0].label} ~ ${months[months.length-1].label} (${months.length}개 기간) 누적` : (months[0] ? months[0].label : '-')} 기준`} · ${esc(hgWhat)}</span>
           </div>
           ${dayBoundsMinHr && dayRangeCustomOpen[key] ? `
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
