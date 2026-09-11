@@ -64,7 +64,7 @@ function applyAccentColor(hex){
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
   .display{font-family:'Pretendard',sans-serif;}
-  .wrap{max-width:1480px;margin:0 auto;padding:28px;display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
+  .wrap{max-width:1480px;margin:0 auto;padding:18px 20px 64px;display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
 
   .input-panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;position:sticky;top:20px;}
   .input-panel h2{font-size:16px;margin:0 0 6px;color:var(--text);font-weight:700;}
@@ -233,6 +233,8 @@ body.panel-off .filter-panel{display:none;}
   writing-mode:vertical-rl;letter-spacing:.06em;box-shadow:-2px 0 10px rgba(0,0,0,.28);}
 #panelToggleBtn:hover{color:var(--text);border-color:var(--accent);}
 @media (max-width:1100px){ #panelToggleBtn{display:none;} }
+/* 이 페이지는 오른쪽 필터를 안 쓴다 — 펴기 손잡이도 숨긴다 */
+body.panel-off #panelToggleBtn{display:none !important;}
 </style>
 <style id="km-redesign-skin">
 /* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
@@ -251,10 +253,10 @@ body{
 }
 
 /* 큰 카드 */
-.card{ border-radius:12px !important; padding:20px 22px !important; }
-.panel{ border-radius:11px !important; padding:16px 18px !important; }
+.card{ border-radius:12px !important; padding:16px 18px !important; }
+.panel{ border-radius:12px !important; padding:14px 16px !important; }
 .panel-title{
-  font-size:15px !important; font-weight:600 !important;
+  font-size:14px !important; font-weight:700 !important;
   letter-spacing:-.015em !important; margin-bottom:12px !important;
 }
 
@@ -498,9 +500,8 @@ table td.km-bad { color: var(--down); font-weight: 700; }
   </div>
 </div>
 
-<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1720px;margin:0 auto;">
+<div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1480px;margin:0 auto;">
   <div class="topbar">
-    <a href="index.html" style="font-size:12px;color:var(--accent-text,var(--accent));text-decoration:none;">📊 대시보드</a>
     <span class="nv-logo"><span class="nv-mark"></span>km-board</span><nav class="kmenu">
       <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
       <div class="mitem" data-menu>
@@ -2398,7 +2399,7 @@ function renderHourlyPage(data){
     ${!hasHourlyData ? `<div class="empty-state"><div style="font-size:28px;">⏰</div><div>표시할 시간대별 데이터가 없어요.<br>input.html에서 시간대별 리포트를 업로드해주세요.</div></div>` : `
 
     <div class="panel">
-      <div class="panel-title">🔎 어떤 걸 볼까요</div>
+      <div class="panel-title">어떤 걸 볼까요</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;max-width:78ch;line-height:1.65;">캠페인과 광고그룹을 고르면 <b>아래 추천·그래프·표가 모두 그 숫자로</b> 바뀝니다. 맨 아래 요일 히트맵만 계정 전체 기준이에요.</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
         <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0;">
@@ -2477,8 +2478,8 @@ function renderHourlyPage(data){
     })()}
     ${buildAISummaryBoxHTML(key, periodLabel)}
 
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-title">⏰ <span style="color:var(--accent);">${esc(hgWhat)}</span> 시간대별 성과 (0~23시)</div>
+    <div class="panel" style="margin-top:12px;">
+      <div class="panel-title">${esc(hgWhat)} · 시간대별 성과 (0~23시)</div>
       ${hourlyFilterLimited ? '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">⚠️ 이 기간은 캠페인별 시간대 정보가 없어 필터가 적용되지 않았어요 (전체 기준).</div>' : ''}
       <div id="hourToggle" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         ${[
@@ -2494,7 +2495,7 @@ function renderHourlyPage(data){
       <div class="chart-box" style="height:380px;"><canvas id="chartHour"></canvas></div>
     </div>
 
-    <div class="panel" style="margin-top:18px;">
+    <div class="panel" style="margin-top:12px;">
       ${(() => {
         const missing = months.filter(m=>!(m.hourly&&m.hourly.length) && !(m.hourlyByCampaign&&m.hourlyByCampaign.length));
         if(!missing.length) return '';
@@ -2504,7 +2505,7 @@ function renderHourlyPage(data){
           그래서 이 페이지 합계는 대시보드 합계보다 그만큼 적습니다.</div>`;
       })()}
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-        <span>📋 <span style="color:var(--accent);">${esc(hgWhat)}</span> 시간대별 정확한 수치 <span style="font-weight:400;color:var(--muted);font-size:12px;">${(()=>{ const u = hrRowsBase.find(h=>h.unknown && (h.impressions>0||h.cost>0||h.conv>0));
+        <span>${esc(hgWhat)} · 시간대별 정확한 수치 <span style="font-weight:400;color:var(--muted);font-size:12px;">${(()=>{ const u = hrRowsBase.find(h=>h.unknown && (h.impressions>0||h.cost>0||h.conv>0));
         return u ? `0~23시 + 시간 미상 1줄` : '0~23시'; })()}</span></span>
         <button type="button" class="km-xlsx" style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#12131c;">⬇️ 엑셀 내려받기</button>
       </div>
@@ -2568,9 +2569,9 @@ function renderHourlyPage(data){
     </div>
 
     ${hasDowData ? `
-    <div class="panel" style="margin-top:18px;">
+    <div class="panel" style="margin-top:12px;">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>🗓️ 요일 × 시간대 히트맵 <span style="font-weight:400;color:var(--muted);font-size:12px;">(계정 전체 기준)</span></span>
+        <span>요일 × 시간대 히트맵 <span style="font-weight:400;color:var(--muted);font-size:12px;">계정 전체 기준</span></span>
         <div style="display:flex;gap:6px;">
           ${(isDB ? [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'cpa',l:'CPA'},{k:'rank',l:'평균노출순위'}] : [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'revenue',l:'매출'},{k:'roas',l:'ROAS'},{k:'rank',l:'평균노출순위'}]).filter(m=>m.k!=='rank' || dowHasRank).map(m=>`<button class="hour-heat-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${heatMetric===m.k?'var(--accent-solid)':'var(--panel)'};color:${heatMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
         </div>
@@ -2635,7 +2636,7 @@ function renderHourlyPage(data){
       <div style="margin-top:4px;font-size:12px;color:var(--muted);max-width:78ch;line-height:1.65;">${dowHeatmapIsFiltered ? (dowHeatmapPartiallyUnfiltered ? '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요 (단, 선택한 기간 중 일부는 예전에 저장된 데이터라 캠페인별 세부 정보가 없어서 그 기간만 전체 캠페인 기준으로 함께 집계됐어요 — 다시 업로드하면 그 기간도 필터가 반영돼요).' : '이 히트맵은 현재 선택된 캠페인 필터가 반영된 값이에요.') : (hasDowByCampaignData ? '이 히트맵은 전체 캠페인 기준이에요(필터에서 "전체 선택" 상태).' : '이 히트맵은 캠페인 필터와 무관하게 전체 기준이에요 — 이 기간은 예전에 저장된 데이터라 캠페인별 세부 정보가 없어요. 다시 업로드하면 필터가 반영돼요.')}${heatMetric==='rank'?' 평균노출순위는 네이버 보고서의 실제 값이에요.':''}</div>
     </div>
     ` : `
-    <div class="panel" style="margin-top:18px;">
+    <div class="panel" style="margin-top:12px;">
       <div class="panel-title">🗓️ 요일 × 시간대 히트맵</div>
       <div style="color:var(--muted);font-size:12px;">시간대별 리포트 파일에 <b>일별(날짜)</b> 컬럼이 포함되면 요일별 패턴까지 자동으로 보여드려요. input.html의 컬럼 안내를 참고해서 파일을 추출해보세요.</div>
     </div>
@@ -2817,6 +2818,7 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
   /* 이 페이지는 맨 위 '어떤 걸 볼까요' 한 군데에서만 고른다 —
      오른쪽 캠페인 필터는 두 군데가 되어 헷갈리므로 쓰지 않는다. */
   document.body.classList.add('panel-off');
+  const _pt = document.getElementById('panelToggleBtn'); if(_pt) _pt.style.display='none';
   const _fp = document.getElementById('filterPanel'); if(_fp) _fp.remove();
 }
 
