@@ -839,8 +839,33 @@ function buildRankBands(dailyRows){
   });
   return out;
 }
+// 목표(전환당 비용 / ROAS) 대비 이 구간이 어떤지 — 목표는 '예산·목표 현황판'에서 넣은 값이다.
+function goalOf(g, isDB){
+  if(!g) return null;
+  if(isDB) return (g.metric === 'cpa' && g.target > 0) ? { kind:'cpa', v:g.target } : null;
+  return (g.metric === 'roas' && g.target > 0) ? { kind:'roas', v:g.target } : null;
+}
+function goalMark(r, goal, isDB){
+  const G = goalOf(goal, isDB); if(!G) return '';
+  if(G.kind === 'cpa'){
+    if(r.cpa <= G.v) return ' <span style="color:var(--up);font-weight:700;">목표 안</span>';
+    const x = Math.round(r.cpa / G.v * 10) / 10;
+    return ` <span style="color:var(--down);">목표의 ${x}배</span>`;
+  }
+  if(r.roas >= G.v) return ' <span style="color:var(--up);font-weight:700;">목표 안</span>';
+  return ` <span style="color:var(--down);">목표 ${Math.round(G.v)} 미달</span>`;
+}
+// 어느 구간도 목표를 못 맞추면 그렇다고 말해줘야 한다 — 순위만 바꿔서 풀 문제가 아니기 때문
+function goalNote(info, goal, isDB){
+  const G = goalOf(goal, isDB); if(!G || !info || !info.rows || !info.rows.length) return '';
+  const ok = info.rows.filter(r=> G.kind==='cpa' ? (r.cpa <= G.v) : (r.roas >= G.v));
+  const gv = G.kind==='cpa' ? (G.v.toLocaleString('ko-KR')+'원') : (Math.round(G.v)+'');
+  const what = G.kind==='cpa' ? '전환당 비용' : 'ROAS';
+  if(!ok.length) return `<div style="margin-top:4px;font-size:10.5px;color:var(--down);">목표 ${what} ${gv} — <b>어느 순위대도 목표 안에 못 듭니다.</b> 순위만 바꿔서는 안 되고 키워드나 랜딩을 손봐야 합니다</div>`;
+  return `<div style="margin-top:4px;font-size:10.5px;color:var(--up);">목표 ${what} ${gv} — <b>${ok.map(r=>esc(r.band)).join(' · ')}</b>가 목표 안입니다</div>`;
+}
 // 표의 한 칸. 지금 평균순위와 견줘 올릴지 내릴지까지 적는다.
-function rankBandCellHTML(info, curRank, isDB){
+function rankBandCellHTML(info, curRank, isDB, goal){ // RANKGOAL
   if(!info) return '<td class="km-sub" style="white-space:nowrap;">표본 부족</td>';
   if(info.mixed){
     const lst = info.camps.map(c=>`<tr><td style="padding:3px 8px 3px 0;white-space:nowrap;">${esc(String(c.name).slice(0,22))}</td>`
@@ -863,7 +888,7 @@ function rankBandCellHTML(info, curRank, isDB){
   const gapTxt = info.gap >= 1.15 ? (Math.round(info.gap*10)/10) + '배 싸게' : '';
   const body = info.rows.map(r=>`<tr${r.band===info.best.band?' style="font-weight:800;color:var(--up);"':(r.slim?' style="opacity:.5;"':'')}>`
     + `<td style="padding:3px 8px 3px 0;white-space:nowrap;">${esc(r.band)}</td>`
-    + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;">${r.cpa.toLocaleString('ko-KR')}원</td>`
+    + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;">${r.cpa.toLocaleString('ko-KR')}원${goalMark(r, goal, isDB)}</td>`
     + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;color:var(--muted);">전환 ${r.conv}건${r.slim?' <span style="color:var(--warn);">표본 적음</span>':''}</td>`
     + (isDB ? '' : `<td style="padding:3px 0 3px 8px;text-align:right;white-space:nowrap;color:var(--muted);">ROAS ${Math.round(r.roas)}</td>`)
     + '</tr>').join('');
@@ -872,6 +897,7 @@ function rankBandCellHTML(info, curRank, isDB){
     + (gapTxt ? `<span style="margin-left:5px;font-size:11px;color:var(--muted);">${gapTxt}</span>` : '')
     + '<div class="kw-band-rest" hidden style="margin-top:5px;">'
     + `<table style="border-collapse:collapse;font-size:11.5px;">${body}</table>`
+    + goalNote(info, goal, isDB)
     + '<div style="margin-top:4px;font-size:10.5px;color:var(--muted);">불러온 전 기간 기준 · 전환 3건 이상인 구간만 · 전환 비중이 너무 작은 구간은 최적으로 안 고릅니다</div>'
     + '</div></td>';
 }
@@ -2630,7 +2656,7 @@ function renderKeywordsPage(data){
             // 전환 0은 "돈만 쓰고 성과 없음" 신호라 빨강으로 눈에 걸리게 한다.
             const convCell = `<td class="${(k.conv||0)>0?'km-key':'km-bad'}">${k.conv}건${cellTrend(t.conv,'up')}</td>`;
             const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
-            const bandCell = noConv ? '' : rankBandCellHTML(rankBands[k.keyword], k.avgRank, isDB);
+            const bandCell = noConv ? '' : rankBandCellHTML(rankBands[k.keyword], k.avgRank, isDB, data.goal);
             // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
             // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
             const recCell = `<td class="km-text">${k.rec==='expand'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--up);color:#12131c;white-space:nowrap;">확대</span>':(k.rec==='waste'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--down);color:#fff;white-space:nowrap;">제외</span>':'<span style="color:var(--muted);">-</span>')}</td>`;
