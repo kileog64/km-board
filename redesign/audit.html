@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>알림 · 광고 성과 대시보드</title>
+<title>검수 · 광고 성과 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -295,42 +295,51 @@
 .grp-sum{display:flex;flex-wrap:wrap;gap:5px 15px;margin-top:12px;padding:10px 13px;
   background:var(--panel-2);border:1px solid var(--border);border-radius:9px;font-size:12.5px;color:var(--muted)}
 .grp-sum b{color:var(--tx)}
-  /* ── 알림 모아보기 ─────────────────────────────────────────── */
-  .al-cards{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-  .al-card{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);
+  /* ── 검수 ──────────────────────────────────────────────────── */
+  .au-cards{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .au-card{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);
     border:1px solid var(--border);border-radius:10px;padding:7px 11px;cursor:pointer;
     color:var(--tx);font-family:inherit;font-size:13px;line-height:1.3;
     transition:border-color .12s ease,background .12s ease;}
-  .al-card:hover{border-color:var(--accent);}
-  .al-card.on{border-color:var(--accent);background:rgba(139,124,255,.14);}
-  .al-card .al-n{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px;
-    padding:1px 7px;border-radius:6px;background:rgba(168,171,196,.16);color:var(--muted);}
-  .al-card .al-n.bad{background:rgba(255,107,133,.16);color:var(--bad);}
-  .al-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+  .au-card:hover{border-color:var(--accent);}
+  .au-card.on{border-color:var(--accent);background:rgba(139,124,255,.14);}
+  .au-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+  .au-n{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px;
+    padding:1px 7px;border-radius:6px;background:rgba(59,201,141,.16);color:var(--good);}
+  .au-n.bad{background:rgba(255,107,133,.16);color:var(--bad);}
+  .au-n.warn{background:rgba(245,165,36,.16);color:var(--warn);}
 
-  /* '주의' 배지 — 좋고 나쁨이 아니라 등급 표시라 회색으로 */
-  .al-row .flag:not(.good):not(.bad){background:rgba(245,165,36,.15);color:var(--warn);font-weight:700;}
-  .al-row{padding:13px 0;border-top:1px solid var(--border);}
-  .al-row:first-of-type{border-top:none;}
-  .al-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
-  .al-cli{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;}
-  .al-cli:hover{text-decoration:underline;}
-  .al-kind{font-size:11px;font-weight:600;color:var(--muted);background:var(--panel-2);
-    border:1px solid var(--border);border-radius:6px;padding:1px 7px;}
-  .al-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto;}
-  .al-title{font-size:14px;font-weight:600;line-height:1.5;word-break:keep-all;}
-  .al-detail{font-size:12px;color:var(--muted);line-height:1.65;margin-top:4px;
-    word-break:keep-all;max-width:92ch;}
-  @media (max-width:600px){
-    .al-date{margin-left:0;}
-    .al-title{font-size:13px;}
-  }
+  .au-tbl{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;}
+  .au-tbl th,.au-tbl td{padding:8px 9px;border-top:1px solid var(--border);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .au-tbl th{font-size:11px;color:var(--muted);font-weight:600;border-top:none;
+    position:sticky;top:0;background:var(--panel);}
+  .au-tbl td.l,.au-tbl th.l{text-align:left;}
+  .au-tbl tr.open td{border-bottom:none;}
+  .au-tbl .zero{color:var(--muted);}
+  .au-tbl .gap{color:var(--bad);font-weight:700;}
+  .au-cli{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;}
+  .au-cli:hover{text-decoration:underline;}
+  .au-more{cursor:pointer;}
+  .au-more:hover{background:rgba(139,124,255,.06);}
+  .au-days{background:var(--panel-2);}
+  .au-days td{padding:0;border-top:none;}
+  .au-days .inner{padding:9px 12px 12px;}
+  .au-days table{width:100%;border-collapse:collapse;font-size:12px;}
+  .au-days th,.au-days td{padding:5px 8px;text-align:right;border-top:1px solid var(--border);
+    font-variant-numeric:tabular-nums;}
+  .au-days th{font-size:11px;color:var(--muted);border-top:none;}
+  /* '거의 맞음' 배지 — 좋고 나쁨이 아니라 등급 표시라 주황으로 */
+  .au-tbl .flag:not(.good):not(.bad){background:rgba(245,165,36,.15);color:var(--warn);font-weight:700;
+    border-radius:6px;padding:1px 7px;font-size:11px;}
+  .au-wrap{overflow-x:auto;}
+  @media (max-width:600px){ .au-tbl{font-size:12px;} .au-tbl th,.au-tbl td{padding:7px 6px;} }
 </style>
 <body>
 
 <div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
   <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
-    <h2 style="margin:0 0 4px;font-size:20px;">📊 알림</h2>
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 검수</h2>
     <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인해주세요.</div>
     <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
     <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
@@ -398,18 +407,15 @@
 
   <div class="wrap">
     <div class="chead2">
-      <div class="avatar" id="ava" style="background:#f5a524;">!</div>
-      <span class="nm2">알림</span>
-      <span class="badge">전체 업체 한 화면</span>
+      <div class="avatar" id="ava" style="background:#3bc98d;">✓</div>
+      <span class="nm2">검수</span>
+      <span class="badge">네이버 숫자와 맞춰보기</span>
       <div class="desc" id="cdesc"></div>
     </div>
 
     <div class="filterbar" id="fbar" style="display:none;">
-      <div class="fb-g"><span class="fb-lab">심각도</span>
-        <span id="sevPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
-      </div>
-      <div class="fb-g"><span class="fb-lab">종류</span>
-        <span id="kindPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+      <div class="fb-g"><span class="fb-lab">결과</span>
+        <span id="vPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
       </div>
       <div class="fb-g"><span class="fb-lab">업체</span>
         <span id="clientPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
@@ -419,19 +425,20 @@
     <div id="body"></div>
 
     <p class="foot">
-      수집기가 <b>매일 새벽 자동 수집을 끝낸 뒤</b> 그날 기준으로 다시 계산합니다.
-      여기 보이는 건 <b>지금 열려 있는 알림</b>이고, 다음 수집 때 새로 계산되면서 통째로 바뀝니다
-      (지난 알림은 따로 쌓아두지 않습니다).<br>
-      <b>꺼둔 캠페인은 빠집니다</b> — 수집기가 캠페인 ON/OFF를 같이 조회해서, 일부러 끈 캠페인에는
-      "노출 급감" 같은 알림을 띄우지 않습니다.
-      새로 만든 캠페인도 관측 기간이 짧으면(노출 급감 10일 · CPA 급등 14일) 판단을 미룹니다.<br>
-      <b>설정 바뀜 · 예산 막힘 · 입찰가 일괄</b>은 성과 숫자가 아니라 <b>광고 세팅</b>을 보고 만듭니다 —
-      예산·입찰가·ON/OFF를 매일 한 벌씩 받아두고 어제 것과 맞대봅니다.
-      그래서 누가 무엇을 언제 바꿨는지가 여기에 그대로 남습니다.<br>
-      <b>연령대 가중치 · PC·모바일 가중치 · 지면 빼기 · 키워드 빼기 · 시간대 빼기</b>는 숫자만 보여주지 않고
-      <b>넣을 숫자와 뺄 대상까지</b> 알려줍니다. 순위를 같이 말해주는 건 <b>키워드와 시간대뿐</b>입니다 —
-      네이버가 연령·기기·지면에는 순위를 주지 않습니다.<br>
-      업체 이름을 누르면 그 업체 대시보드로 갑니다.
+      <b>이 화면이 하는 일</b> — 수집기는 네이버의 <b>대용량 보고서</b> 창구에서 자료를 받아옵니다.
+      그 창구가 잘못된 파일을 주면 우리는 틀린 줄 모르고 그대로 저장하게 됩니다.
+      그래서 <b>전혀 다른 창구(실시간 조회)</b>로 같은 기간을 한 번 더 물어보고, 숫자가 같은지 맞춰봅니다.
+      매일 새벽 수집이 끝난 직후 자동으로 돌고, <b>이번 달과 지난 달</b>을 봅니다
+      (오늘치는 네이버도 아직 확정 전이라 <b>어제까지</b>).<br>
+      <b>'거의 맞음'은 무엇인가</b> — 아주 오래전에 지운 캠페인은 번호조차 우리 자료에 안 남아 있어서
+      끝내 못 찾습니다. 그만큼(보통 전체의 0.05% 미만) 늘 조금 모자라게 나오는데, 이건 주황색
+      <b>거의 맞음</b>으로 따로 표시합니다. 빨간 <b>다름</b>만 챙겨 보시면 됩니다.<br>
+      <b>비용이 몇십 원 차이나는 건 정상입니다</b> — 저장할 때 만원 단위로 바꾸면서 생기는 소수점 차이라,
+      아주 작은 금액은 정상으로 봅니다.<br>
+      <b>전환은 DB형 업체만 맞춰봅니다</b> — 네이버 실시간 조회는 전환을 전부 세지만,
+      B2C 업체는 우리가 <b>구매완료만</b> 세기 때문에 숫자가 다른 게 맞습니다.<br>
+      <b>지운 캠페인도 같이 봅니다</b> — 네이버는 지운 캠페인을 목록에서 빼버려서 그냥 물어보면
+      그만큼 늘 모자라게 나옵니다. 우리 자료에 남은 캠페인 번호를 찾아 같이 물어봅니다.
     </p>
   </div>
 
@@ -549,173 +556,199 @@ document.querySelectorAll('.client-switcher-biztab').forEach(btn=>{
 });
 
 
-/* ─────────── 알림 모아보기 ───────────
-   수집기가 업체 문서의 collectorInsights 에 넣어둔 알림을 전 업체에서 긁어 한 화면에 모은다.
-     collectorInsights = { alerts:[], asOf:'2026-09-11', generatedAt:'...' }
-     알림 한 건      = { type, severity('high'|'warn'), campaign, title, detail, date, metrics }
+/* ─────────── 검수 ───────────
+   audit.js(서버)가 업체 문서의 collectorAudit 에 넣어둔 대조 결과를 읽어 한 화면에 모은다.
+     collectorAudit = { generatedAt, error, closedCount, months:[ … ] }
+     달 하나        = { label, since, until, naver{imp,clk,cost,conv}, ours{…}|null,
+                        dImp, dClk, dCost, dConv, convComparable, verdict, days:[…] }
    Storage 는 안 건드린다 — 업체 문서만 읽어서 가볍다.                                   */
 
-let clients = [], cur = null, ALL = [];
-let fSev = 'all', fKind = 'all', fClient = 'all';
+let clients = [], cur = null, ROWS = [];
+let fV = 'all', fClient = 'all';
+const opened = {};
 
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g,
   c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
+const signed = n => (n>0?'+':'') + num(n);
+const ymdDot = s => String(s||'').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1.$2.$3');
 
-/* 알림 종류 — 수집기가 내려주는 type 그대로 쓰되, 화면 이름은 사장님 말로 바꾼다.
-   수집기에 새 종류가 생기면 여기 없어도 '기타'로 그냥 보인다(빠지지 않게). */
-const KIND = {
-  zero_conv:      { t:'전환 0',          d:'비용은 쓰는데 전환이 안 나오는 캠페인' },
-  hourly_waste:   { t:'버려지는 시간대',  d:'전환 없이 돈만 나가는 시간대가 몰려 있는 캠페인' },
-  imp_drop:       { t:'노출 급감',        d:'갑자기 노출이 확 줄어든 캠페인' },
-  cpa_spike:      { t:'CPA 급등',         d:'전환당 비용이 직전 기간보다 크게 오른 캠페인' },
-  worst_streak:   { t:'연속 최저효율',    d:'여러 기간 연달아 제일 나빴던 캠페인' },
-  pacing:         { t:'집행 속도',        d:'이번 달 쓰는 속도가 지난달과 많이 다름' },
-  collection_gap: { t:'수집 점검',        d:'자료가 안 들어왔거나 노출이 아예 없음' },
-  // 아래 셋은 '세팅'을 매일 받아 보고 만드는 것 (settings.js)
-  setting_change: { t:'설정 바뀜',        d:'예산·입찰가·ON/OFF 같은 세팅이 어제와 달라진 곳' },
-  budget_hit:     { t:'예산 막힘',        d:'하루예산을 거의 다 써서 광고가 중간에 멈추는 캠페인' },
-  bid_flat:       { t:'입찰가 일괄',      d:'광고그룹 입찰가가 전부 같아 성과를 안 보고 넣은 것으로 보이는 캠페인' },
-  // 아래 다섯은 '이렇게 바꾸세요'까지 말해주는 추천
-  age_bid:        { t:'연령대 가중치',    d:'연령대별로 버는 돈이 달라서 입찰 가중치를 바꿔야 하는 경우' },
-  device_bid:     { t:'PC·모바일 가중치', d:'PC와 모바일 성과 차이에 비해 가중치가 안 맞는 경우' },
-  media_off:      { t:'지면 빼기',        d:'돈만 쓰고 전환이 없어 빼는 게 나은 지면' },
-  kw_off:         { t:'키워드 빼기',      d:'돈만 쓰고 전환이 없어 빼거나 순위를 낮출 키워드' },
-  hour_off:       { t:'시간대 빼기',      d:'돈만 쓰고 전환이 없는 시간대' },
+const VERDICT = {
+  ok:      { t:'맞음',      cls:'good' },
+  close:   { t:'거의 맞음', cls:'warn' },
+  diff:    { t:'다름',      cls:'bad'  },
+  missing: { t:'자료없음',  cls:'bad'  },
+  error:   { t:'못 물어봄',  cls:'warn' },
 };
-const kindName = t => (KIND[t] || {}).t || t;
+const vName = v => (VERDICT[v] || {}).t || v;
 
-// 심각한 것 · 최근 것부터
-const SEV_RANK = { high:0, warn:1 };
-function sortAlerts(a, b){
-  return (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9)
-      || String(b.date||'').localeCompare(String(a.date||''))
-      || String(a.client||'').localeCompare(String(b.client||''), 'ko');
-}
-
-function pass(a){
-  if(fSev !== 'all' && a.severity !== fSev) return false;
-  if(fKind !== 'all' && a.type !== fKind) return false;
-  if(fClient !== 'all' && a.client !== fClient) return false;
+function pass(r){
+  if(fV !== 'all' && r.verdict !== fV) return false;
+  if(fClient !== 'all' && r.client !== fClient) return false;
   return true;
 }
 
 function renderPills(){
-  const shown = ALL;
-  const cnt = (fn) => shown.filter(fn).length;
-
-  const sev = [['all','전체',shown.length],
-               ['high','심각',cnt(a=>a.severity==='high')],
-               ['warn','주의',cnt(a=>a.severity==='warn')]];
-  document.getElementById('sevPills').innerHTML = sev.map(([k,t,n])=>
-    `<button class="pill ${fSev===k?'on':''}" data-sev="${k}"${n?'':' disabled'}>${t} ${n}</button>`).join('');
-
-  const kinds = {};
-  shown.forEach(a=>{ kinds[a.type] = (kinds[a.type]||0)+1; });
-  const kl = Object.keys(kinds).sort((a,b)=>kinds[b]-kinds[a]);
-  document.getElementById('kindPills').innerHTML =
-    `<button class="pill ${fKind==='all'?'on':''}" data-kind="all">전체</button>` +
-    kl.map(k=>`<button class="pill ${fKind===k?'on':''}" data-kind="${esc2(k)}"
-       title="${esc2((KIND[k]||{}).d||'')}">${esc2(kindName(k))} ${kinds[k]}</button>`).join('');
+  const cnt = fn => ROWS.filter(fn).length;
+  const vs = [['all','전체',ROWS.length],
+              ['diff','다름',cnt(r=>r.verdict==='diff')],
+              ['close','거의 맞음',cnt(r=>r.verdict==='close')],
+              ['missing','자료없음',cnt(r=>r.verdict==='missing')],
+              ['error','못 물어봄',cnt(r=>r.verdict==='error')],
+              ['ok','맞음',cnt(r=>r.verdict==='ok')]];
+  document.getElementById('vPills').innerHTML = vs.map(([k,t,n])=>
+    `<button class="pill ${fV===k?'on':''}" data-v="${k}"${n?'':' disabled'}>${t} ${n}</button>`).join('');
 
   const cc = {};
-  shown.forEach(a=>{ cc[a.client] = (cc[a.client]||0)+1; });
+  ROWS.forEach(r=>{ cc[r.client] = (cc[r.client]||0)+1; });
   const cl = clients.map(c=>c.id).filter(id=>cc[id]);
   document.getElementById('clientPills').innerHTML =
     `<button class="pill ${fClient==='all'?'on':''}" data-client="all">전체</button>` +
-    cl.map(id=>`<button class="pill ${fClient===id?'on':''}" data-client="${esc2(id)}">${esc2(id)} ${cc[id]}</button>`).join('');
+    cl.map(id=>`<button class="pill ${fClient===id?'on':''}" data-client="${esc2(id)}">${esc2(id)}</button>`).join('');
 
-  document.querySelectorAll('#sevPills .pill').forEach(b=>b.onclick=()=>{ fSev=b.dataset.sev; render(); });
-  document.querySelectorAll('#kindPills .pill').forEach(b=>b.onclick=()=>{ fKind=b.dataset.kind; render(); });
+  document.querySelectorAll('#vPills .pill').forEach(b=>b.onclick=()=>{ fV=b.dataset.v; render(); });
   document.querySelectorAll('#clientPills .pill').forEach(b=>b.onclick=()=>{ fClient=b.dataset.client; render(); });
 }
 
-function alertRow(a){
-  const c = clients.find(x=>x.id===a.client) || {};
-  const dot = c.color || '#8b7cff';
-  const sev = a.severity==='high'
-    ? '<span class="flag bad">심각</span>'
-    : '<span class="flag">주의</span>';
-  return `<div class="al-row">
-    <div class="al-top">
-      <span class="al-dot" style="background:${esc2(dot)};"></span>
-      <a class="al-cli" href="index.html" data-go="${esc2(a.client)}">${esc2(a.client)}</a>
-      <span class="al-kind">${esc2(kindName(a.type))}</span>
-      ${sev}
-      ${a.date?`<span class="al-date">${esc2(a.date)}</span>`:''}
-    </div>
-    <div class="al-title">${esc2(a.title)}</div>
-    ${a.detail?`<div class="al-detail">${esc2(a.detail)}</div>`:''}
-  </div>`;
+// 차이 칸 — 0이면 흐리게, 아니면 빨갛게
+function gapCell(n){
+  if(!n) return '<td class="zero">0</td>';
+  return `<td class="gap">${signed(n)}</td>`;
+}
+
+function dayTable(r){
+  const rows = (r.days||[]).map(d=>`<tr>
+      <td style="text-align:left;">${ymdDot(d.ymd)}${d.missing?' <span class="flag bad">빠짐</span>':''}</td>
+      <td>${num(d.nImp)}</td><td>${num(d.oImp)}</td>${gapCell(d.oImp-d.nImp)}
+      <td>${num(d.nClk)}</td><td>${num(d.oClk)}</td>${gapCell(d.oClk-d.nClk)}
+      <td>${num(d.nCost)}</td><td>${num(d.oCost)}</td>${gapCell(d.oCost-d.nCost)}
+    </tr>`).join('');
+  return `<tr class="au-days"><td colspan="11"><div class="inner">
+    <div class="sub" style="margin:0 0 6px;">어긋난 날 ${(r.days||[]).length}일 · 금액은 원</div>
+    <div class="au-wrap"><table>
+      <tr><th style="text-align:left;">날짜</th>
+        <th>네이버 노출</th><th>우리 노출</th><th>차이</th>
+        <th>네이버 클릭</th><th>우리 클릭</th><th>차이</th>
+        <th>네이버 비용</th><th>우리 비용</th><th>차이</th></tr>
+      ${rows || '<tr><td colspan="10" style="text-align:left;color:var(--muted);">어느 날인지까지는 못 찾았습니다.</td></tr>'}
+    </table></div>
+  </div></td></tr>`;
+}
+
+function mainRow(r, i){
+  const c = clients.find(x=>x.id===r.client) || {};
+  const v = VERDICT[r.verdict] || {};
+  const canOpen = (r.verdict === 'diff' || r.verdict === 'close') && (r.days||[]).length > 0;
+  const flag = `<span class="flag ${v.cls==='good'?'good':(v.cls==='bad'?'bad':'')}">${esc2(vName(r.verdict))}</span>`;
+  const days = r.days || [];
+  const o = r.ours || {};
+  const n = r.naver || {};
+  const head = `<td class="l"><span class="au-dot" style="display:inline-block;background:${esc2(c.color||'#8b7cff')};"></span>
+        <a class="au-cli" href="index.html" data-go="${esc2(r.client)}">${esc2(r.client)}</a></td>
+      <td class="l">${esc2(r.label)}</td>
+      <td class="l">${flag}${canOpen?` <span class="sub" style="font-size:11px;">${opened[i]?'▲':'▼'} ${days.length}일</span>`:''}</td>`;
+  // 못 물어본 줄은 0만 늘어놔봤자 헷갈린다 — 이유를 그대로 적는다
+  if(r.verdict === 'error'){
+    return `<tr data-i="${i}">${head}
+      <td class="l" colspan="8" style="color:var(--muted);">${esc2(r.note || '네이버에 물어보지 못했습니다.')}</td></tr>`;
+  }
+  return `<tr class="${canOpen?'au-more':''}${opened[i]?' open':''}" data-i="${i}">
+      ${head}
+      <td>${num(n.imp)}</td><td>${num(o.imp)}</td>${gapCell(r.dImp)}
+      <td>${num(n.clk)}</td>${gapCell(r.dClk)}
+      <td>${num(n.cost)}</td>${gapCell(r.dCost)}
+      <td>${r.convComparable ? num(n.conv) + (r.dConv ? ` <span class="gap">${signed(r.dConv)}</span>` : '') : '<span class="zero">-</span>'}</td>
+    </tr>` + (opened[i] && canOpen ? dayTable(r) : '');
 }
 
 function render(){
   const el = document.getElementById('body');
-  document.getElementById('fbar').style.display = ALL.length ? 'flex' : 'none';
+  document.getElementById('fbar').style.display = ROWS.length ? 'flex' : 'none';
 
-  if(!ALL.length){
-    el.innerHTML = `<div class="empty">지금 열려 있는 알림이 없습니다.<br>
-      수집은 매일 새벽에 돌고, 그때 다시 계산합니다.</div>`;
+  if(!ROWS.length){
+    el.innerHTML = `<div class="empty">아직 검수 결과가 없습니다.<br>
+      매일 새벽 수집이 끝난 뒤 자동으로 한 번 돕니다.</div>`;
+    document.getElementById('cdesc').textContent = '';
     return;
   }
   renderPills();
 
-  const rows = ALL.filter(pass).sort(sortAlerts);
-  const high = ALL.filter(a=>a.severity==='high').length;
-  const asOfs = [...new Set(ALL.map(a=>a.asOf).filter(Boolean))].sort();
+  const bad = ROWS.filter(r=>r.verdict!=='ok' && r.verdict!=='close').length;
+  const near = ROWS.filter(r=>r.verdict==='close').length;
+  const stamps = [...new Set(ROWS.map(r=>(r.generatedAt||'').slice(0,10)).filter(Boolean))].sort();
   document.getElementById('cdesc').textContent =
-    `${clients.length}개 업체 · 알림 ${ALL.length}건(심각 ${high}건)` +
-    (asOfs.length ? ` · 기준일 ${asOfs[0]===asOfs[asOfs.length-1]?asOfs[0]:(asOfs[0]+' ~ '+asOfs[asOfs.length-1])}` : '');
+    `${clients.length}개 업체 · ${ROWS.length}개 달 확인 · ` +
+    (bad ? `${bad}개 달이 다릅니다` : (near ? '큰 차이는 없습니다' : '전부 맞습니다')) +
+    (near ? ` (거의 맞음 ${near}개)` : '') +
+    (stamps.length ? ` · 확인한 날 ${stamps[stamps.length-1]}` : '');
 
-  // 업체별 요약 — 어디가 급한지 한눈에
+  // 업체별 요약
   const cc = {};
-  ALL.forEach(a=>{ const o = cc[a.client] || (cc[a.client]={h:0,w:0,asOf:a.asOf}); o[a.severity==='high'?'h':'w']++; });
-  const order = Object.keys(cc).sort((a,b)=> cc[b].h-cc[a].h || cc[b].w-cc[a].w || a.localeCompare(b,'ko'));
+  ROWS.forEach(r=>{ const o = cc[r.client] || (cc[r.client]={ok:0,near:0,bad:0});
+    o[r.verdict==='ok'?'ok':(r.verdict==='close'?'near':'bad')]++; });
+  const order = Object.keys(cc).sort((a,b)=> cc[b].bad-cc[a].bad || a.localeCompare(b,'ko'));
   const cards = order.map(id=>{
     const c = clients.find(x=>x.id===id) || {};
     const o = cc[id];
-    return `<button class="al-card${fClient===id?' on':''}" data-card="${esc2(id)}">
-      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+    return `<button class="au-card${fClient===id?' on':''}" data-card="${esc2(id)}">
+      <span class="au-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
       <b>${esc2(id)}</b>
-      <span class="al-n bad">${o.h}</span>
-      ${o.w?`<span class="al-n">${o.w}</span>`:''}
+      ${o.bad?`<span class="au-n bad">${o.bad}</span>`:''}
+      ${o.near?`<span class="au-n warn">${o.near}</span>`:''}
+      ${(!o.bad&&!o.near)?`<span class="au-n">${o.ok}</span>`:''}
     </button>`;
   }).join('');
 
+  const list = ROWS.map((r,i)=>[r,i]).filter(([r])=>pass(r));
   el.innerHTML = `<div class="card"><h3>업체별</h3>
-      <div class="sub">빨간 숫자가 <b>심각</b>, 회색이 주의. 누르면 그 업체만 봅니다.</div>
-      <div class="al-cards">${cards}</div></div>`
-    + `<div class="card"><h3>알림 ${rows.length}건</h3>
-      <div class="sub">심각한 것부터 · 같은 등급이면 최근 날짜부터</div>
-      ${rows.length ? rows.map(alertRow).join('') :
-        '<div class="empty" style="margin:10px 0 0;">고른 조건에 맞는 알림이 없습니다.</div>'}</div>`;
+      <div class="sub">빨강은 <b>다른 달</b>, 주황은 거의 맞은 달, 초록은 맞은 달의 개수. 누르면 그 업체만 봅니다.</div>
+      <div class="au-cards">${cards}</div></div>`
+    + `<div class="card"><h3>달별 대조 ${list.length}건</h3>
+      <div class="sub">다른 곳부터 · 금액은 원. <b>다름</b> 줄을 누르면 어느 날이 어긋났는지 펼쳐집니다.</div>
+      <div class="au-wrap"><table class="au-tbl">
+        <tr><th class="l">업체</th><th class="l">달</th><th class="l">결과</th>
+          <th>네이버 노출</th><th>우리 노출</th><th>차이</th>
+          <th>네이버 클릭</th><th>차이</th>
+          <th>네이버 비용</th><th>차이</th><th>전환(DB형만)</th></tr>
+        ${list.length ? list.map(([r,i])=>mainRow(r,i)).join('') :
+          '<tr><td colspan="11" class="l" style="color:var(--muted);">고른 조건에 맞는 줄이 없습니다.</td></tr>'}
+      </table></div></div>`;
 
-  document.querySelectorAll('.al-card').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.au-card').forEach(b=>b.onclick=()=>{
     fClient = (fClient===b.dataset.card) ? 'all' : b.dataset.card; render(); });
-  document.querySelectorAll('.al-cli').forEach(a=>a.onclick=(e)=>{
+  document.querySelectorAll('.au-more').forEach(tr=>tr.onclick=(e)=>{
+    if(e.target.closest('a')) return;
+    const i = tr.dataset.i; opened[i] = !opened[i]; render(); });
+  document.querySelectorAll('.au-cli').forEach(a=>a.onclick=(e)=>{
     try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){}
   });
 }
 
-// 업체 문서에서 알림만 긁어 온다 (Storage 는 안 읽어서 가볍다)
-async function loadAlerts(){
+// 업체 문서에서 검수 결과만 긁어 온다
+async function loadAudit(){
   const snap = await db.collection('clients').get();
-  clients = []; ALL = [];
+  clients = []; ROWS = [];
   snap.forEach(d=>{
     const v = d.data() || {};
     clients.push({ id:d.id, name:v.name||d.id, bizType:v.bizType, color:v.color, months:v.months||[] });
-    const ci = v.collectorInsights || {};
-    (ci.alerts || []).forEach(a=>{
-      ALL.push(Object.assign({}, a, { client:d.id, asOf:ci.asOf || '' }));
-    });
-    // 세팅 확인(settings.js)이 따로 넣어둔 알림도 같이 모은다.
-    // 칸을 나눠 쓰는 이유: 같은 칸을 쓰면 밤 수집이 통째로 덮어써 버린다.
-    const cs = v.collectorSettings || {};
-    (cs.alerts || []).forEach(a=>{
-      ALL.push(Object.assign({}, a, { client:d.id, asOf:cs.asOf || '' }));
+    const a = v.collectorAudit;
+    if(!a) return;
+    if(a.error){
+      ROWS.push({ client:d.id, label:'-', verdict:'error', naver:{}, ours:{},
+        dImp:0, dClk:0, dCost:0, dConv:0, convComparable:false, days:[],
+        generatedAt:a.generatedAt, note:a.error });
+      return;
+    }
+    (a.months || []).forEach(m=>{
+      ROWS.push(Object.assign({}, m, { client:d.id, generatedAt:a.generatedAt, closedCount:a.closedCount||0 }));
     });
   });
   clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  // 다른 것부터, 그 다음 최근 달부터
+  const rank = v => v==='ok' ? 2 : (v==='close' ? 1 : 0);
+  ROWS.sort((a,b)=> rank(a.verdict)-rank(b.verdict)
+    || String(b.label).localeCompare(String(a.label))
+    || String(a.client).localeCompare(String(b.client),'ko'));
   renderClientSwitcher('');
   const storedKey = getStoredActiveClient();
   const storedId = storedKey ? storedKey.replace(/^client:/,'') : null;
@@ -724,7 +757,6 @@ async function loadAlerts(){
   render();
 }
 
-// 업체 드롭다운에서 고르면 그 업체만 보여준다 (다른 화면과 선택은 계속 공유)
 async function pickClient(id){
   cur = clients.find(c=>c.id===id) || clients[0];
   if(!cur) return;
@@ -744,7 +776,7 @@ auth.onAuthStateChanged(async (user)=>{
   document.getElementById('authScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   document.getElementById('who').textContent=user.email;
-  await loadAlerts();
+  await loadAudit();
 });
 
 </script>

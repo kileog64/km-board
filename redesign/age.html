@@ -195,6 +195,24 @@
   .rbox .rk .d{width:7px;height:7px;border-radius:50%;}
   .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
   .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
+
+  /* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
+  .wt-tbl{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  .wt-tbl th,.wt-tbl td{padding:8px 9px;border-top:1px solid var(--border);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wt-tbl th{font-size:11px;color:var(--muted);font-weight:600;border-top:none;}
+  .wt-tbl td.l,.wt-tbl th.l{text-align:left;}
+  .wt-tbl tr.base td{background:rgba(59,201,141,.10);}
+  .wt-tbl tr.thin td{color:var(--muted);}
+  .wt-num{font-weight:800;font-size:15px;}
+  .wt-base{font-size:11px;font-weight:700;color:var(--good);
+    background:rgba(59,201,141,.15);border-radius:6px;padding:1px 6px;margin-left:5px;}
+  .wt-warn{margin-top:10px;font-size:12px;color:var(--warn);line-height:1.6;word-break:keep-all;}
+  .wt-copy{margin-top:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;
+    background:var(--panel-2);color:var(--tx);border:1px solid var(--border);
+    border-radius:8px;padding:6px 12px;}
+  .wt-copy:hover{border-color:var(--accent);}
+  .wt-wrap{overflow-x:auto;}
   .says{background:var(--panel);border:1px solid var(--border);border-radius:12px;
     padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.9;}
   .says div+div{margin-top:4px;}
@@ -316,6 +334,7 @@
         <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
         <div class="mdrop">
           <a href="alerts.html">알림</a>
+          <a href="audit.html">검수</a>
           <a href="live.html">예산 · 목표</a>
           <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
           <a href="memo.html">메모</a>
@@ -573,6 +592,102 @@ function renderReco(ageRows){
   </div>`;
 }
 
+/* ── 연령대 권장 입찰 가중치 ──────────────────────────────────────────────
+   네이버 광고에 그대로 넣을 숫자를 뽑아준다.
+
+   생각의 뼈대: 입찰가는 "클릭 한 번이 얼마를 벌어주느냐"에 비례해야 한다.
+     B2C(매출로 판단)  → 클릭 한 번당 매출 = 매출 ÷ 클릭
+     DB형(전환으로 판단) → 클릭 한 번당 전환 = 전환 ÷ 클릭
+   제일 잘 버는 연령대를 100으로 놓고, 나머지를 그 비율만큼 낮춘다.
+   (제일 잘 버는 연령대에 기본 입찰가를 맞춰두고 쓰는 방식)
+
+   표본이 모자란 연령대는 숫자를 만들지 않고 100(=손 안 댐)으로 둔다.
+   섣불리 20 같은 숫자를 넣으면 그 연령대가 아예 안 나오게 된다. */
+const WT_FLOOR = 30;   // 이보다 낮게는 권하지 않는다 — 광고가 아예 안 나올 수 있어서
+
+function valuePerClick(r){
+  if(!r || !r.clk) return null;
+  return isDB ? (r.conv || 0) / r.clk : (r.rev || 0) / r.clk;
+}
+
+function weightRows(ageRows){
+  const rows = ageRows.map(r=>({
+    code: r.code, imp:r.imp, clk:r.clk, cost:r.cost, conv:r.conv, rev:r.rev,
+    ok: enough(r), v: valuePerClick(r),
+  }));
+  const usable = rows.filter(r=>r.ok && r.v > 0);
+  if(!usable.length) return { rows, base:null };
+  const base = usable.slice().sort((a,b)=>b.v-a.v)[0];
+  rows.forEach(r=>{
+    if(!r.ok || !(r.v > 0)){ r.w = null; return; }
+    const raw = r.v / base.v * 100;
+    r.raw = raw;
+    r.w = Math.max(WT_FLOOR, Math.min(500, Math.round(raw / 5) * 5));
+    r.floored = raw < WT_FLOOR;
+  });
+  return { rows, base };
+}
+
+function renderWeights(ageRows){
+  const { rows, base } = weightRows(ageRows);
+  const totCost = rows.reduce((a,r)=>a+(r.cost||0), 0);
+  if(!base){
+    return `<div class="card"><h3>권장 입찰 가중치</h3>
+      <div class="sub">표본이 충분한 연령대가 없어서 아직 숫자를 뽑을 수 없어요.
+        기간을 넓히거나 자료가 더 쌓이면 나옵니다.</div></div>`;
+  }
+  const vFmt = v => v===null ? '—'
+    : (isDB ? (Math.round(v*10000)/100) + '%' : won(v) + '원');
+  const vHead = isDB ? '클릭당 전환율' : '클릭당 매출';
+
+  const body = rows.map(r=>{
+    const isBase = r.code === base.code;
+    const cls = isBase ? 'base' : (r.ok ? '' : 'thin');
+    const wTxt = r.w == null
+      ? `<span style="color:var(--muted);">100</span>`
+      : `<span class="wt-num">${r.w}</span>`;
+    const note = r.w == null ? '표본 부족 — 손대지 마세요'
+      : (isBase ? '' : (r.floored ? `계산값 ${Math.round(r.raw)} — 너무 낮아 ${WT_FLOOR}으로 올림` : ''));
+    return `<tr class="${cls}">
+      <td class="l">${ageLabel(r.code)}${isBase?'<span class="wt-base">기준</span>':''}</td>
+      <td>${num(r.clk)}</td>
+      <td>${isDB ? num(r.conv)+'건' : won(r.rev)+'원'}</td>
+      <td>${vFmt(r.v)}</td>
+      <td>${wTxt}</td>
+      <td class="l" style="color:var(--muted);font-size:11px;">${note}</td>
+    </tr>`;
+  }).join('');
+
+  // '알 수 없음'은 비로그인 이용자가 들어간다 — 여기 비중이 크면 연령 설정 효과가 줄어든다
+  const unk = rows.find(r=>r.code === 'AGXXXX');
+  const unkShare = (unk && totCost>0) ? Math.round(unk.cost/totCost*100) : 0;
+  const warn = unkShare >= 25
+    ? `<div class="wt-warn">⚠ <b>'알 수 없음'이 비용의 ${unkShare}</b>를 쓰고 있습니다.
+         여기는 <b>로그인하지 않고 검색한 사람</b>이 들어가는 칸이라 연령대 설정이 안 먹습니다.
+         연령 가중치만으로 순위를 맞추려 하면 이만큼은 계속 어긋납니다 —
+         '알 수 없음' 쪽도 따로 값을 잡아야 합니다.</div>`
+    : '';
+
+  const copyTxt = rows.filter(r=>r.w != null)
+    .map(r=>ageLabel(r.code) + '\t' + r.w).join('\n');
+
+  return `<div class="card"><h3>권장 입찰 가중치</h3>
+    <div class="sub">
+      ${isDB ? '클릭 한 번당 전환이' : '클릭 한 번당 매출이'} 가장 좋은
+      <b>${ageLabel(base.code)}</b>를 <b>기준(100)</b>으로 놓고, 나머지를 그만큼 낮춘 값입니다.
+      기준 연령대에 기본 입찰가를 맞춰두고 이 숫자를 넣으세요.
+      표본이 모자란 연령대는 <b>손대지 않는 게 맞습니다</b>(100).
+    </div>
+    <div class="wt-wrap"><table class="wt-tbl">
+      <tr><th class="l">연령대</th><th>클릭</th><th>${isDB?'전환':'매출'}</th>
+        <th>${vHead}</th><th>권장 가중치</th><th class="l">메모</th></tr>
+      ${body}
+    </table></div>
+    ${warn}
+    <button class="wt-copy" id="wtCopy" data-t="${esc2(copyTxt)}">가중치 복사하기</button>
+  </div>`;
+}
+
 function renderSays(ageRows, genRows){
   const out=[];
   const ok = ageRows.filter(enough);
@@ -801,6 +916,22 @@ function renderGrpCard(){
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
 function wireGroupUI(){
+  // 가중치 복사 — 네이버 화면이나 카톡에 그대로 붙일 수 있게 '연령대<탭>숫자' 로 넘긴다
+  const cp = document.getElementById('wtCopy');
+  if(cp) cp.onclick = ()=>{
+    const t = cp.dataset.t || '';
+    const done = ()=>{ cp.textContent = '복사했어요'; setTimeout(()=>{ cp.textContent='가중치 복사하기'; }, 1500); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done, ()=>{ /* 막혀 있으면 아래 방법으로 */ fallback(); });
+    } else fallback();
+    function fallback(){
+      const ta = document.createElement('textarea');
+      ta.value = t; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+  };
   const csel = document.getElementById('grpCampSel');
   if(csel) csel.onchange = ()=>{ grpCamp = csel.value; agPick = 'ALL'; render(); };
   const sel = document.getElementById('grpSelect');
@@ -821,7 +952,7 @@ function render(){
   const gpTag = gpWhat ? (gpWhat + ' · ') : '';
   const ageRows = rowsOf(GP.age, AGE_ORDER);
   const genRows = rowsOf(GP.gender, ['GNM','GNF','GNU']);
-  el.innerHTML = renderGrpCard() + renderReco(ageRows) + renderSays(ageRows, genRows)
+  el.innerHTML = renderGrpCard() + renderReco(ageRows) + renderWeights(ageRows) + renderSays(ageRows, genRows)
     + `<div class="card"><h3>${esc2(gpTag)}연령대별 성과</h3>
         <div class="sub">나이 순 · 지표를 여러 개 골라 나란히 볼 수 있어요</div>
         <div class="metricrow" id="mrow">${METRICS.map(m=>
