@@ -9,7 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -17,96 +16,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 <script>
-</script><script>
-/* 표에서 숫자 칸만 오른쪽 정렬 — 페이지마다 표 구조가 달라서 CSS로는 못 잡고, 그린 뒤에 내용을 보고 판단한다.
-   (숫자가 왼쪽에 붙어 있으면 칸이 넓을 때 값들이 멀리 떨어져 보여서 읽기 힘듦) */
-
-// 상단 메뉴 '할 일' 옆 숫자 배지 — 알림 개수가 정해지면 표시
-function setNavTodoBadge(n){
-  const el=document.getElementById('navTodoBadge'); if(!el) return;
-  if(n&&n>0){ el.textContent=n; el.style.display='inline-flex'; } else { el.style.display='none'; }
-}
-/* 네비 '할 일' 숫자 배지 — setNavTodoBadge 는 정의만 돼 있고 어느 페이지에서도 부르지 않아
-   배지가 영영 안 보였다. 로그인된 뒤 config/todos 를 한 번 읽어 '아직 안 끝난' 개수를 띄운다.
-   auth/db 가 이 줄보다 늦게 만들어지는 페이지가 있어서 준비될 때까지만 잠깐 기다린다. */
-async function loadNavTodoBadge(){
-  try{
-    if(typeof db === 'undefined' || !db) return;
-    const doc = await db.collection('config').doc('todos').get();
-    const items = (doc.exists && doc.data().items) || [];
-    setNavTodoBadge(items.filter(t => t && t.status !== 'done').length);
-  }catch(e){ /* 배지는 보조 정보 — 실패해도 화면엔 영향 없음 */ }
-}
-(function(){
-  let tries = 0;
-  const timer = setInterval(()=>{
-    if(typeof auth !== 'undefined' && auth && auth.onAuthStateChanged){
-      clearInterval(timer);
-      auth.onAuthStateChanged(u=>{ if(u) loadNavTodoBadge(); });
-    } else if(++tries > 60) clearInterval(timer);
-  }, 200);
-})();
-
-function dcAlignTables(root){
-  const scope = root || document;
-  scope.querySelectorAll('table').forEach(tb=>{
-    const body = tb.tBodies && tb.tBodies[0];
-    if(!body || !body.rows.length) return;
-    const head = tb.tHead && tb.tHead.rows[0];
-    const cols = Math.max(...[...body.rows].map(r=>r.cells.length));
-    for(let c=0;c<cols;c++){
-      let num=0, tot=0;
-      for(const row of body.rows){
-        const cell = row.cells[c];
-        if(!cell || cell.colSpan>1) continue;
-        const txt = (cell.textContent||'').trim();
-        if(!txt || txt==='-' || txt==='—') continue;
-        tot++;
-        if(/^[₩$]?[\d,.]+\s*(원|건|개|위|%|만|억)?/.test(txt) && /\d/.test(txt)) num++;
-      }
-      if(tot>=2 && num/tot >= 0.7){
-        for(const row of body.rows){ const cell=row.cells[c]; if(cell && cell.colSpan===1 && !cell.style.textAlign) cell.style.textAlign='right'; }
-        if(head && head.cells[c] && !head.cells[c].style.textAlign) head.cells[c].style.textAlign='right';
-      }
-    }
-  });
-}
-
-/* 줄이 많은 표는 화면을 끝없이 늘려서, 일정 높이로 잘라 안쪽에서만 스크롤되게 한다.
-   (머리글은 스크롤해도 위에 붙어 있어서 어느 칸인지 계속 보임) */
-function dcCompactTables(root){
-  const scope = root || document;
-  scope.querySelectorAll('table').forEach(tb=>{
-    if(tb.dataset.dcCompact) return;
-    const body = tb.tBodies && tb.tBodies[0];
-    if(!body) return;
-    if(tb.closest('.hr-scroll, .dc-scroll')) { tb.dataset.dcCompact='1'; return; }
-    const parent = tb.parentElement;
-    if(!parent) return;
-    // 줄이 많아서 세로로 길거나(16줄↑), 칸이 많아서 가로로 넓은(부모보다 큰) 표를 상자에 넣는다.
-    // 가로로 넓은 표를 그냥 두면 카드 전체가 늘어나서 화면 오른쪽이 잘림.
-    const tooTall = body.rows.length >= 16;
-    const tooWide = tb.scrollWidth > parent.clientWidth + 4;
-    if(!tooTall && !tooWide) return;
-    const wrap = document.createElement('div');
-    wrap.className = tooTall ? 'dc-scroll' : 'dc-scroll dc-scroll-x';
-    parent.insertBefore(wrap, tb);
-    wrap.appendChild(tb);
-    tb.dataset.dcCompact = '1';
-  });
-}
-// 화면이 다시 그려질 때마다 자동으로 정렬을 다시 적용 (페이지마다 렌더 함수가 달라서 한 곳에서 처리)
-(function(){
-  let t = null;
-  const run = ()=>{ t=null; try{ dcCompactTables(document); dcAlignTables(document); }catch(e){} };
-  const start = ()=>{
-    try{ new MutationObserver(()=>{ if(t) return; t=setTimeout(run,60); }).observe(document.body,{childList:true,subtree:true}); }catch(e){}
-    run();
-  };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
-})();
-</script><script>
   // ▼▼▼ Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성 후,
   // 프로젝트 설정 > 일반 > "내 앱" 웹앱 추가 시 나오는 값을 그대로 붙여넣으세요.
   const FIREBASE_CONFIG = {
@@ -125,7 +34,7 @@ function dcCompactTables(root){
 <style>
   :root{
     --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
-    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --accent-solid:#6354d6; --radius:14px;
+    --text:#f5f6fa; --muted:#a8abc4; --up:#4ade9a; --down:#ff6b85; --accent:#8b7cff; --radius:14px;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);color:var(--text);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;}
@@ -139,7 +48,7 @@ function dcCompactTables(root){
   .manage-group{border:1px solid var(--border);border-radius:16px;margin-bottom:16px;overflow:hidden;background:rgba(139,124,255,.03);}
   .manage-group>summary{cursor:pointer;padding:16px 20px;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;}
   .manage-group>summary::-webkit-details-marker{display:none;}
-  .manage-group>summary::before{content:'▸';color:var(--accent-text,var(--accent));font-size:14px;transition:transform .15s;flex-shrink:0;}
+  .manage-group>summary::before{content:'▸';color:var(--accent);font-size:14px;transition:transform .15s;flex-shrink:0;}
   .manage-group[open]>summary::before{transform:rotate(90deg);}
   .manage-group>summary .manage-group-count{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px;}
   .manage-group-body{padding:0 16px 16px;display:grid;grid-template-columns:1fr;gap:14px;}
@@ -155,7 +64,7 @@ function dcCompactTables(root){
   .field{margin-bottom:13px;}
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Pretendard',sans-serif;}
-  .section-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
+  .section-title{font-size:12px;color:var(--accent);font-weight:700;margin:16px 0 9px;letter-spacing:.01em;}
   .file-drop{border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;background:var(--panel-2);margin-bottom:10px;transition:border-color .15s,background .15s;}
   .file-drop.dragover{border-color:var(--accent);background:rgba(139,124,255,.1);}
   .file-drop label{display:block;font-size:14px;color:var(--text);font-weight:600;margin-bottom:7px;}
@@ -167,7 +76,7 @@ function dcCompactTables(root){
   .preview-box .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);}
   .preview-box .row b{color:var(--text);}
   .col-ref{background:rgba(139,124,255,.08);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin:-4px 0 10px;}
-  .col-ref-title{font-size:12px;color:var(--accent-text,var(--accent));font-weight:700;margin-bottom:3px;}
+  .col-ref-title{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:3px;}
   .col-ref-list{font-family:'Pretendard',monospace;font-size:12px;color:var(--muted);line-height:1.6;word-break:break-all;}
   .col-ref-list b{color:var(--text);}
   .biz-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
@@ -185,7 +94,7 @@ function dcCompactTables(root){
   }
   .btn{border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:7px;}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
-  .btn-accent{background:linear-gradient(135deg,var(--accent-solid,#6354d6),#6f5fdd);color:#fff;}
+  .btn-accent{background:linear-gradient(135deg,var(--accent),#a89aff);color:#fff;}
   .status-msg{font-size:12px;margin-top:11px;padding:10px 12px;border-radius:8px;background:var(--panel-2);color:var(--muted);display:none;line-height:1.5;}
   .status-msg.show{display:block;}
   .status-msg.ok{color:var(--up);}
@@ -209,7 +118,7 @@ function dcCompactTables(root){
   .totals{display:flex;gap:32px;text-align:right;}
   .totals .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500;}
   .totals .val{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:3px;letter-spacing:-.01em;}
-  .totals .val.accent{color:var(--accent-text,var(--accent));}
+  .totals .val.accent{color:var(--accent);}
 
   .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
   .kpi{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between;gap:14px;}
@@ -237,7 +146,7 @@ function dcCompactTables(root){
   .improve-side .m{font-size:12px;color:var(--muted);font-weight:500;}
   .improve-side .v{font-family:'Pretendard',sans-serif;font-size:28px;font-weight:800;margin-top:4px;}
   .improve-side.right{text-align:right;}
-  .improve-side.right .v{color:var(--accent-text,var(--accent));}
+  .improve-side.right .v{color:var(--accent);}
   .arrow{color:var(--muted);font-size:20px;}
   .divider{height:1px;background:var(--border);margin:14px 0;}
   .sub-metric{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);}
@@ -279,194 +188,6 @@ function dcCompactTables(root){
     .chart-box{height:240px!important;}
     table{font-size:12px;}
   }
-
-/* 표 숫자 칸은 줄바꿈 금지 — '92,539,282' 뒤에 '원'만 다음 줄로 떨어지는 문제 방지.
-   첫 칸(키워드·상품명 등)만 두 줄 허용하고, 표가 넓어지면 카드 안에서 가로로 스크롤된다. */
-table td, table th { white-space: nowrap; }
-table td.kw-name, table td:first-child { white-space: normal; word-break: keep-all; }
-table td.kw-name { min-width: 150px; }
-
-/* ── 필터 접기: 오른쪽 필터 패널(250px)을 숨겨 표·차트를 넓게 본다 ──
-   접힌 상태는 브라우저에 기억돼서 페이지를 옮겨도 유지된다. */
-body.panel-off .main-layout{grid-template-columns:1fr;}
-body.panel-off .filter-panel{display:none;}
-#panelToggleBtn{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:60;
-  background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
-  border-radius:10px 0 0 10px;padding:14px 7px;font-size:12px;cursor:pointer;line-height:1.25;
-  writing-mode:vertical-rl;letter-spacing:.06em;box-shadow:-2px 0 10px rgba(0,0,0,.28);}
-#panelToggleBtn:hover{color:var(--text);border-color:var(--accent);}
-@media (max-width:1100px){ #panelToggleBtn{display:none;} }
-</style>
-
-<style id="km-redesign-skin">
-/* ===== 신규 디자인 적용 — 데이터·기능은 그대로, 보이는 것만 바꿈 ===== */
-:root{
-  --bg:#0e0f16;
-  --panel:#141622;
-  --panel-2:#171a27;
-  --border:#2b3044;
-  --text:#e8e9f2;
-  --muted:#8f94ab;
-  --radius:11px;
-}
-body{
-  background:#0e0f16 !important;
-  letter-spacing:-.006em;
-}
-
-/* 큰 카드 */
-.card{ border-radius:12px !important; padding:20px 22px !important; }
-.panel{ border-radius:11px !important; padding:16px 18px !important; }
-.panel-title{
-  font-size:15px !important; font-weight:600 !important;
-  letter-spacing:-.015em !important; margin-bottom:12px !important;
-}
-
-/* 목표 대비 KPI — 라벨은 조용하게, 숫자는 크게 */
-.kpi-row{ gap:10px !important; margin-bottom:20px !important; }
-.kpi{ border-radius:11px !important; padding:15px 17px !important; }
-.kpi-label{
-  text-transform:none !important; letter-spacing:0 !important;
-  font-weight:400 !important; font-size:12px !important;
-  color:var(--muted) !important; margin-bottom:6px !important;
-}
-.kpi-value{
-  font-size:25px !important; font-weight:600 !important;
-  letter-spacing:-.022em !important; font-variant-numeric:tabular-nums;
-}
-.kpi-note{
-  font-size:12.5px !important; font-weight:600 !important;
-  padding:4px 9px !important; border-radius:6px !important;
-}
-
-/* 배지 · 버튼 · 탭 */
-.badge{ border-radius:5px !important; font-size:11.5px !important; font-weight:600 !important; padding:2.5px 8px !important; }
-.btn{ border-radius:8px !important; font-weight:600 !important; font-size:13px !important; padding:11px !important; }
-.tabs{ gap:6px !important; }
-.tab{ border-radius:7px !important; padding:7px 12px !important; font-size:13px !important; }
-.export-btn{ border-radius:8px !important; font-size:12.5px !important; }
-
-/* 표 — 줄 간격 넓히고 숫자 자릿수 맞춤 */
-table{ font-variant-numeric:tabular-nums; }
-table th{ font-size:12px !important; font-weight:500 !important; color:var(--muted) !important; letter-spacing:0 !important; text-transform:none !important; }
-table td{ font-size:13.5px !important; }
-table td, table th{ padding-top:10px !important; padding-bottom:10px !important; }
-
-/* 왼쪽 필터 */
-.filter-panel{ border-radius:11px !important; }
-.filter-group-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
-.filter-item{ font-size:13px !important; }
-.section-title{ font-size:11.5px !important; letter-spacing:.05em !important; }
-
-/* 업체 선택 */
-.client-switcher-btn{ border-radius:8px !important; font-size:13.5px !important; }
-.client-switcher-dropdown{ border-radius:11px !important; }
-.client-switcher-item{ font-size:13.5px !important; }
-
-/* 작은 글씨들 살짝 키움 */
-.lbl, .sub, .kpi-note, .chg{ font-size:12.5px !important; }
-
-/* 목표 대비 KPI — 4칸 + 진행 막대 */
-.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px}
-.kpi-cell{background:var(--panel-2);padding:15px 17px}
-.kpi-cell .k-lab{font-size:12px;color:var(--muted)}
-.kpi-cell .k-lab i{font-style:normal;color:#6d7288}
-.kpi-cell .k-val{font-size:25px;font-weight:600;letter-spacing:-.022em;margin-top:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.kpi-cell .k-bar{height:5px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:9px;display:flex}
-.kpi-cell .k-bar b{display:block;height:100%;border-radius:3px}
-.kpi-cell .k-foot{font-size:12px;color:var(--muted);margin-top:7px;min-height:17px}
-.kpi-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:22px}
-.kpi-mini > div{background:var(--panel-2);padding:11px 15px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-.kpi-mini .m-lab{font-size:12px;color:var(--muted)}
-.kpi-mini .m-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
-.kpi-mini .kpi-note{font-size:11.5px!important;padding:2px 7px!important}
-@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
-
-/* ---- 상단 필터 바 ---- */
-.filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px}
-.filterbar .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;border-right:1px solid var(--border)}
-.filterbar .fb-g:last-child{border-right:0}
-.filterbar .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600}
-.filterbar select{background:transparent!important;border:1px solid var(--border)!important;border-radius:7px!important;padding:4px 8px!important;font-size:12.5px!important}
-.filterbar button{border-radius:7px!important}
-.filterbar .day-preset-pill-idx{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
-.filterbar #dayRangeCustomToggle{border-radius:7px!important;padding:5px 11px!important;font-size:12.5px!important}
-header.rep{align-items:center!important;padding-bottom:14px!important;margin-bottom:14px!important}
-header.rep .totals{display:none}
-.idn-name{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em!important}
-.period{font-size:12.5px!important;color:var(--muted)!important;margin-top:3px!important}
-@media(max-width:900px){.filterbar .fb-g{border-right:0}}
-
-/* ---- 성과 인사이트 2단 ---- */
-.ins-top{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px}
-.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.ins-col{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px 14px}
-.ins-col-good{border-left:3px solid var(--up)}
-.ins-col-warn{border-left:3px solid var(--down)}
-.ins-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:9px}
-.ins-h b{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
-.ins-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.ins-li{position:relative;padding-left:13px;font-size:12.5px;line-height:1.65;color:var(--text)}
-.ins-li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%}
-.ins-good::before{background:var(--up)} .ins-warn::before{background:var(--down)} .ins-info::before{background:var(--muted)}
-.ins-neutral{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
-.ins-neutral .ins-li{color:var(--muted)}
-#insightsPanel{border-left:0!important}
-@media(max-width:900px){.ins-grid{grid-template-columns:1fr}}
-
-.dc-two{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
-@media(max-width:1000px){.dc-two{grid-template-columns:1fr}}
-
-/* ---- 큰 숫자 줄 ----
-   칸 수가 6개(DB)/7개(B2C)로 달라지고 화면 폭에 따라 줄바꿈되는데, grid로 하면 마지막 줄에 빈칸이 남는다.
-   flex + flex-grow 로 두면 남은 칸들이 늘어나 폭을 꽉 채운다. */
-.dc-kpi{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
-.dc-kpi > div{flex:1 1 142px;min-width:0}
-
-.dc-kpi2{display:flex;flex-direction:column;gap:1px;background:#262a3b;border:1px solid #262a3b;border-radius:9px;overflow:hidden}
-.dc-k-top,.dc-k-bot{display:flex;flex-wrap:wrap;gap:1px;background:#262a3b}
-.dc-k-top > div,.dc-k-bot > div{flex:1 1 160px;min-width:0}
-
-/* ---- 표: 목업과 같은 모양으로 통일 ---- */
-table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
-table thead tr{background:#1d2030}
-table th{font-size:12px!important;font-weight:500!important;letter-spacing:.04em!important;
-  color:#8f94ab!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important;
-  text-transform:none!important;white-space:nowrap}
-table td{font-size:13.5px!important;padding:9px 14px!important;border-bottom:1px solid #262a3b!important}
-table tbody tr:hover td{background:#1b1e2c}
-.panel table,.card table{border-radius:0}
-
-/* 줄 많은 표 — 높이를 잘라 안쪽 스크롤, 머리글 고정 */
-.dc-scroll{max-height:440px;overflow-y:auto;overflow-x:auto;border:1px solid #262a3b;border-radius:9px}
-.dc-scroll table{margin:0}
-.dc-scroll thead th{position:sticky;top:0;z-index:1;background:#1d2030}
-.dc-scroll td{padding-top:5px!important;padding-bottom:5px!important;font-size:12.5px!important}
-.dc-scroll th{padding-top:8px!important;padding-bottom:8px!important}
-.dc-scroll tbody tr:last-child td{border-bottom:0!important}
-.dc-scroll::-webkit-scrollbar{width:9px;height:9px}
-.dc-scroll::-webkit-scrollbar-thumb{background:#3f4468;border-radius:5px}
-.dc-scroll::-webkit-scrollbar-track{background:transparent}
-
-/* 카드·패널이 안쪽 표 때문에 늘어나지 않게 (안 그러면 화면 오른쪽이 잘림) */
-.wrap,.main-layout,.card,.panel,.chart-box{min-width:0}
-.card,.panel{overflow-x:hidden}
-.dc-scroll{overflow-x:auto}
-.dc-scroll-x{max-height:none;overflow-y:visible}
-.hr-scroll{overflow-x:auto}
-
-/* ---- 상단 메뉴바 ---- */
-.topbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;row-gap:6px;
-  margin:0 0 14px;padding:7px 12px;background:#12131c;border:1px solid #262a3b;border-radius:11px}
-.nv-logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;
-  letter-spacing:-.01em;color:#e8e9f2;margin-right:14px;white-space:nowrap}
-.nv-mark{width:20px;height:20px;border-radius:6px;background:#8b7cff;display:inline-block;flex-shrink:0}
-.nv{padding:5px 11px;border-radius:7px;font-size:12.5px;color:#a9adc2;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s}
-.nv:hover{background:#1b1e2c;color:#e8e9f2}
-.nv-on{background:#232640;color:#e8e9f2;font-weight:500}
-.nv-b{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;
-  margin-left:5px;border-radius:8px;background:#f5a524;color:#12131c;font-size:10px;font-weight:700;vertical-align:1px}
-.topbar .client-switcher{margin-left:auto}
 </style>
 </head>
 <body>
@@ -485,103 +206,18 @@ table tbody tr:hover td{background:#1b1e2c}
 
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1200px;margin:0 auto;">
   <div style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:-8px;flex-wrap:wrap;row-gap:6px;">
-    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><nav class="kmenu">
-      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
-      <div class="mitem" data-menu>
-        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
-        <div class="mdrop">
-          <a href="overview.html">전체 업체</a>
-          <a href="campaigns.html">캠페인</a>
-          <div class="msep"></div>
-          <a href="keywords.html">파워링크 키워드</a>
-          <a href="shopping.html">쇼핑검색 상품</a>
-          <a href="hourly.html">시간대</a>
-          <a href="age.html">연령 · 성별</a>
-          <a href="media.html">매체 · 기기</a>
-        </div>
-      </div>
-      <div class="mitem" data-menu>
-        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
-        <div class="mdrop">
-          <a href="alerts.html">알림</a>
-          <a href="audit.html">검수</a>
-          <a href="status.html">진행상황</a>
-          <a href="live.html">예산 · 목표</a>
-          <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
-          <a href="memo.html">메모</a>
-        </div>
-      </div>
-      <div class="mitem" data-menu>
-        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
-        <div class="mdrop">
-          <a href="input.html">데이터 입력</a>
-          <a href="changelog.html">개발 이력</a>
-        </div>
-      </div>
-    </nav><style id="km-menu-style">
-  /* ── 상단 메뉴 (대메뉴 + 소메뉴) — 전 페이지 공통 ── */
-  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
-  .kmenu .mitem{position:relative;}
-  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
-  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
-    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
-    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
-    transition:background .12s ease,color .12s ease;}
-  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
-  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
-  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
-  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
-  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
-  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
-    background:var(--panel,#171829);border:1px solid var(--border,#33354a);border-radius:12px;
-    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
-  /* 버튼과 메뉴 사이 빈틈을 안 보이는 판으로 덮음 — 없으면 내려가다 바로 닫힘 */
-  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
-  .kmenu .mitem.on .mdrop{display:block;}
-  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
-    text-decoration:none;font-size:13px;white-space:nowrap;
-    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
-  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
-    box-shadow:inset 3px 0 0 var(--accent,#8b7cff);}
-  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
-  .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
-  @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
-  /* 배치 — 메뉴는 로고와 오른쪽 묶음 사이의 가운데.
-     바의 자로 잰 정중앙에 놓으면 오른쪽 묶음이 넓어서 눈에는 오른쪽으로 치우쳐 보임.
-     양옆 빈 공간을 똑같이 나누는 쪽이 실제로 가운데로 보임. */
-  .topbar .kmenu{margin-left:auto;margin-right:auto;}
-  .topbar .client-switcher{margin-left:0;}
-  .topbar #logoutBtn{margin-left:0;}
-  /* 이 블록이 topbar 안에 들어가 있어 flex 항목으로 잡히는 걸 막음 */
-  .topbar > style, .topbar > script{display:none;}
-</style><script>
-(function initKmMenu(){
-  const items=[...document.querySelectorAll('.kmenu .mitem[data-menu]')];
-  const closeAll=except=>items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
-  items.forEach(it=>{
-    const btn=it.querySelector('.mbtn');
-    let closeTimer=null;
-    it.addEventListener('mouseenter',()=>{ clearTimeout(closeTimer); closeAll(it); it.classList.add('on'); });
-    it.addEventListener('mouseleave',()=>{ clearTimeout(closeTimer); closeTimer=setTimeout(()=>it.classList.remove('on'),260); });
-    btn.addEventListener('click',e=>{ e.preventDefault(); const open=it.classList.contains('on'); closeAll(it); it.classList.toggle('on',!open); });
-  });
-  document.addEventListener('click',e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAll(null); });
-  const here=(location.pathname.split('/').pop()||'index.html').toLowerCase();
-  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
-    if((a.getAttribute('href')||'').toLowerCase()!==here) return;
-    a.classList.add('cur');
-    const p=a.closest('.mitem'), pb=p&&p.querySelector('button.mbtn');
-    if(pb) pb.classList.add('cur');
-  });
-})();
-</script><span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
+    <a href="index.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📊 대시보드 보기</a>
+    <a href="campaigns.html" style="font-size:12px;color:var(--accent);text-decoration:none;">📣 캠페인 비교 전용 보기</a>
+    <a href="keywords.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🔑 키워드 전용 보기</a>
+    <a href="hourly.html" style="font-size:12px;color:var(--accent);text-decoration:none;">⏰ 시간대별 전용 보기</a>
+    <a href="ab-test.html" style="font-size:12px;color:var(--accent);text-decoration:none;">🧪 A/B 테스트</a>
+    <span id="authUserEmail" style="font-size:12px;color:var(--muted);"></span>
     <button class="export-btn" id="logoutBtn">로그아웃</button>
   </div>
 
 
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-    <button class="input-tab-btn" data-tab="main" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--accent-solid);color:#fff;cursor:pointer;">📋 데이터 입력</button>
+    <button class="input-tab-btn" data-tab="main" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--accent);color:#fff;cursor:pointer;">📋 데이터 입력</button>
     <button class="input-tab-btn" data-tab="extra" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">➕ 추가 데이터</button>
     <button class="input-tab-btn" data-tab="manage" style="font-size:14px;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);cursor:pointer;">🗑️ 관리</button>
   </div>
@@ -602,9 +238,9 @@ table tbody tr:hover td{background:#1b1e2c}
     <div class="field"><label>기간 라벨 (데이터 보고서 업로드하면 자동 채워짐)</label><input id="in-mlabel" placeholder="2026.07"></div>
     <div class="field">
       <label>업종 유형 (신규 생성 시)</label>
-      <div style="display:flex;gap:14px;font-size:12px;color:var(--text);padding:4px 2px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:5px;white-space:nowrap;"><input type="radio" name="bizType" id="biz-b2c" value="B2C" checked> B2C (매출·ROAS)</label>
-        <label style="display:flex;align-items:center;gap:5px;white-space:nowrap;"><input type="radio" name="bizType" id="biz-db" value="DB"> DB (상담·전환)</label>
+      <div style="display:flex;gap:14px;font-size:12px;color:var(--text);padding:4px 2px;">
+        <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="bizType" id="biz-b2c" value="B2C" checked> B2C (매출·ROAS)</label>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="bizType" id="biz-db" value="DB"> DB (상담·전환)</label>
       </div>
     </div>
 
@@ -693,7 +329,7 @@ table tbody tr:hover td{background:#1b1e2c}
     </div>
     <div class="field" id="saveModeField" style="margin-top:4px;">
       <label>같은 기간 데이터가 이미 있을 때</label>
-      <div style="display:flex;gap:14px;font-size:12px;color:var(--text);padding:4px 2px;flex-wrap:wrap;">
+      <div style="display:flex;gap:14px;font-size:12px;color:var(--text);padding:4px 2px;">
         <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="saveMode" id="savemode-replace" value="replace" checked> 덮어쓰기 (파일을 잘못 올려서 다시 정정할 때)</label>
         <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="saveMode" id="savemode-merge" value="merge"> 합산 (계정을 나눠서 순차 업로드할 때)</label>
       </div>
@@ -799,7 +435,7 @@ table tbody tr:hover td{background:#1b1e2c}
             <option value="">불러오는 중...</option>
           </select>
         </div>
-        <div class="field"><label>최근 몇 개월은 상세 데이터를 그대로 유지할까요?</label><input id="compact-keep-input" type="number" value="24" min="1"><div style="font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.6;">기본 24개월. 지운 키워드·검색어·시간대 데이터는 네이버가 약 1년치만 주기 때문에 <b style="color:var(--down)">다시 못 가져옵니다.</b> 화면이 느려지거나 업체가 많이 늘었을 때만 쓰세요.</div></div>
+        <div class="field"><label>최근 몇 개월은 상세 데이터를 그대로 유지할까요?</label><input id="compact-keep-input" type="number" value="6" min="1"></div>
         <button class="btn btn-ghost" id="compactBtn" style="border-color:var(--down);color:var(--down);">압축 실행</button>
         <div class="status-msg" id="compactStatusMsg"></div>
       </div>
@@ -878,75 +514,6 @@ table tbody tr:hover td{background:#1b1e2c}
         </div>
         <button class="btn" id="saveGoalBtn">목표 저장</button>
         <div class="status-msg" id="goalStatusMsg"></div>
-      </div>
-      <div class="input-panel" id="brandContractPanel" style="border-color:var(--accent);">
-        <h2>🅱️ 브랜드검색광고 계약 등록</h2>
-        <div class="sub">
-          브랜드검색광고는 <b>정액제</b>라서 네이버 일별 리포트에 비용이 <b>0원</b>으로 들어와요.
-          그래서 계약 기간과 계약 금액을 여기에 적어두면, 대시보드가 그 금액을 계약 기간의 각 달에
-          <b>일수 비율대로 나눠서</b> 비용으로 잡아 CPA·ROAS를 제대로 계산해요.
-          (네이버 원본 데이터는 그대로 두고, 화면에 보여줄 때만 이 금액을 씁니다.)
-        </div>
-        <div class="field">
-          <label>업체 선택</label>
-          <select id="bc-client-select" style="width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
-            <option value="">불러오는 중...</option>
-          </select>
-        </div>
-        <div id="bc-form" style="display:none;">
-          <div class="field">
-            <label>브랜드검색 캠페인</label>
-            <select id="bc-campaign-select" style="width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
-            </select>
-            <div class="sub" style="margin-top:4px;">이 업체에서 브랜드검색으로 잡힌 캠페인만 나와요.</div>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <div class="field" style="flex:1;min-width:130px;">
-              <label>계약 시작</label>
-              <input id="bc-start-input" type="month">
-            </div>
-            <div class="field" style="flex:1;min-width:130px;">
-              <label>계약 종료</label>
-              <input id="bc-end-input" type="month">
-            </div>
-          </div>
-          <div class="field">
-            <label>계약 금액(원, VAT 제외 기준으로 통일 권장)</label>
-            <input id="bc-amount-input" type="number" placeholder="예: 3000000">
-            <div class="sub" style="margin-top:4px;" id="bc-split-preview"></div>
-          </div>
-          <button class="btn" id="saveBrandContractBtn">계약 저장</button>
-          <div style="margin-top:14px;">
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px;">등록된 계약</div>
-            <div id="bc-list">불러오는 중...</div>
-          </div>
-        </div>
-        <div class="status-msg" id="bcStatusMsg"></div>
-      </div>
-      <div class="input-panel" id="auditPanel" style="border-color:var(--accent);">
-        <h2>📋 검수표 내려받기</h2>
-        <div class="sub">
-          네이버 화면에 나오는 숫자와 우리 대시보드 숫자가 같은지 확인하는 엑셀을 만들어요.<br>
-          · <b>월별 대조</b> — 달마다 노출수·클릭수·총비용·전환수를 나란히 놓고, 노란 칸에 네이버 숫자만 넣으면 차이가 자동으로 나와요<br>
-          · <b>부가세 계산</b> — 네이버가 예전 기간은 부가세를 포함해서 주고 최근 기간은 빼고 줘요. 두 기준을 미리 계산해둬서, 네이버 숫자를 넣으면 그 날짜가 어느 쪽인지 알려줘요<br>
-          · <b>일별 대조</b> — 고른 달의 하루하루를 펼쳐서 어느 날짜부터 어긋나는지 찾을 수 있어요<br>
-          · <b>표본 대조</b> — 1일·3일·1주일·1개월 네 단계로 12구간을 자동으로 뽑아줘요. 어느 단계에서 틀리는지로 원인이 좁혀져요<br>
-          · <b>연령·성별</b> — 연령 데이터(타겟팅 세그먼트 보고서)와 일별 데이터가 같은지 자동으로 대조하고, 연령대별·성별 표와 전환 유형별 내역을 같이 넣어요<br>
-          플레이스는 수집 단계에서 이미 빠져 있어서 이 표에 안 나와요.
-        </div>
-        <div class="field">
-          <label>업체 선택</label>
-          <select id="au-client-select" style="width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
-            <option value="">불러오는 중...</option>
-          </select>
-        </div>
-        <div class="field" id="au-month-field" style="display:none;">
-          <label>일별로 펼칠 달</label>
-          <select id="au-month-select" style="width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;"></select>
-          <div class="sub" style="margin-top:4px;" id="au-month-hint"></div>
-        </div>
-        <button class="btn" id="downloadAuditBtn" disabled>검수표 만들기</button>
-        <div class="status-msg" id="auditStatusMsg"></div>
       </div>
     </div>
   </details>
@@ -1033,7 +600,7 @@ table tbody tr:hover td{background:#1b1e2c}
             <button class="btn" id="runAllBtn" style="font-size:12px;padding:9px 16px;">전체 업체 어제치 수집</button>
             <button class="btn btn-ghost" id="runBackfillBtn" style="font-size:12px;padding:9px 16px;">신규 업체 과거 12개월 수집</button>
             <button class="export-btn" id="collectorRunStatusBtn" style="font-size:12px;">상태 새로고침</button>
-            <a id="collectorActionsLink" href="#" target="_blank" style="font-size:12px;color:var(--accent-text,var(--accent));">GitHub에서 진행 상황 보기 ↗</a>
+            <a id="collectorActionsLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);">GitHub에서 진행 상황 보기 ↗</a>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:10px;border:1px solid var(--border);border-radius:8px;">
             <div class="field" style="margin:0;min-width:180px;">
@@ -1107,7 +674,7 @@ table tbody tr:hover td{background:#1b1e2c}
     <div style="font-size:28px;margin-bottom:10px;">🔒</div>
     <h2 style="margin:0 0 8px;font-size:16px;">관리자만 접근할 수 있어요</h2>
     <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:16px;">데이터 입력·관리 페이지는 관리자 계정만 볼 수 있어요. 업체 성과는 대시보드에서 확인해주세요.</div>
-    <a href="index.html" style="display:inline-block;background:var(--accent-solid);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:10px;">대시보드로 이동</a>
+    <a href="index.html" style="display:inline-block;background:var(--accent);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:10px;">대시보드로 이동</a>
     <div><button class="export-btn" id="accessDeniedLogoutBtn" style="margin-top:8px;">로그아웃</button></div>
   </div>
 </div>
@@ -1500,7 +1067,7 @@ async function handleReportFile(files, forcedBiz){
       <div class="row"><span>매출 합계</span><b>${fmtMan(totalRevAll)}원</b></div>
       <div class="row"><span>비용 합계</span><b>${fmtMan(totalCostAll)}원</b></div>
       <div class="row"><span>전환수 합계</span><b>${totalConvAll.toLocaleString('ko-KR')}건</b></div>
-      ${monthLabels.length>1 ? `<div class="row" style="color:var(--accent-text,var(--accent));font-size:12px;">📅 ${monthLabels.length}개월치 데이터가 감지돼서, 저장하면 월별로 자동 분리 저장돼요 (${monthLabels.join(', ')}).</div>` : ''}
+      ${monthLabels.length>1 ? `<div class="row" style="color:var(--accent);font-size:12px;">📅 ${monthLabels.length}개월치 데이터가 감지돼서, 저장하면 월별로 자동 분리 저장돼요 (${monthLabels.join(', ')}).</div>` : ''}
       ${hasNoDateRows ? `<div class="row" style="color:var(--down);font-size:12px;">⚠️ 날짜를 인식 못한 행이 있어요. 아래 "기간 라벨"에 입력한 값으로 별도 저장돼요.</div>` : ''}
       ${adgroupCol ? `<div class="row" style="color:var(--up);font-size:12px;">🖼️ 광고그룹 열이 인식돼서, 저장하면 광고그룹별 성과가 함께 저장돼요.</div>` : ''}
       <div class="row" style="color:#a8abc4;font-size:11px;">인식된 열: 매출=${revCol||'-'} · 비용=${costCol||'-'} · 전환수=${convCol||'-'}</div>`;
@@ -1578,18 +1145,10 @@ function parseHourlyRows(rows){
   // 실제 화면에서 쓰지도 않는 요일 구분을 빼고 시간×캠페인×광고그룹만 남김(hourlyByAdgroup).
   const hourAdgroup = {}; // 'hour|campaign::adgroup' -> {...} — 시간대별 리포트에 광고그룹 컬럼이 있을 때만 채워짐
   let hasDate = false;
-  // 시간대 칸을 못 읽어서 통째로 버려지는 줄이 있으면 조용히 넘어가지 말고 세어서 알려준다.
-  let skippedRows = 0, skippedCost = 0;
-  const skippedSamples = [];
   rows.forEach(r=>{
     const hstr = String(r[hourCol]||'').trim();
     const m = hstr.match(/^(\d{1,2})시/);
-    if(!m){
-      skippedRows++;
-      skippedCost += costCol ? toNumber(r[costCol]) : 0;
-      if(skippedSamples.length<3 && hstr) skippedSamples.push(hstr);
-      return;
-    }
+    if(!m) return;
     const h = m[1].padStart(2,'0');
     const imp = impCol ? toNumber(r[impCol]) : 0;
     const click = clickCol ? toNumber(r[clickCol]) : 0;
@@ -1642,22 +1201,17 @@ function parseHourlyRows(rows){
     }
   });
   const hourlyArr = [];
-  const pushHour = (h, v)=>hourlyArr.push({ hour:h, impressions:Math.round(v.imp), clicks:Math.round(v.click), cost: v.cost/10000, conv: Math.round(v.conv), revenue: v.rev/10000, avgRank: (v.rankImp>0) ? (v.rankSum/v.rankImp) : null });
   for(let i=0;i<24;i++){
     const h = String(i).padStart(2,'0');
-    pushHour(h, hourly[h] || {imp:0,click:0,cost:0,conv:0,rev:0,rankSum:0,rankImp:0});
+    const v = hourly[h] || {imp:0,click:0,cost:0,conv:0,rev:0,rankSum:0,rankImp:0};
+    hourlyArr.push({ hour:h, impressions:Math.round(v.imp), clicks:Math.round(v.click), cost: v.cost/10000, conv: Math.round(v.conv), revenue: v.rev/10000, avgRank: (v.rankImp>0) ? (v.rankSum/v.rankImp) : null });
   }
-  // 네이버는 시간을 특정할 수 없는 실적을 '99시'로 내려보낸다. 0~23만 담으면 이 줄이 통째로 빠져서
-  // 시간대 화면 합계가 대시보드보다 조용히 작아지고, 캠페인 필터를 끄면 없던 줄이 튀어나온다.
-  // (캠페인별 데이터에는 원래 남아 있었기 때문) — 25번째 칸으로 살려둔다.
-  Object.keys(hourly).filter(h=>{ const i=parseInt(h,10); return !(i>=0 && i<=23); }).sort()
-    .forEach(h=>pushHour(h, hourly[h]));
   const hourlyByCampaign = Object.values(hbc).map(o=>({ hour:o.hour, campaign:o.campaign, type:o.type, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null }));
   const hourlyByDow = hasDate ? Object.values(dowHour).map(o=>({ dow:o.dow, dowLabel:o.dowLabel, hour:o.hour, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null })) : [];
   const hourlyByDowByCampaign = hasDate ? Object.values(dowHourCamp).map(o=>({ dow:o.dow, dowLabel:o.dowLabel, hour:o.hour, campaign:o.campaign, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null })) : [];
   const hourlyByAdgroup = Object.values(hourAdgroup).map(o=>({ hour:o.hour, campaign:o.campaign, adgroup:o.adgroup, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000, avgRank: (o.rankImp>0) ? (o.rankSum/o.rankImp) : null }));
   const hourlyByCampaignDate = hasDate ? Object.values(hourCampDate).map(o=>({ date:o.date, hour:o.hour, campaign:o.campaign, impressions:Math.round(o.imp), clicks:Math.round(o.click), cost:o.cost/10000, conv:Math.round(o.conv), revenue:o.rev/10000 })) : [];
-  return { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData: hasDate, hasSpecificConvCol: !!specificConvCol, hasRevenue: !!revCol, hasAdgroupCol: !!adgroupCol, skippedRows, skippedCost, skippedSamples };
+  return { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData: hasDate, hasSpecificConvCol: !!specificConvCol, hasRevenue: !!revCol, hasAdgroupCol: !!adgroupCol };
 }
 
 let parsedHourly = null;
@@ -1670,7 +1224,7 @@ async function handleHourlyFile(files, forcedBiz){
     statusEl.textContent = '분석 중...'; statusEl.className = 'status';
     const rows = await readFilesAsRows(files);
     if(!rows.length) throw new Error('empty');
-    const { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData, hasSpecificConvCol, skippedRows, skippedCost, skippedSamples } = parseHourlyRows(rows);
+    const { hourlyArr, hourlyByCampaign, hourlyByDow, hourlyByDowByCampaign, hourlyByAdgroup, hourlyByCampaignDate, hourCol, hasDowData, hasSpecificConvCol } = parseHourlyRows(rows);
     const nameForBizCheck = document.getElementById('in-name').value.trim();
     const existingBiz = nameForBizCheck ? await getClientBizType(nameForBizCheck) : null;
     const radioBiz = document.querySelector('input[name="bizType"]:checked').value;
@@ -1697,13 +1251,10 @@ async function handleHourlyFile(files, forcedBiz){
     const totalRev = hourlyArr.reduce((a,b)=>a+(b.revenue||0),0);
     statusEl.textContent = `인식 완료 (${rows.length}행${hasDowData?' · 요일별 데이터 감지됨':''})`; statusEl.className = 'status ok';
     previewEl.style.display = 'block';
-    const unknownRow = hourlyArr.find(h=>{ const i=parseInt(h.hour,10); return !(i>=0 && i<=23); });
     previewEl.innerHTML = `
-      <div class="row"><span>합계 비용</span><b>${fmtMan(totalCost)}원</b></div>
-      <div class="row"><span>합계 전환수</span><b>${totalConv}건</b></div>
-      ${totalRev>0 ? `<div class="row"><span>합계 매출</span><b>${fmtMan(totalRev)}원</b></div>` : ''}
-      ${unknownRow ? `<div class="row" style="color:var(--muted);font-size:12px;">위 합계에 <b>시간 미상</b>(${unknownRow.hour}시) ${fmtMan(unknownRow.cost)}원이 포함돼 있어요 — 네이버가 시각을 특정 못 한 실적이에요.</div>` : ''}
-      ${skippedRows>0 ? `<div class="row" style="color:#ff9f43;font-size:12px;">⚠️ 시간대 칸을 못 읽어서 <b>${skippedRows.toLocaleString('ko-KR')}줄</b>(${fmtMan(skippedCost/10000)}원)이 빠졌어요${skippedSamples.length?` — 예: ${skippedSamples.map(x=>'"'+x+'"').join(', ')}`:''}. 이 줄은 어느 화면에도 안 들어가니 형식을 확인해주세요.</div>` : ''}
+      <div class="row"><span>24시간 합계 비용</span><b>${fmtMan(totalCost)}원</b></div>
+      <div class="row"><span>24시간 합계 전환수</span><b>${totalConv}건</b></div>
+      ${totalRev>0 ? `<div class="row"><span>24시간 합계 매출</span><b>${fmtMan(totalRev)}원</b></div>` : ''}
       <div class="row" style="color:var(--muted);font-size:12px;">인식된 열: ${hourCol||'-'}${hasDowData?' (일별 컬럼도 인식되어 요일×시간대 히트맵도 생성돼요)':''}</div>`;
   }catch(e){
     console.error(e);
@@ -1726,36 +1277,13 @@ setupDropZone(document.getElementById('filedrop-hourly-b2c'), document.getElemen
 document.getElementById('file-hourly-db').addEventListener('change', e=>{ onHourlyFiles(e.target.files, 'DB'); });
 setupDropZone(document.getElementById('filedrop-hourly-db'), document.getElementById('file-hourly-db'), files=>onHourlyFiles(files,'DB'));
 
-/* 예전엔 두 배열을 '몇 번째 칸'끼리 더했다(a.map((h,i)=>b[i])). 그래서
-   - 이미 저장된 쪽이 24칸(옛날 형식)이고 새로 올린 쪽이 25칸('시간 미상' 포함)이면 마지막 칸이 통째로 사라졌고,
-   - 두 배열의 순서가 조금이라도 다르면 엉뚱한 시간끼리 더해졌다.
-   시간 값을 열쇠로 삼아 합치고, 한쪽에만 있는 시간도 살린다. */
 function mergeHourlyArr(a, b){
-  const blank = ()=>({impressions:0,clicks:0,cost:0,conv:0,revenue:0,rankSum:0,rankImp:0});
-  const map = {};
-  const add = (x)=>{
-    if(!x || x.hour===undefined || x.hour===null) return;
-    const h = String(x.hour).padStart(2,'0');
-    if(!map[h]) map[h] = blank();
-    const t = map[h];
-    t.impressions += x.impressions||0; t.clicks += x.clicks||0; t.cost += x.cost||0;
-    t.conv += x.conv||0; t.revenue += x.revenue||0;
-    if(x.avgRank!==null && x.avgRank!==undefined && (x.impressions||0)>0){
-      t.rankSum += x.avgRank*(x.impressions||0); t.rankImp += (x.impressions||0);
-    }
-  };
-  (a||[]).forEach(add); (b||[]).forEach(add);
-  for(let i=0;i<24;i++){ const h=String(i).padStart(2,'0'); if(!map[h]) map[h]=blank(); }
-  const isReal = h=>{ const i=parseInt(h,10); return i>=0 && i<=23; };
-  const keys = Object.keys(map).sort((x,y)=>{
-    const rx=isReal(x), ry=isReal(y);
-    if(rx!==ry) return rx ? -1 : 1;   // 0~23시 먼저, '시간 미상'은 맨 뒤
-    return x.localeCompare(y);
-  });
-  return keys.map(h=>{
-    const t = map[h];
-    return { hour:h, impressions:t.impressions, clicks:t.clicks, cost:t.cost, conv:t.conv,
-             revenue:t.revenue, avgRank: t.rankImp>0 ? (t.rankSum/t.rankImp) : null };
+  return a.map((h,i)=>{
+    const o = (b && b[i]) || {impressions:0,clicks:0,cost:0,conv:0,revenue:0,avgRank:null};
+    const imp = (h.impressions||0)+(o.impressions||0);
+    const rankSum = ((h.avgRank!==null&&h.avgRank!==undefined)?h.avgRank*(h.impressions||0):0) + ((o.avgRank!==null&&o.avgRank!==undefined)?o.avgRank*(o.impressions||0):0);
+    const rankImp = ((h.avgRank!==null&&h.avgRank!==undefined)?(h.impressions||0):0) + ((o.avgRank!==null&&o.avgRank!==undefined)?(o.impressions||0):0);
+    return { hour:h.hour, impressions:imp, clicks:(h.clicks||0)+(o.clicks||0), cost:(h.cost||0)+(o.cost||0), conv:(h.conv||0)+(o.conv||0), revenue:(h.revenue||0)+(o.revenue||0), avgRank: rankImp>0?(rankSum/rankImp):null };
   });
 }
 function mergeHourlyByCampaignArr(a, b){
@@ -2458,7 +1986,7 @@ document.getElementById('dailyOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('데이터 보고서 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2541,7 +2069,7 @@ document.getElementById('adsOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('데이터 보고서 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2617,7 +2145,7 @@ document.getElementById('searchTermOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('리포트 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2663,7 +2191,7 @@ document.getElementById('hourlyOnlySaveBtn').onclick = async ()=>{
   if(!periods.length){ setMsg('시간대별 리포트 파일을 먼저 업로드해주세요.', 'err'); return; }
   setMsg('저장 중...', '');
   const key = 'client:' + slugify(name);
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg(`'${name}' 업체를 찾을 수 없어요. 데이터 보고서를 먼저 등록해주세요.`, 'err'); return; }
   const saved = [], skipped = [];
   periods.forEach(p=>{
@@ -2832,157 +2360,6 @@ async function listClients(){
 // 권한 이메일처럼 메인 문서에 있는 가벼운 필드만 있으면 되는데, 기존 getClient()는 매 업체마다
 // detailData 하위컬렉션(월별 키워드·시간대 상세데이터)까지 통째로 읽어와서 낭비가 컸음 — 업체 수가
 // 늘어날수록 이 페이지(가장 자주 여는 업로드 페이지)가 그만큼 느려지는 구조라 최적화함.
-
-/* 플레이스(네이버 캠페인유형 코드 6)는 지도 노출 기반이라 검색광고 지표와 성격이 달라 대시보드에서 제외한다.
-   여기 한 곳에서 걸러내면 필터·표·합계·인사이트·AI까지 전부 자동으로 빠진다.
-   월 합계(cost/revenue/conv/impressions/clicks)에서도 플레이스 몫을 빼서 숫자가 어긋나지 않게 한다. */
-const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
-  return v === '6' || v.indexOf('플레이스') >= 0; };
-/* ── 브랜드검색 정액제 비용 얹기 ────────────────────────────────────────────
-   브랜드검색광고는 정액제라 네이버 일별 리포트의 비용이 0원으로 온다. input.html에서
-   등록한 계약(brandContracts: 캠페인·시작월·종료월·계약금액)을 읽어, 계약 금액을 계약
-   기간의 각 달에 일수 비율로 나눠 그 달 그 캠페인의 비용으로 채운다. 월 합계(cost)에도
-   같은 금액을 더해서 대시보드 어디서 보든 숫자가 어긋나지 않게 한다.
-   금액 단위: 저장은 '원', 월/캠페인 데이터는 '만원' 단위라 10000으로 나눠서 넣는다.
-   이미 비용이 잡혀 있으면(정액제가 아닌 경우) 건드리지 않는다. */
-function __bcMonthDays(y,m){ return new Date(y,m,0).getDate(); }
-function __bcParseYM(v){ const mm=String(v||'').match(/^(\d{4})-(\d{2})$/); return mm?{y:+mm[1],m:+mm[2]}:null; }
-function __bcSplit(start,end,amount){
-  const s=__bcParseYM(start), e=__bcParseYM(end);
-  if(!s||!e||!(amount>0)) return {};
-  if(e.y*12+e.m < s.y*12+s.m) return {};
-  const spans=[]; let y=s.y,m=s.m,total=0;
-  while(y*12+m <= e.y*12+e.m){
-    const d=__bcMonthDays(y,m);
-    spans.push({label:y+'.'+String(m).padStart(2,'0'), days:d}); total+=d;
-    m++; if(m>12){ m=1; y++; }
-  }
-  if(!total) return {};
-  const out={}; let acc=0;
-  spans.forEach((sp,i)=>{
-    const c = (i===spans.length-1) ? (amount-acc) : Math.round(amount*sp.days/total);
-    if(i<spans.length-1) acc+=c;
-    out[sp.label]=(out[sp.label]||0)+c;
-  });
-  return out;
-}
-function applyBrandContracts(data){
-  if(!data || !Array.isArray(data.months)) return data;
-  const contracts = data.brandContracts;
-  if(!Array.isArray(contracts) || !contracts.length) return data;
-  // 캠페인 → { 'YYYY.MM': 원 } 로 펼쳐둔다(계약이 여러 건이면 같은 달끼리 합산).
-  const byCamp = {};
-  contracts.forEach(ct=>{
-    if(!ct || !ct.campaign) return;
-    const split = __bcSplit(ct.start, ct.end, Number(ct.amount)||0);
-    const bucket = byCamp[ct.campaign] || (byCamp[ct.campaign]={});
-    Object.keys(split).forEach(lab=>{ bucket[lab]=(bucket[lab]||0)+split[lab]; });
-  });
-  data.months.forEach(m=>{
-    const lab = String(m.label||'');
-    let added = 0;
-    (m.campaigns||[]).forEach(c=>{
-      const won = byCamp[c.campaign] && byCamp[c.campaign][lab];
-      if(!won) return;
-      if(Number(c.cost)>0) return;   // 이미 실비용이 있으면 덮어쓰지 않는다
-      const man = won/10000;
-      c.cost = man;
-      c.__brandContractCost = true;  // 화면에서 '계약금액 기준'임을 표시할 때 쓴다
-      added += man;
-    });
-    if(added>0 && typeof m.cost==='number') m.cost = m.cost + added;
-  });
-  return data;
-}
-/* ── 광고비 기준 통일(부가세 제외) ──────────────────────────────────────────
-   네이버가 시기에 따라 부가세를 포함한 금액을 주기도 하고 뺀 금액을 주기도 해서,
-   2025.10~2026.03 구간은 캠페인·월 합계가 부가세 포함으로 저장돼 있다.
-   반면 하루치(daily)는 전 기간 부가세 제외로 통일돼 있다.
-   그래서 하루치를 기준으로 삼아 캠페인·월 합계를 같은 기준으로 낮춘다.
-   (원본은 그대로 두고 화면에 그릴 때만 맞춘다 — 플레이스 제외·브랜드검색 계약과 같은 방식)
-   · 2025.10~2026.02: 모든 캠페인이 정확히 1.1배라 환산이 정확함
-   · 2026.03: 달 중간에 기준이 바뀌어 캠페인마다 1.06~1.10로 제각각 — 월 합계는 정확히 맞고
-     캠페인 개별값은 최대 2% 안쪽 오차가 남음
-   · 2026.04 이후: 이미 같은 기준이라 건드리지 않음 */
-function normalizeCostBasis(data){
-  if(!data || !Array.isArray(data.months)) return data;
-  data.months.forEach(m=>{
-    const dailySum = (m.daily||[]).reduce((a,x)=>a+(x.cost||0),0);
-    const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(c.cost||0),0);
-    if(!(dailySum>0) || !(campSum>0)) return;
-    const k = dailySum / campSum;
-    if(k > 0.999) return;   // 이미 같은 기준이면 그대로
-    if(k < 0.85)  return;   // 부가세 차이로 보기엔 너무 큰 격차 — 다른 원인이므로 손대지 않음
-    (m.campaigns||[]).forEach(c=>{ if(typeof c.cost === 'number') c.cost = c.cost * k; });
-    if(typeof m.cost === 'number') m.cost = dailySum;
-    m.__costRebased = true;   // 화면에서 "기준 맞춤" 표시가 필요할 때 쓴다
-  });
-  return data;
-}
-function stripPlaceCampaigns(data){
-  /* 2026-09-11: 플레이스를 다시 보여주기로 함 — 수집기가 플레이스를 정상 저장하므로
-     화면에서 걸러내면 네이버 관리자 화면 금액과 어긋난다. 아래 옛 제외 로직은 그대로 두되 쓰지 않는다. */
-  return data;
-  if(!data || !Array.isArray(data.months)) return data;
-  data.months.forEach(m=>{
-    const camps = m.campaigns || [];
-    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
-    /* [중요] 플레이스는 두 갈래로 존재한다.
-       ① 캠페인 목록에 유형이 '플레이스'로 남아 있는 경우 → 아래에서 걸러낸다.
-       ② 수집기가 저장할 때 이미 캠페인 목록에서는 빼놨는데 하루치 상세에는 남아 있는 경우
-          → 캠페인 목록에 없으니 ①로는 절대 못 찾는다. 태림이 이 경우였고, 그래서
-            "월 합계 54,717,412 vs 일별 합계 58,723,251"처럼 화면 숫자가 어긋났다.
-            (차액 4,005,839원 = 하루치에만 있는 캠페인 77개의 합)
-       그래서 '캠페인 목록에 없는데 하루치에만 있는 캠페인'도 함께 제외 대상으로 잡는다. */
-    const known = new Set(camps.map(c=>c.campaign));
-    const orphanNames = new Set();
-    if(Array.isArray(m.dailyByCampaign)){
-      m.dailyByCampaign.forEach(r=>{ if(r && r.campaign && !known.has(r.campaign)) orphanNames.add(r.campaign); });
-    }
-    const names = new Set([...place.map(c=>c.campaign), ...orphanNames]);
-    if(!names.size) return;
-
-    // 하루치에서 뺄 몫을 미리 뽑아둔다(아래에서 dailyByCampaign을 걸러내기 전에).
-    const placeDailyRows = Array.isArray(m.dailyByCampaign)
-      ? m.dailyByCampaign.filter(r=>r && names.has(r.campaign)) : [];
-
-    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
-    // 월 합계에서 플레이스 몫 차감 (캠페인 목록에 남아 있던 것만 — 나머지는 애초에 월 합계에 없음)
-    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
-      if(typeof m[k] === 'number'){
-        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
-        m[k] = Math.max(0, m[k] - sub);
-      }
-    });
-    // 하루치 합계(daily)에서도 같은 몫을 뺀다 — daily엔 캠페인 이름이 없으므로 날짜로 맞춘다.
-    if(Array.isArray(m.daily) && m.daily.length && placeDailyRows.length){
-      const byDate = {};
-      placeDailyRows.forEach(r=>{
-        if(!r || !r.date) return;
-        const b = byDate[r.date] || (byDate[r.date] = {cost:0,revenue:0,conv:0,impressions:0,clicks:0});
-        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{ b[k] += Number(r[k])||0; });
-      });
-      m.daily = m.daily.map(d=>{
-        const sub = d && d.date ? byDate[d.date] : null;
-        if(!sub) return d;
-        const out = { ...d };
-        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
-          if(typeof out[k] === 'number') out[k] = Math.max(0, out[k] - (sub[k]||0));
-        });
-        return out;
-      });
-    }
-    // 캠페인 이름이 붙은 상세 배열에서도 제거
-    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
-      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
-    // 캠페인별 지도형 데이터에서도 제거
-    ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
-     'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
-     'wasteSearchTermsByCampaign','expandSearchTermsByCampaign','adgroupsByCampaign']
-      .forEach(f=>{ const o=m[f]; if(o && typeof o==='object'){ names.forEach(n=>{ delete o[n]; }); } });
-  });
-  return data;
-}
 async function getClientLight(key){
   try{
     const id = key.replace(/^client:/,'');
@@ -3012,20 +2389,13 @@ async function fetchDetailFile(ref){
     return { failed:true };
   }
 }
-/* forSave=true 면 화면용 보정(플레이스 제외·부가세 기준 통일·브랜드검색 계약금액)을
-   적용하지 않은 '원본 그대로'를 돌려준다.
-
-   [중요] 이 세 보정은 원래 "원본은 그대로 두고 화면에 그릴 때만 맞춘다"는 의도였는데,
-   객체를 그 자리에서 고치는 방식이라 같은 객체가 저장까지 흘러가면 보정값이 DB에 굳어버렸다.
-   특히 플레이스 캠페인은 목록에서 아예 지워지므로(태림 393개·1,730만원) 저장 한 번에
-   원본이 사라진다. 그래서 '읽어서 고쳐서 다시 저장'하는 자리에서는 반드시 forSave=true 로 읽는다. */
-async function getClient(key, forSave){
+async function getClient(key){
   try{
     const id = key.replace(/^client:/,'');
     const docRef = userClientsRef().doc(id);
     const doc = await docRef.get();
     if(!doc.exists) return null;
-    const data = forSave ? doc.data() : applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data())));
+    const data = doc.data();
     const months = data.months || [];
     // 문서 용량(1MB) 제한 대응: 무거운 필드(상세데이터)는 Firebase Storage에 업체별 파일로 따로
     // 저장돼있어서 여기서 합쳐줌. 아직 Storage로 안 옮겨진(예전 형식) 업체는 Firestore detailData
@@ -3078,14 +2448,6 @@ async function getClient(key, forSave){
         if(unreliable.length) merged.__unreliableFields = unreliable;
         return merged;
       });
-      /* [중요] 플레이스 제외를 여기서 한 번 더 돌린다.
-         맨 위에서 한 번 돌렸지만 그때는 상세 데이터(dailyByCampaign 등)가 아직 안 붙은 상태라,
-         '캠페인 목록엔 없고 하루치에만 있는' 플레이스를 찾을 수가 없었다. 상세를 합친 지금에야
-         찾을 수 있고, 그래야 화면의 월 합계와 일별 합계가 맞는다.
-         (태림 2026.08: 이 줄이 없으면 월 54,717,412 vs 일별 58,723,251로 어긋남)
-         이미 걸러진 달은 대상이 없어 그대로 지나가므로 두 번 돌아도 값이 더 깎이지 않는다. */
-      // 저장용으로 읽을 때(forSave)는 원본을 그대로 둬야 하므로 건너뛴다.
-      if(!forSave) stripPlaceCampaigns(data);
     }
     return data;
   }catch(e){ console.error(e); lastStorageError = koError(e); return null; }
@@ -3214,7 +2576,7 @@ async function renderCollectorAccountsPanel(){
       // 계정 여러 개(accounts 배열)와 구버전 단일 계정(customerId) 모두 표시
       const accounts = (Array.isArray(c.accounts) && c.accounts.length) ? c.accounts
         : (c.customerId ? [{ customerId:c.customerId, label:c.label||'', enabled:c.enabled!==false }] : []);
-      return { id: d.id, name: v.name||d.id, bizType: v.bizType||'B2C', enabled: !!c.enabled, accounts, backfillMonths: c.backfillMonths };
+      return { id: d.id, name: v.name||d.id, bizType: v.bizType||'B2C', enabled: !!c.enabled, accounts };
     }).sort((a,b)=> (b.enabled?1:0)-(a.enabled?1:0) || a.name.localeCompare(b.name,'ko'));
     if(!rows.length){ box.innerHTML = '<div style="color:var(--muted);font-size:12px;">등록된 업체가 없어요. 먼저 업체를 추가해주세요.</div>'; return; }
     box.innerHTML = `
@@ -3224,7 +2586,6 @@ async function renderCollectorAccountsPanel(){
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">자동수집</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">업체</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);" colspan="2">검색광고 Key (CUSTOMER_ID) · 지칭 — 계정이 여러 개면 줄 추가</th>
-          <th style="padding:6px 8px;border-bottom:1px solid var(--border);" title="새 계정을 처음 붙일 때 과거 몇 달치를 받아올지 — 비워두면 12개월">처음 받을<br>과거 개월</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);">유형</th>
           <th style="padding:6px 8px;border-bottom:1px solid var(--border);"></th>
         </tr></thead>
@@ -3236,17 +2597,13 @@ async function renderCollectorAccountsPanel(){
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);" colspan="2">
               <div class="acct-rows">
               ${(r.accounts.length?r.accounts:[{customerId:'',label:''}]).map(a=>`
-                <div class="acct-row" style="display:flex;gap:6px;margin-bottom:4px;align-items:center;">
-                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;" title="이 계정만 수집에서 빼려면 체크를 풀어주세요">
-                    <input type="checkbox" class="col-acct-on" ${a.enabled===false?'':'checked'}>켬
-                  </label>
+                <div class="acct-row" style="display:flex;gap:6px;margin-bottom:4px;">
                   <input class="col-customer" value="${esc(a.customerId||'')}" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
                   <input class="col-label" value="${esc(a.label||'')}" placeholder="지칭 (예: 메인)" style="width:160px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
                 </div>`).join('')}
               </div>
               <button class="export-btn col-add-acct" style="padding:3px 10px;font-size:12px;margin-top:2px;">+ 계정 추가</button>
             </td>
-            <td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:center;vertical-align:top;"><input class="col-backfill" type="number" min="1" max="36" value="${r.backfillMonths==null?'':esc(String(r.backfillMonths))}" placeholder="12" style="width:64px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;text-align:center;"></td>
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;">${esc(r.bizType)}</td>
             <td style="padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;"><button class="export-btn col-save" style="padding:5px 12px;font-size:12px;">저장</button></td>
           </tr>`).join('')}
@@ -3261,10 +2618,8 @@ async function renderCollectorAccountsPanel(){
         const wrap = tr.querySelector('.acct-rows');
         const div = document.createElement('div');
         div.className = 'acct-row';
-        div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;align-items:center;';
-        // 새로 추가하는 계정도 켬/끔 체크박스를 같이 넣는다(없으면 저장할 때 꺼진 것으로 읽힌다).
-        div.innerHTML = `<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;" title="이 계정만 수집에서 빼려면 체크를 풀어주세요"><input type="checkbox" class="col-acct-on" checked>켬</label>
-          <input class="col-customer" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;';
+        div.innerHTML = `<input class="col-customer" placeholder="예: 1246138" style="width:130px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
           <input class="col-label" placeholder="지칭 (예: 서브)" style="width:160px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">`;
         wrap.appendChild(div);
       };
@@ -3274,19 +2629,14 @@ async function renderCollectorAccountsPanel(){
         const accounts = [...tr.querySelectorAll('.acct-row')].map(row=>({
           customerId: row.querySelector('.col-customer').value.trim().replace(/\D/g,''),
           label: row.querySelector('.col-label').value.trim(),
-          // 계정마다 켜고 끌 수 있다. 예전에는 무조건 켬으로 저장해서, 빼둔 계정이 저장할 때마다 되살아났다.
-          enabled: !!(row.querySelector('.col-acct-on')||{}).checked,
+          enabled: true,
         })).filter(a=>a.customerId);
         const dup = accounts.map(a=>a.customerId).find((v,i,arr)=>arr.indexOf(v)!==i);
         if(dup){ setMsg(`검색광고 Key ${dup}가 중복 입력됐어요.`, 'err'); return; }
         if(enabled && !accounts.length){ setMsg('자동수집을 켜려면 검색광고 Key(숫자)가 최소 하나 필요해요.', 'err'); return; }
         try{
-          // 처음 받을 과거 개월 — 비워두면 수집기 기본값(12개월)을 쓴다.
-          const bfRaw = (tr.querySelector('.col-backfill')||{}).value;
-          const bfNum = String(bfRaw||'').trim() === '' ? null : Math.max(1, Math.min(36, parseInt(bfRaw,10)||12));
           await userClientsRef().doc(id).set({ collector: {
             enabled, accounts,
-            ...(bfNum===null ? {} : { backfillMonths: bfNum }),
             customerId: (accounts[0]||{}).customerId || '',   // 구버전 호환
             label: (accounts[0]||{}).label || '',
             updatedAt: new Date().toISOString(), updatedBy: currentUserEmail,
@@ -3301,7 +2651,7 @@ async function renderCollectorAccountsPanel(){
 /* 엑셀 일괄 등록 — 양식 내려받기(현재 목록 프리필) → 채워서 업로드 → 업체명 매칭 후 일괄 저장.
    업체명으로 매칭하는 이유: 사용자가 아는 식별자가 업체명뿐이고, 문서 id는 슬러그라 손으로 못 씀.
    매칭 실패 행은 저장하지 않고 목록으로 돌려줌(오타·미등록 업체를 조용히 삼키지 않도록). */
-const COLLECTOR_XLS_HEADER = ['업체명', '검색광고Key(CUSTOMER_ID)', '지칭(별칭 메모)', '자동수집(Y/N · 비우면 기존값 유지)', '유형(B2C/DB)', '업종'];
+const COLLECTOR_XLS_HEADER = ['업체명', '검색광고Key(CUSTOMER_ID)', '지칭(별칭 메모)', '자동수집(Y/N)', '유형(B2C/DB)', '업종'];
 async function downloadCollectorTemplate(){
   const msgEl = document.getElementById('collectorStatusMsg');
   const setMsg = (m,t)=>{ msgEl.textContent = m; msgEl.className = 'status-msg show ' + (t||''); };
@@ -3350,13 +2700,7 @@ async function handleCollectorBulkFile(file){
     // 업체명 → 문서 id 매핑 (공백 무시 비교). 없는 이름은 새 업체로 만든다.
     const snap = await userClientsRef().get();
     const byName = {};
-    snap.docs.forEach(d=>{ const v=d.data()||{}; const c=v.collector||{};
-      // 기존 자동수집 설정을 함께 담아둔다 — 엑셀에서 켜기/끄기 칸을 비워두면 이 값을 그대로 유지한다.
-      const prevAcc = {};
-      (Array.isArray(c.accounts)?c.accounts:[]).forEach(a=>{ if(a&&a.customerId) prevAcc[String(a.customerId)] = a.enabled!==false; });
-      if(c.customerId && !(String(c.customerId) in prevAcc)) prevAcc[String(c.customerId)] = c.enabled!==false;
-      byName[String(v.name||d.id).replace(/\s/g,'')] = { id:d.id, name:v.name||d.id, prevEnabled:c.enabled!==false, prevAcc, hadCollector: !!(c.accounts||c.customerId) };
-    });
+    snap.docs.forEach(d=>{ const v=d.data()||{}; byName[String(v.name||d.id).replace(/\s/g,'')] = { id:d.id, name:v.name||d.id }; });
     const ok = [], skipped = [];
     const seenIds = new Set();
     rows.forEach(r=>{
@@ -3367,12 +2711,7 @@ async function handleCollectorBulkFile(file){
       const customerId = String(r[kCust]??'').replace(/\D/g,'');
       const label = String((kLabel && r[kLabel])||'').trim();
       const onRaw = String((kOn && r[kOn])||'').trim().toUpperCase();
-      // 켜기/끄기 칸이 비어 있으면 "기존 설정 그대로"가 안전하다.
-      // 예전에는 비어 있으면 무조건 켬으로 봐서, 꺼둔 업체가 엑셀 한 번에 다시 켜지는 사고가 있었다(2026-09-09).
-      const onGiven = !!onRaw;
-      const prevOn = hit ? (hit.prevAcc && (String(customerId) in hit.prevAcc) ? hit.prevAcc[String(customerId)] : hit.prevEnabled) : null;
-      const enabled = onGiven ? ['Y','YES','TRUE','O','ON','1','사용'].includes(onRaw)
-                    : (hit && hit.hadCollector ? !!prevOn : !!customerId);
+      const enabled = onRaw ? ['Y','YES','TRUE','O','ON','1','사용'].includes(onRaw) : !!customerId;
       const bizRaw = String((kBiz && r[kBiz])||'').trim().toUpperCase();
       const bizType = bizRaw.includes('B2C') ? 'B2C' : (bizRaw.includes('DB') ? 'DB' : null);
       const industry = String((kInd && r[kInd])||'').trim();
@@ -3382,22 +2721,22 @@ async function handleCollectorBulkFile(file){
       const prev = ok.find(o=>o.id===id);
       if(prev){
         if(customerId && prev.accounts.some(a=>a.customerId===customerId)){ skipped.push(`${rawName} — 같은 검색광고 Key(${customerId})가 두 번 나옴`); return; }
-        if(customerId) prev.accounts.push({ customerId, label, enabled, kept: !onGiven && !!(hit && hit.hadCollector) });
+        if(customerId) prev.accounts.push({ customerId, label, enabled });
         if(bizType) prev.bizType = bizType;
         if(industry) prev.industry = industry;
         return;
       }
       seenIds.add(id);
-      ok.push({ id, name: hit ? hit.name : rawName, accounts: customerId ? [{ customerId, label, enabled, kept: !onGiven && !!(hit && hit.hadCollector) }] : [], bizType, industry, isNew: !hit });
+      ok.push({ id, name: hit ? hit.name : rawName, accounts: customerId ? [{ customerId, label, enabled }] : [], bizType, industry, isNew: !hit });
     });
     const newCount = ok.filter(o=>o.isNew).length;
     prev.innerHTML = `
-      <div style="font-size:12px;color:var(--text);margin-bottom:6px;">읽은 결과: 적용 <b>${ok.length}</b>건${newCount?` (신규 업체 <b style="color:var(--accent-text,var(--accent));">${newCount}</b>개 생성)`:''}${skipped.length?` · 건너뜀 <b style="color:var(--down);">${skipped.length}</b>건`:''}</div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:6px;">읽은 결과: 적용 <b>${ok.length}</b>건${newCount?` (신규 업체 <b style="color:var(--accent);">${newCount}</b>개 생성)`:''}${skipped.length?` · 건너뜀 <b style="color:var(--down);">${skipped.length}</b>건`:''}</div>
       ${ok.length?`<div style="max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:8px;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <tbody>${ok.map(o=>`<tr>
-            <td style="padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;">${esc(o.name)}${o.isNew?' <span style="font-size:11px;color:var(--accent-text,var(--accent));border:1px solid var(--accent);border-radius:4px;padding:0 4px;">신규</span>':''}${o.accounts.length>1?` <span style="font-size:11px;color:var(--muted);">계정 ${o.accounts.length}개</span>`:''}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${o.accounts.length? o.accounts.map(a=>`${esc(a.customerId)}${a.label?` <span style="color:var(--muted);">(${esc(a.label)})</span>`:''}${a.enabled?'':' <span style="color:var(--muted);">OFF</span>'}${a.kept?' <span style="font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 4px;">기존값 유지</span>':''}`).join('<br>') : '<span style="color:var(--muted);">(없음)</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;">${esc(o.name)}${o.isNew?' <span style="font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;">신규</span>':''}${o.accounts.length>1?` <span style="font-size:11px;color:var(--muted);">계정 ${o.accounts.length}개</span>`:''}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${o.accounts.length? o.accounts.map(a=>`${esc(a.customerId)}${a.label?` <span style="color:var(--muted);">(${esc(a.label)})</span>`:''}${a.enabled?'':' <span style="color:var(--muted);">OFF</span>'}`).join('<br>') : '<span style="color:var(--muted);">(없음)</span>'}</td>
             <td style="padding:4px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;">${esc(o.bizType||(o.isNew?'DB':''))}</td>
           </tr>`).join('')}</tbody>
         </table></div>`:''}
@@ -3413,8 +2752,6 @@ async function handleCollectorBulkFile(file){
         let batch = db.batch(); let n = 0;
         for(const o of ok){
           const payload = { collector: {
-            // 계정 중 하나라도 켜져 있으면 업체 스위치는 켬.
-            // (계정별 enabled 자체가 위에서 "빈 칸이면 기존값 유지"로 정해지므로, 꺼둔 업체는 여기서도 꺼진 채로 남는다.)
             enabled: o.accounts.some(a=>a.enabled),
             accounts: o.accounts,                       // 업체 하나에 광고계정 여러 개 — 수집기가 합쳐서 저장함
             customerId: (o.accounts[0]||{}).customerId || '',  // 구버전 호환용 대표 계정
@@ -3439,7 +2776,7 @@ async function handleCollectorBulkFile(file){
         const acctTotal = ok.reduce((s,o)=>s+o.accounts.filter(a=>a.enabled).length,0);
         setMsg(`업체 ${ok.length}개 저장 완료${newCount?` (신규 ${newCount}개 생성)`:''} — 자동수집 광고계정 ${acctTotal}개가 다음 수집부터 반영돼요.`, 'ok');
         // 다른 패널의 업체 드롭다운들도 새 업체가 보이도록 갱신
-        await Promise.all([populateColorClientSelect(), populateGoalClientSelect(), populateBrandContractClientSelect(), populateAuditClientSelect(), populatePermClientSelect(),
+        await Promise.all([populateColorClientSelect(), populateGoalClientSelect(), populatePermClientSelect(),
           populateCompactClientSelect(), populateMigrateClientSelect(), populateDeleteClientSelect(),
           populateExistingClientSelect(), populateUndoClientSelect()]).catch(()=>{});
         prev.innerHTML = '';
@@ -3710,7 +3047,7 @@ async function refreshCollectorRunStatus(){
     const runs = (data && data.workflow_runs) || [];
     if(!runs.length){ box.innerHTML = '<div style="font-size:12px;color:var(--muted);">아직 실행 기록이 없어요.</div>'; return; }
     const badge = (r)=>{
-      if(r.status !== 'completed') return '<span style="color:var(--accent-text,var(--accent));">● 진행 중</span>';
+      if(r.status !== 'completed') return '<span style="color:var(--accent);">● 진행 중</span>';
       if(r.conclusion === 'success') return '<span style="color:var(--up);">✓ 성공</span>';
       if(r.conclusion === 'cancelled') return '<span style="color:var(--muted);">중단됨</span>';
       return '<span style="color:var(--down);">✕ 실패</span>';
@@ -3719,7 +3056,7 @@ async function refreshCollectorRunStatus(){
       <div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
         <span style="min-width:66px;">${badge(r)}</span>
         <span style="color:var(--muted);">${new Date(r.created_at).toLocaleString('ko-KR')}</span>
-        <a href="${esc(r.html_url)}" target="_blank" style="color:var(--accent-text,var(--accent));margin-left:auto;">로그 ↗</a>
+        <a href="${esc(r.html_url)}" target="_blank" style="color:var(--accent);margin-left:auto;">로그 ↗</a>
       </div>`).join('')}</div>`;
   }catch(e){ console.error(e); box.innerHTML = `<div style="font-size:12px;color:var(--down);">상태 조회 실패: ${esc(e.message)}</div>`; }
 }
@@ -3779,8 +3116,6 @@ auth.onAuthStateChanged(async (user)=>{
     await populateExistingClientSelect();
     await populateUndoClientSelect();
     await populateGoalClientSelect();
-    await populateBrandContractClientSelect();
-    await populateAuditClientSelect();
     applyGoalHandoff();
     await populatePermClientSelect();
     await populateCompactClientSelect();
@@ -3986,7 +3321,7 @@ document.getElementById('refreshCapacityBtn').onclick = refreshCapacityTable;
 // month 객체 값(가장 구형) 순으로 읽어 병합해주므로, 이미 어떤 형식으로 저장돼있든 getClient로 읽은 뒤
 // setClient로 그대로 다시 저장하기만 하면 상세데이터가 전부 Storage 파일로 옮겨짐(내용은 그대로 유지).
 async function migrateClientToStorage(key){
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data) throw new Error(`업체를 찾을 수 없어요: ${key}`);
   const ok = await setClient(key, data);
   if(!ok) throw new Error(`저장 실패: ${lastStorageError||'알 수 없는 오류'}`);
@@ -4063,7 +3398,7 @@ document.getElementById('compactBtn').onclick = async ()=>{
   const key = sel.value;
   if(!key){ setMsg('업체를 선택해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const keepCount = parseInt(document.getElementById('compact-keep-input').value, 10) || 24;
+  const keepCount = parseInt(document.getElementById('compact-keep-input').value, 10) || 6;
   const data = await getClient(key);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   const id = key.replace(/^client:/,'');
@@ -4151,7 +3486,7 @@ document.getElementById('deleteMonthBtn').onclick = async ()=>{
   if(!key){ setMsg('삭제할 업체를 선택해주세요.', 'err'); return; }
   if(!mlabel){ setMsg('삭제할 기간 라벨을 입력해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   const before = (data.months||[]).length;
   data.months = (data.months||[]).filter(m=>m.label!==mlabel);
@@ -4181,7 +3516,7 @@ document.getElementById('deleteKeywordsBtn').onclick = async ()=>{
   if(!key){ setMsg('업체를 선택해주세요.', 'err'); return; }
   if(!mlabel){ setMsg('기간 라벨을 입력해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   const idx = (data.months||[]).findIndex(m=>m.label===mlabel);
   if(idx<0){ setMsg(`'${mlabel}' 기간을 찾을 수 없어요.`, 'err'); return; }
@@ -4301,7 +3636,7 @@ document.getElementById('quickAddClientBtn').onclick = async ()=>{
   const name = document.getElementById('quick-add-name').value.trim();
   if(!name){ setMsg('업체명을 입력해주세요.', 'err'); return; }
   const key = 'client:' + slugify(name);
-  const existing = await getClient(key, true);
+  const existing = await getClient(key);
   if(existing){ setMsg(`'${name}' 업체는 이미 등록돼 있어요.`, 'err'); return; }
   setMsg('추가 중...', '');
   const industry = document.getElementById('quick-add-industry').value.trim() || '-';
@@ -4387,20 +3722,8 @@ document.getElementById('saveGoalBtn').onclick = async ()=>{
   const metric = bizType==='DB' ? 'cpa' : 'roas';
   try{
     const id = key.replace(/^client:/,'');
-    // 예전엔 goal을 통째로 갈아끼워서, 예산·목표 현황판(live.html)에서 넣어둔
-    // budgetTarget / convTarget이 여기서 저장할 때마다 조용히 지워졌음.
-    // 기존 값을 먼저 읽어와 덮어쓸 것만 덮어씀.
-    const prevSnap = await userClientsRef().doc(id).get();
-    const prevGoal = (prevSnap.exists && prevSnap.data().goal) || {};
-    const goalData = { ...prevGoal, metric, target, updatedAt: Date.now() };
+    const goalData = { metric, target, updatedAt: Date.now() };
     if(budgetTarget) goalData.budgetTarget = budgetTarget;
-    // 목표 전환 건수는 현황판과 같은 규칙(예산 ÷ 전환당 비용)으로 다시 계산해 어긋나지 않게 함
-    if(metric === 'cpa'){
-      const b = Number(goalData.budgetTarget)||0, t = Number(goalData.target)||0;
-      goalData.convTarget = (b>0 && t>0) ? Math.floor(b/t) : null;
-    } else {
-      goalData.convTarget = null;
-    }
     await userClientsRef().doc(id).update({ goal: goalData });
     setMsg(`'${name}'의 목표가 저장됐어요.`, 'ok');
     document.getElementById('goal-target-input').value = '';
@@ -4409,171 +3732,6 @@ document.getElementById('saveGoalBtn').onclick = async ()=>{
   }catch(e){ console.error(e); setMsg('저장에 실패했어요. (사유: '+koError(e)+')', 'err'); }
 };
 
-/* ── 브랜드검색광고 계약 등록 ─────────────────────────────────────────────
-   브랜드검색은 정액제라 네이버 일별 리포트의 비용이 항상 0원이다. 그래서 계약 기간과
-   계약 금액을 사람이 직접 넣어두고, 대시보드가 그 금액을 계약 기간의 각 달에 '그 달에
-   걸친 일수' 비율로 나눠서 비용으로 쓴다. 원본 수집 데이터는 건드리지 않고,
-   화면에 그릴 때만 얹는다(brandContracts 필드에 저장). */
-function bcMonthDays(y, m){ return new Date(y, m, 0).getDate(); }
-function bcParseYM(v){ const mm=String(v||'').match(/^(\d{4})-(\d{2})$/); return mm? {y:+mm[1], m:+mm[2]} : null; }
-function bcYMKey(y,m){ return y+'.'+String(m).padStart(2,'0'); }
-/* 계약 금액을 월별로 나눈다. 계약이 달 중간에 시작/끝나면 그 달은 일수 비율만큼만 잡는다.
-   반올림 오차는 마지막 달에 몰아줘서 합계가 계약 금액과 정확히 일치하게 한다. */
-function bcSplitByMonth(startYM, endYM, amount){
-  const s=bcParseYM(startYM), e=bcParseYM(endYM);
-  if(!s||!e||!(amount>0)) return [];
-  if(e.y*12+e.m < s.y*12+s.m) return [];
-  const spans=[];
-  let y=s.y, m=s.m, totalDays=0;
-  while(y*12+m <= e.y*12+e.m){
-    const dim=bcMonthDays(y,m);
-    // 시작/종료 달은 부분만 걸치므로 실제 걸친 일수를 센다(월 단위 입력이라 전체 달로 계산).
-    const days=dim;
-    spans.push({label:bcYMKey(y,m), days:days});
-    totalDays+=days;
-    m++; if(m>12){ m=1; y++; }
-  }
-  if(!totalDays) return [];
-  let acc=0;
-  spans.forEach((sp,i)=>{
-    if(i===spans.length-1){ sp.cost = amount-acc; }
-    else { sp.cost = Math.round(amount*sp.days/totalDays); acc+=sp.cost; }
-  });
-  return spans;
-}
-function bcRenderSplitPreview(){
-  const el=document.getElementById('bc-split-preview');
-  if(!el) return;
-  const spans=bcSplitByMonth(
-    document.getElementById('bc-start-input').value,
-    document.getElementById('bc-end-input').value,
-    parseFloat(document.getElementById('bc-amount-input').value)||0
-  );
-  if(!spans.length){ el.textContent=''; return; }
-  el.innerHTML='월별로 이렇게 나뉘어요 — '+spans.map(sp=>sp.label+' '+Math.round(sp.cost).toLocaleString('ko-KR')+'원').join(' · ');
-}
-/* 이 업체의 월 데이터에서 '브랜드검색' 유형 캠페인 이름만 모은다. */
-function bcBrandCampaigns(data){
-  const set=new Set();
-  (data && data.months || []).forEach(m=>{
-    (m.campaigns||[]).forEach(c=>{
-      const t=String(c.type==null?'':c.type).trim();
-      if(t==='브랜드검색' || t==='BRAND_SEARCH' || t.indexOf('브랜드검색')>=0) set.add(c.campaign);
-    });
-  });
-  return [...set].sort();
-}
-async function populateBrandContractClientSelect(){
-  const sel=document.getElementById('bc-client-select');
-  if(!sel) return;
-  try{
-    const keys=await listClients();
-    if(!keys.length){ sel.innerHTML='<option value="">등록된 업체 없음</option>'; return; }
-    const dataList=await Promise.all(keys.map(k=>getClientLight(k)));
-    const opts=['<option value="">— 업체 선택 —</option>'];
-    keys.forEach((key,i)=>{
-      const d=dataList[i]; if(!d) return;
-      const n=bcBrandCampaigns(d).length;
-      opts.push('<option value="'+key+'"'+(n?'':' disabled')+'>'+d.name+(n?' (브랜드검색 '+n+'개)':' (브랜드검색 없음)')+'</option>');
-    });
-    sel.innerHTML=opts.join('');
-  }catch(e){ console.error(e); sel.innerHTML='<option value="">불러오기 실패</option>'; }
-}
-// 계약 하나를 가리키는 표식 — 캠페인·시작·종료·금액이 모두 같아야 같은 계약으로 본다.
-function bcSig(c){ return [c&&c.campaign, c&&c.start, c&&c.end, Number((c&&c.amount)||0)].join('\u0000'); }
-function bcContractListHTML(contracts){
-  if(!contracts || !contracts.length) return '<div class="sub">아직 등록된 계약이 없어요.</div>';
-  return contracts.map((c,i)=>{
-    const total=Number(c.amount)||0;
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding:8px 0;">'
-      +'<div style="min-width:0;"><div style="font-size:13px;font-weight:600;word-break:break-all;">'+c.campaign+'</div>'
-      +'<div class="sub" style="margin:2px 0 0;">'+c.start+' ~ '+c.end+' · '+total.toLocaleString('ko-KR')+'원</div></div>'
-      /* 예전엔 '몇 번째 줄'(data-idx)로 지웠는데, 목록을 그린 뒤에 다른 사람이 계약을 추가·삭제하면
-         번호가 밀려 엉뚱한 계약이 지워질 수 있었다. 캠페인·기간·금액으로 찾아 지운다. */
-      +'<button class="btn btn-ghost bc-del" data-idx="'+i+'" data-sig="'+bcSig(c).replace(/"/g,'&quot;')+'" style="font-size:12px;padding:6px 10px;white-space:nowrap;">삭제</button></div>';
-  }).join('');
-}
-async function bcRefreshList(){
-  const box=document.getElementById('bc-list');
-  const key=document.getElementById('bc-client-select').value;
-  if(!box) return;
-  if(!key){ box.innerHTML=''; return; }
-  try{
-    const d=await getClient(key, true);
-    box.innerHTML=bcContractListHTML((d&&d.brandContracts)||[]);
-    box.querySelectorAll('.bc-del').forEach(b=>{
-      b.onclick=async ()=>{
-        const el=document.getElementById('bcStatusMsg');
-        try{
-          const cur=await getClient(key, true);
-          const list=((cur&&cur.brandContracts)||[]).slice();
-          const sig=b.dataset.sig;
-          const pos=list.findIndex(x=>bcSig(x)===sig);
-          if(pos<0){
-            el.textContent='이 계약을 찾지 못했어요. 그새 다른 곳에서 바뀐 것 같아요 — 목록을 새로 불러올게요.';
-            el.className='status-msg show err';
-            await bcRefreshList();
-            return;
-          }
-          list.splice(pos,1);
-          await userClientsRef().doc(key.replace(/^client:/,'')).update({ brandContracts:list });
-          el.textContent='계약을 삭제했어요.'; el.className='status-msg show ok';
-          await bcRefreshList();
-        }catch(e){ console.error(e); el.textContent='삭제에 실패했어요. (사유: '+koError(e)+')'; el.className='status-msg show err'; }
-      };
-    });
-  }catch(e){ console.error(e); box.innerHTML='<div class="sub">목록을 불러오지 못했어요.</div>'; }
-}
-(function bcWire(){
-  const csel=document.getElementById('bc-client-select');
-  if(!csel) return;
-  csel.onchange=async ()=>{
-    const form=document.getElementById('bc-form');
-    const key=csel.value;
-    if(!key){ form.style.display='none'; return; }
-    form.style.display='block';
-    const d=await getClientLight(key);
-    const camps=bcBrandCampaigns(d);
-    document.getElementById('bc-campaign-select').innerHTML =
-      camps.length ? camps.map(c=>'<option value="'+c+'">'+c+'</option>').join('')
-                   : '<option value="">브랜드검색 캠페인이 없어요</option>';
-    await bcRefreshList();
-  };
-  ['bc-start-input','bc-end-input','bc-amount-input'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.oninput=bcRenderSplitPreview;
-  });
-  const btn=document.getElementById('saveBrandContractBtn');
-  if(btn) btn.onclick=async ()=>{
-    const el=document.getElementById('bcStatusMsg');
-    const setMsg=(m,t)=>{ el.textContent=m; el.className='status-msg show '+(t||''); };
-    const key=document.getElementById('bc-client-select').value;
-    if(!key) return setMsg('업체를 선택해주세요.','err');
-    const campaign=document.getElementById('bc-campaign-select').value;
-    if(!campaign) return setMsg('브랜드검색 캠페인을 선택해주세요.','err');
-    const start=document.getElementById('bc-start-input').value;
-    const end=document.getElementById('bc-end-input').value;
-    if(!start||!end) return setMsg('계약 시작·종료 월을 모두 넣어주세요.','err');
-    const amount=parseFloat(document.getElementById('bc-amount-input').value);
-    if(!(amount>0)) return setMsg('계약 금액을 넣어주세요.','err');
-    const spans=bcSplitByMonth(start,end,amount);
-    if(!spans.length) return setMsg('계약 기간이 올바르지 않아요. (종료가 시작보다 빠른지 확인해주세요)','err');
-    try{
-      const cur=await getClient(key, true);
-      const list=((cur&&cur.brandContracts)||[]).slice();
-      // 같은 캠페인+같은 기간이면 덮어쓴다(중복 등록으로 비용이 두 배 잡히는 걸 막는다).
-      const dup=list.findIndex(c=>c.campaign===campaign && c.start===start && c.end===end);
-      const rec={ campaign, start, end, amount, updatedAt:Date.now() };
-      if(dup>=0) list[dup]=rec; else list.push(rec);
-      await userClientsRef().doc(key.replace(/^client:/,'')).update({ brandContracts:list });
-      setMsg('계약이 저장됐어요. 대시보드에서 브랜드검색 비용·CPA·ROAS가 이 금액 기준으로 보여요.','ok');
-      document.getElementById('bc-amount-input').value='';
-      bcRenderSplitPreview();
-      await bcRefreshList();
-    }catch(e){ console.error(e); setMsg('저장에 실패했어요. (사유: '+koError(e)+')','err'); }
-  };
-})();
-
 document.getElementById('undoLastUploadBtn').onclick = async ()=>{
   const el = document.getElementById('undoStatusMsg');
   function setMsg(msg, type){ el.textContent = msg; el.className = 'status-msg show ' + (type||''); }
@@ -4581,7 +3739,7 @@ document.getElementById('undoLastUploadBtn').onclick = async ()=>{
   const key = sel.value;
   if(!key){ setMsg('되돌릴 업체를 선택해주세요.', 'err'); return; }
   const name = sel.options[sel.selectedIndex].text;
-  const data = await getClient(key, true);
+  const data = await getClient(key);
   if(!data){ setMsg('업체를 찾을 수 없어요.', 'err'); return; }
   if(!data.lastBackup || !data.lastBackup.entries || !data.lastBackup.entries.length){
     setMsg('되돌릴 수 있는 최근 저장 내역이 없어요.', 'err'); return;
@@ -4622,7 +3780,7 @@ document.getElementById('saveBtn').onclick = async ()=>{
   const labelsToSave = monthLabels.length ? monthLabels : [fallbackLabel];
 
   showStatus('저장 중...', '');
-  let data = await getClient(key, true);
+  let data = await getClient(key);
   const isNew = !data;
   if(isNew){
     const color = randomAccentColor();
@@ -4733,9 +3891,7 @@ document.getElementById('saveBtn').onclick = async ()=>{
       if(previewEl) previewEl.style.display = 'none';
       if(statusEl){ statusEl.textContent = '업로드하면 자동으로 분석돼요.'; statusEl.className = 'status'; }
     });
-    /* parsedHourlyByCampaignDate 가 빠져 있어서, 저장 후 페이지를 새로 안 열고 다른 업체를
-       저장하면 앞 업체의 '날짜×시간대' 데이터가 그대로 딸려 들어갔다. 같이 비운다. */
-    parsedReport = null; parsedHourly = null; parsedHourlyByCampaign = null; parsedHourlyByDow = null; parsedHourlyByDowByCampaign = null; parsedHourlyByAdgroup = null; parsedHourlyByCampaignDate = null; parsedSearchTerms = null; parsedWasteSearchTerms = null; parsedExpandSearchTerms = null;
+    parsedReport = null; parsedHourly = null; parsedHourlyByCampaign = null; parsedHourlyByDow = null; parsedHourlyByDowByCampaign = null; parsedHourlyByAdgroup = null; parsedSearchTerms = null; parsedWasteSearchTerms = null; parsedExpandSearchTerms = null;
     if(typeof parsedQueryPowerlink!=='undefined'){ parsedQueryPowerlink = null; parsedQueryBrand = null; }
     // 저장 방식은 매번 명시적으로 골라야 안전해서, 저장 후 항상 기본값("덮어쓰기")으로 되돌림 —
     // "합산"을 고른 채로 깜빡 잊고 다음 번(다른 업체·다른 기간) 저장까지 이어지는 걸 방지.
@@ -4768,749 +3924,6 @@ if(FIREBASE_CONFIG.apiKey.includes('여기에')){
       <div>파일 상단의 FIREBASE_CONFIG 값을 본인의 Firebase 프로젝트 값으로 채워주세요.</div>
     </div>`;
 }
-
-/* 필터 접기 버튼 — 어느 페이지에서든 화면 오른쪽 가장자리에 붙는다. */
-(function(){
-  function initPanelToggle(){
-    if(document.getElementById('panelToggleBtn')) return;
-    if(!document.querySelector('.main-layout')) return;
-    var KEY='kmPanelOff';
-    var btn=document.createElement('button');
-    btn.id='panelToggleBtn'; btn.type='button';
-    function paint(){
-      var off=document.body.classList.contains('panel-off');
-      btn.textContent = off ? '필터 펴기 ‹' : '필터 접기 ›';
-      btn.title = off ? '오른쪽 필터를 다시 표시' : '오른쪽 필터를 숨기고 넓게 보기';
-    }
-    try{ if(localStorage.getItem(KEY)==='1') document.body.classList.add('panel-off'); }catch(e){}
-    btn.onclick=function(){
-      document.body.classList.toggle('panel-off');
-      try{ localStorage.setItem(KEY, document.body.classList.contains('panel-off')?'1':'0'); }catch(e){}
-      paint();
-      window.dispatchEvent(new Event('resize')); // 차트가 새 폭에 맞게 다시 그려지도록
-    };
-    paint();
-    document.body.appendChild(btn);
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initPanelToggle);
-  else initPanelToggle();
-  setTimeout(initPanelToggle, 1500);
-})();
-
-
-/* ── 검수표 내려받기 ───────────────────────────────────────────────────────
-   네이버 화면과 우리 데이터를 대조하기 위한 엑셀을 브라우저에서 바로 만든다.
-   - 플레이스는 수집 단계에서 이미 빠져 있어서 따로 걸러낼 게 없다.
-   - 비용은 "원본 그대로"를 쓴다. 화면용 부가세 보정(normalizeCostBasis)이나
-     브랜드검색 계약금액(applyBrandContracts)을 얹으면 네이버 화면과 달라지기 때문.
-   - 부가세 기준(네이버가 예전 기간은 포함, 최근 기간은 제외로 준다)은 표에서
-     두 가지로 다 계산해 보여주고, 네이버 숫자를 넣으면 어느 쪽인지 판정한다. */
-const AU = {
-  NAVY:'FF2F5597', TEAL:'FF1F6F6B', YEL:'FFFDF2D0', GRAY:'FFF0F0F0',
-  GREEN:'FFE8F0DC', CALC:'FFEAF1FB', WON:'#,##0'
-};
-function auNum(v){ return Math.round((Number(v)||0)*10000); }   // 만원 → 원
-function auMonthStats(m){
-  const daily = Array.isArray(m.daily) ? m.daily : [];
-  const dailySum = daily.reduce((a,x)=>a+(Number(x.cost)||0),0);
-  const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(Number(c.cost)||0),0);
-  const N0 = x => Math.round(Number(x)||0);
-  const N1 = x => Math.round((Number(x)||0)*10)/10;
-  return {
-    label: m.label,
-    impressions: Math.round(Number(m.impressions)||0),
-    clicks: Math.round(Number(m.clicks)||0),
-    cost: auNum(m.cost),
-    conv: Math.round((Number(m.conv)||0)*10)/10,
-    revenue: auNum(m.revenue),
-    dailySum: auNum(dailySum),
-    campSum: auNum(campSum),
-    days: daily.length,
-    // 캠페인 단위 대조용 (월별x캠페인 / 일별x캠페인 시트에서 씀)
-    camps: (m.campaigns||[]).map(c=>({
-      campaign: String(c.campaign||''),
-      impressions: N0(c.impressions), clicks: N0(c.clicks),
-      cost: auNum(c.cost), conv: N1(c.conv), revenue: auNum(c.revenue)
-    })),
-    dailyCamps: (Array.isArray(m.dailyByCampaign)?m.dailyByCampaign:[]).map(r=>({
-      date: String(r.date||''), campaign: String(r.campaign||''),
-      impressions: N0(r.impressions), clicks: N0(r.clicks),
-      cost: auNum(r.cost), conv: N1(r.conv), revenue: auNum(r.revenue)
-    })),
-    daily: daily.map(x=>({
-      date: String(x.date||''),
-      impressions: Math.round(Number(x.impressions)||0),
-      clicks: Math.round(Number(x.clicks)||0),
-      cost: auNum(x.cost),
-      conv: Math.round((Number(x.conv)||0)*10)/10,
-      revenue: auNum(x.revenue)
-    }))
-  };
-}
-// 부가세 기준이 섞인 달(비율이 1도 1.1도 아닌 달)을 먼저 보여준다 — 제일 확인이 필요한 달이라서.
-function auPickDefaultMonth(stats){
-  const mixed = stats.filter(s=>{
-    if(!(s.dailySum>0) || !(s.campSum>0)) return false;
-    const r = s.campSum / s.dailySum;
-    return r > 1.001 && Math.abs(r-1.1) > 0.002;
-  });
-  if(mixed.length) return mixed[mixed.length-1].label;
-  const withDays = stats.filter(s=>s.days>0);
-  return withDays.length ? withDays[withDays.length-1].label : (stats[0]||{}).label;
-}
-function auBasisLabel(campSum, dailySum){
-  if(!(dailySum>0) || !(campSum>0)) return '확인 불가';
-  const r = campSum / dailySum;
-  if(Math.abs(r-1) <= 0.0005) return '통일됨';
-  if(Math.abs(r-1.1) <= 0.002) return '부가세 포함 (1.1배)';
-  return '섞임';
-}
-// 표본 뽑기 — 광고를 실제로 집행한 날(비용>0)에서만 고른다.
-function auPickSamples(stats){
-  const days = [];
-  stats.forEach(s=> s.daily.forEach(d=>{ if(d.cost>0) days.push(d); }));
-  days.sort((a,b)=> a.date < b.date ? -1 : 1);
-  const idx = {}; days.forEach((d,i)=> idx[d.date]=i);
-  const out = [];
-  const pick = (arr,n)=>{ const c=arr.slice(); const r=[]; while(r.length<n && c.length){ r.push(c.splice(Math.floor(Math.random()*c.length),1)[0]); } return r; };
-  const sumRange = (from,to)=>{
-    let o={cost:0,impressions:0,clicks:0,conv:0,n:0};
-    days.forEach(d=>{ if(d.date>=from && d.date<=to){ o.cost+=d.cost; o.impressions+=d.impressions; o.clicks+=d.clicks; o.conv+=d.conv; o.n++; } });
-    o.conv=Math.round(o.conv*10)/10; return o;
-  };
-  // 1일
-  pick(days, 3).sort((a,b)=>a.date<b.date?-1:1).forEach(d=>{
-    out.push({stage:'1일', from:d.date, to:d.date, ...sumRange(d.date,d.date)});
-  });
-  // 연속 N개 집행일 묶음 (주말·휴일은 건너뛰므로 "집행일 기준 연속"으로 잡는다)
-  const window = (n, label)=>{
-    const starts=[]; for(let i=0;i+n-1<days.length;i++) starts.push(i);
-    if(!starts.length) return;
-    pick(starts, 3).sort((a,b)=>a-b).forEach(i=>{
-      const from=days[i].date, to=days[i+n-1].date;
-      out.push({stage:label, from, to, ...sumRange(from,to)});
-    });
-  };
-  window(3, '3일');
-  window(5, '1주일');
-  // 1개월
-  const fullMonths = stats.filter(s=>s.days>=28);
-  pick(fullMonths, 3).sort((a,b)=>a.label<b.label?-1:1).forEach(s=>{
-    out.push({stage:'1개월', from:s.label, to:s.label, cost:s.dailySum>0?s.dailySum:s.cost,
-      impressions:s.impressions, clicks:s.clicks, conv:s.conv, n:s.days, isMonth:true, monthCost:s.cost});
-  });
-  return out;
-}
-
-const AU_GROUPS = [['노출수',2],['클릭수',5],['총비용(원)',8],['전환수',11]];
-function auStyleHeader(ws, r, firstLabel){
-  ws.mergeCells(r,1,r+1,1);
-  const c = ws.getCell(r,1); c.value=firstLabel;
-  [c, ws.getCell(r+1,1)].forEach(x=>{ x.fill={type:'pattern',pattern:'solid',fgColor:{argb:AU.NAVY}}; x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder(); });
-  AU_GROUPS.forEach(([name,col])=>{
-    ws.mergeCells(r,col,r,col+2);
-    const g=ws.getCell(r,col); g.value=name;
-    for(let k=0;k<3;k++){
-      const x=ws.getCell(r,col+k);
-      x.fill={type:'pattern',pattern:'solid',fgColor:{argb:AU.NAVY}};
-      x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
-      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
-      const s=ws.getCell(r+1,col+k); s.value=['대시보드','네이버','차이'][k];
-      s.fill={type:'pattern',pattern:'solid',fgColor:{argb:AU.NAVY}};
-      s.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
-      s.alignment={horizontal:'center',vertical:'middle'}; s.border=auBorder();
-    }
-  });
-}
-function auBorder(){ const t={style:'thin',color:{argb:'FFC9C9C9'}}; return {top:t,left:t,right:t,bottom:t}; }
-function auFill(argb){ return {type:'pattern',pattern:'solid',fgColor:{argb}}; }
-function auDataRow(ws, r, label, vals){
-  const a=ws.getCell(r,1); a.value=label; a.font={name:'Arial',size:10,bold:true}; a.alignment={horizontal:'center'}; a.border=auBorder();
-  AU_GROUPS.forEach(([name,col],i)=>{
-    const L=ws.getColumn(col).letter, N=ws.getColumn(col+1).letter;
-    const d=ws.getCell(r,col); d.value=vals[i]; d.numFmt=AU.WON; d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'}; d.border=auBorder();
-    const n=ws.getCell(r,col+1); n.numFmt=AU.WON; n.font={name:'Arial',size:10,color:{argb:'FF0000FF'}}; n.alignment={horizontal:'right'}; n.border=auBorder(); n.fill=auFill(AU.YEL);
-    const g=ws.getCell(r,col+2); g.value={formula:`IF(${N}${r}="","",${L}${r}-${N}${r})`}; g.numFmt=AU.WON; g.font={name:'Arial',size:10}; g.alignment={horizontal:'right'}; g.border=auBorder(); g.fill=auFill(AU.GRAY);
-  });
-}
-function auTotalRow(ws, r, first, last){
-  const a=ws.getCell(r,1); a.value='합계'; a.font={name:'Arial',size:10,bold:true}; a.alignment={horizontal:'center'}; a.border=auBorder(); a.fill=auFill(AU.GREEN);
-  AU_GROUPS.forEach(([name,col])=>{
-    for(let k=0;k<2;k++){
-      const L=ws.getColumn(col+k).letter;
-      const c=ws.getCell(r,col+k); c.value={formula:`SUM(${L}${first}:${L}${last})`};
-      c.numFmt=AU.WON; c.font={name:'Arial',size:10,bold:true}; c.alignment={horizontal:'right'}; c.border=auBorder(); c.fill=auFill(AU.GREEN);
-    }
-    const L=ws.getColumn(col).letter, N=ws.getColumn(col+1).letter;
-    const g=ws.getCell(r,col+2); g.value={formula:`IF(${N}${r}=0,"",${L}${r}-${N}${r})`};
-    g.numFmt=AU.WON; g.font={name:'Arial',size:10,bold:true}; g.alignment={horizontal:'right'}; g.border=auBorder(); g.fill=auFill(AU.GREEN);
-  });
-}
-function auExtraHeader(ws, r, title, labels){
-  const start=18, end=start+labels.length-1;
-  ws.mergeCells(r,start,r,end);
-  const t=ws.getCell(r,start); t.value=title;
-  for(let k=0;k<labels.length;k++){
-    const x=ws.getCell(r,start+k); x.fill=auFill(AU.TEAL); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
-    const s=ws.getCell(r+1,start+k); s.value=labels[k]; s.fill=auFill(AU.TEAL); s.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; s.alignment={horizontal:'center',vertical:'middle'}; s.border=auBorder();
-  }
-}
-
-/* 캠페인 단위 대조 시트 공통 — 5개 항목(노출/클릭/비용/전환/전환매출)을
-   [우리 / 네이버(노란칸) / 차이] 3칸씩으로 깔아준다. 네이버 값만 채우면 차이가 자동 계산된다. */
-const AU_METRICS = [
-  ['\ub178\ucd9c\uc218','impressions','#,##0',0],
-  ['\ud074\ub9ad\uc218','clicks','#,##0',0],
-  ['\ucd1d\ube44\uc6a9(\uc6d0)','cost',AU.WON,2],
-  ['\uc804\ud658\uc218','conv','#,##0.0',0],
-  ['\uc804\ud658\ub9e4\ucd9c(\uc6d0)','revenue',AU.WON,2]
-];
-function auCampHeader(ws, r, firstLabels){
-  firstLabels.forEach((lab,i)=>{
-    ws.mergeCells(r,i+1,r+1,i+1);
-    [ws.getCell(r,i+1), ws.getCell(r+1,i+1)].forEach(x=>{
-      x.value = x.row===r ? lab : x.value;
-      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
-      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
-    });
-    ws.getCell(r,i+1).value=lab;
-  });
-  let col = firstLabels.length + 1;
-  AU_METRICS.forEach(([name])=>{
-    ws.mergeCells(r,col,r,col+2);
-    const g=ws.getCell(r,col); g.value=name;
-    for(let k=0;k<3;k++){
-      const x=ws.getCell(r,col+k);
-      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
-      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
-      const t=ws.getCell(r+1,col+k); t.value=['\ub300\uc2dc\ubcf4\ub4dc','\ub124\uc774\ubc84','\ucc28\uc774'][k];
-      t.fill=auFill(AU.NAVY); t.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
-      t.alignment={horizontal:'center',vertical:'middle'}; t.border=auBorder();
-    }
-    col += 3;
-  });
-  return col - 1;
-}
-function auCampRow(ws, r, firstVals, obj){
-  firstVals.forEach((v,i)=>{
-    const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Arial',size:10};
-    c.alignment={horizontal:i===firstVals.length-1?'left':'center'}; c.border=auBorder();
-  });
-  let col = firstVals.length + 1;
-  AU_METRICS.forEach(([,key,fmt,tol])=>{
-    const L=ws.getColumn(col).letter, N=ws.getColumn(col+1).letter;
-    const a=ws.getCell(r,col); a.value=Number(obj[key])||0; a.numFmt=fmt;
-    a.font={name:'Arial',size:10}; a.alignment={horizontal:'right'}; a.border=auBorder();
-    const b=ws.getCell(r,col+1); b.numFmt=fmt; b.font={name:'Arial',size:10,color:{argb:'FF0000FF'}};
-    b.alignment={horizontal:'right'}; b.border=auBorder(); b.fill=auFill(AU.YEL);
-    const d=ws.getCell(r,col+2);
-    d.value={formula:`IF(${N}${r}="","",${N}${r}-${L}${r})`}; d.numFmt=fmt;
-    d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'}; d.border=auBorder(); d.fill=auFill(AU.GRAY);
-    col += 3;
-  });
-}
-function auCampWidths(ws, firstWidths){
-  const w = firstWidths.concat([]);
-  AU_METRICS.forEach(()=>{ w.push(13,13,11); });
-  w.forEach((x,i)=>{ ws.getColumn(i+1).width=x; });
-}
-function auCampSheet(ws, stats, title, note){
-  ws.getCell('A1').value=title; ws.getCell('A1').font={name:'Arial',size:14,bold:true};
-  ws.getCell('A2').value=note; ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
-  auCampHeader(ws, 4, ['\uc6d4','\ucea0\ud398\uc778\uba85']);
-  let r=6;
-  stats.slice().reverse().forEach(s=>{
-    const camps=(s.camps||[]).slice().sort((a,b)=>b.cost-a.cost);
-    if(!camps.length) return;
-    camps.forEach(c=>{ auCampRow(ws, r, [s.label, c.campaign], c); r++; });
-    // 그 달 소계
-    const sum={};
-    AU_METRICS.forEach(([,k])=>{ sum[k]=camps.reduce((a,c)=>a+(Number(c[k])||0),0); });
-    auCampRow(ws, r, [s.label, '\u2014 ' + s.label + ' \ud569\uacc4'], sum);
-    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(!x.fill||x.fill.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
-    r+=2;
-  });
-  auCampWidths(ws, [10,34]);
-  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
-}
-function auDailyCampSheet(ws, stats, dailyLabel){
-  const target = stats.find(s=>s.label===dailyLabel) || stats[stats.length-1];
-  ws.getCell('A1').value='\uc77c\ubcc4 \u00d7 \uce90\ud398\uc778 \ub300\uc870' + (target?(' \u2014 '+target.label):'');
-  ws.getCell('A1').font={name:'Arial',size:14,bold:true};
-  if(!target || !(target.dailyCamps||[]).length){
-    ws.getCell('A3').value='\uc774 \ub2ec\uc740 \ub0a0\uc9dc\u00d7\uce90\ud398\uc778 \uc0c1\uc138\uac00 \uc800\uc7a5\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. (\uc218\uc9d1 \ub2f9\uc2dc \uc0c1\uc138\ub97c \ubc1b\uc9c0 \uc54a\uc558\uac70\ub098 \ubc31\uc5c5\uc5d0\uc11c \uc81c\uc678\ub41c \uacbd\uc6b0)';
-    ws.getCell('A3').font={name:'Arial',size:10,color:{argb:'FF808080'}};
-    ws.getColumn(1).width=80; return;
-  }
-  ws.getCell('A2').value='\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uc77c\ubcc4 + \uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud558\uba74 \uc774 \ud45c\uc640 \uac19\uc740 \ubaa8\uc591\uc774 \ub098\uc635\ub2c8\ub2e4.';
-  ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
-  auCampHeader(ws, 4, ['\uc77c\uc790','\ucea0\ud398\uc778\uba85']);
-  const rows=(target.dailyCamps||[]).slice().sort((a,b)=>
-    String(a.date).localeCompare(String(b.date)) || b.cost-a.cost);
-  let r=6, curDate=null, dayStart=r;
-  const closeDay=()=>{
-    if(curDate===null) return;
-    const same=rows.filter(x=>x.date===curDate);
-    const sum={}; AU_METRICS.forEach(([,k])=>{ sum[k]=same.reduce((a,c)=>a+(Number(c[k])||0),0); });
-    auCampRow(ws, r, [curDate, '\u2014 ' + curDate + ' \ud569\uacc4'], sum);
-    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(x.fill?.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
-    r+=2;
-  };
-  rows.forEach(x=>{
-    if(x.date!==curDate){ closeDay(); curDate=x.date; dayStart=r; }
-    auCampRow(ws, r, [x.date, x.campaign], x); r++;
-  });
-  closeDay();
-  auCampWidths(ws, [12,34]);
-  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
-}
-
-/* ── 연령·성별 대조 시트 ──────────────────────────────────────────────────
-   연령 데이터는 네이버 "타겟팅 세그먼트 보고서"에서, 일별 데이터는 "일별 보고서"에서 온다.
-   둘은 서로 다른 보고서라 대조가 의미가 있다 — 한쪽이 틀리면 여기서 드러난다.
-   ⚠️ 전환은 "구매" 유형만 센다. 2026-09-10 이전 데이터는 모든 유형을 다 더해서
-      담은 기준 2~5배 부풀려져 있었다(장바구니에도 매출이 찍히는 계정이라 생긴 문제). */
-async function auLoadAgeFiles(id, labels){
-  const out = {};
-  await Promise.all(labels.map(async (lb)=>{
-    try{
-      const url = await storage.ref('clients/'+id+'/'+lb+'__ageGender.json').getDownloadURL();
-      const res = await fetch(url);
-      if(!res.ok) return;
-      out[lb] = await res.json();
-    }catch(e){ /* 그 달은 아직 안 받은 것 — 표에 '없음'으로 표시 */ }
-  }));
-  return out;
-}
-function auAgeTotals(box){
-  const t = { imp:0, clk:0, cost:0, conv:0, rev:0, convAll:0, revAll:0 };
-  Object.values(box||{}).forEach(b=>{
-    t.imp+=b.imp||0; t.clk+=b.clk||0; t.cost+=b.cost||0;
-    t.conv+=b.conv||0; t.rev+=b.rev||0;
-    t.convAll+=b.convAll||0; t.revAll+=b.revAll||0;
-  });
-  return t;
-}
-const AU_AGE_LABEL = {
-  AG0013:'13세 이하', AG1418:'14~18세', AG1924:'19~24세', AG2529:'25~29세',
-  AG3034:'30~34세', AG3539:'35~39세', AG4044:'40~44세', AG4549:'45~49세',
-  AG5054:'50~54세', AG5559:'55~59세', AG6099:'60세 이상', AGXXXX:'알 수 없음'
-};
-const AU_GENDER_LABEL = { GNM:'남성', GNF:'여성', GNU:'알 수 없음' };
-const AU_AGE_ORDER = ['AG0013','AG1418','AG1924','AG2529','AG3034','AG3539','AG4044','AG4549','AG5054','AG5559','AG6099','AGXXXX'];
-
-function auAgeSheet(sh, stats, files, pickLabel){
-  const F = (r,c,v,opt)=>{
-    const cell = sh.getCell(r,c); cell.value=v;
-    const o = opt||{};
-    cell.font = { name:'Arial', size:o.size||10, bold:!!o.bold,
-                  color:{ argb:o.color||'FF000000' } };
-    cell.alignment = { horizontal:o.al||'left', vertical:'middle' };
-    if(o.fill) cell.fill = auFill(o.fill);
-    if(o.fmt) cell.numFmt = o.fmt;
-    if(o.border!==false) cell.border = auBorder();
-    return cell;
-  };
-  const head = (r,c,v)=>F(r,c,v,{bold:true,al:'center',fill:AU.NAVY,color:'FFFFFFFF'});
-
-  sh.getCell('A1').value = '연령 · 성별 대조';
-  sh.getCell('A1').font = { name:'Arial', size:14, bold:true };
-  sh.getCell('A2').value = '연령 데이터는 네이버 「타겟팅 세그먼트 보고서」에서, 일별 데이터는 「일별 보고서」에서 옵니다. '
-    + '서로 다른 보고서라 둘이 같으면 양쪽 다 맞는 것입니다. 전환은 「구매」 유형만 셉니다.';
-  sh.getCell('A2').font = { name:'Arial', size:9, color:{argb:'FF808080'} };
-
-  let r = 4;
-
-  // ── 1) 달별 자동 대조 ────────────────────────────────────────────────
-  F(r,1,'1. 달별 자동 대조 (입력할 것 없음)',{bold:true,size:11,border:false}); r+=1;
-  F(r,1,'연령 데이터 합계와 일별 데이터가 같아야 합니다. 비용은 반올림 때문에 몇 원까지 차이날 수 있습니다.',
-    {size:9,color:'FF808080',border:false}); r+=2;
-
-  const H = ['달','항목','연령 데이터','일별 원본','차이','판정'];
-  H.forEach((h,i)=>head(r,i+1,h)); r++;
-
-  const items = [
-    ['노출수','imp','impressions',0],
-    ['클릭수','clk','clicks',0],
-    ['총비용','cost','cost',2],
-    ['전환수','conv','conv',0],
-    ['전환매출','rev','revenue',0]
-  ];
-  let missing = [];
-  stats.forEach(st=>{
-    const f = files[st.label];
-    if(!f){ missing.push(st.label); return; }
-    const A = auAgeTotals(f.age);
-    items.forEach(([nm,ak,sk,tol],i)=>{
-      F(r,1, i===0 ? st.label : '', {bold:true,al:'center'});
-      F(r,2, nm, {});
-      F(r,3, Math.round(A[ak]), {al:'right',fmt:AU.WON,bold:true});
-      F(r,4, Math.round(st[sk]||0), {al:'right',fmt:AU.WON});
-      const d = sh.getCell(r,5);
-      d.value = { formula:'IF(D'+r+'="","",C'+r+'-D'+r+')' };
-      d.numFmt = AU.WON; d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'};
-      d.border=auBorder(); d.fill=auFill(AU.GRAY);
-      const j = sh.getCell(r,6);
-      j.value = { formula:'IF(ABS(E'+r+')<='+tol+',"일치","불일치")' };
-      j.font={name:'Arial',size:10,bold:true}; j.alignment={horizontal:'center'}; j.border=auBorder();
-      r++;
-    });
-  });
-  if(missing.length){
-    F(r,1,'아직 안 받은 달: '+missing.join(', '),{size:9,color:'FFB07000',border:false}); r++;
-  }
-  r += 2;
-
-  // ── 2) 고른 달 · 연령대별 ────────────────────────────────────────────
-  const pf = files[pickLabel];
-  F(r,1,'2. 연령대별 — '+pickLabel+(pf?'':'  (이 달은 아직 안 받았습니다)'),{bold:true,size:11,border:false}); r+=1;
-  F(r,1,'네이버 다차원보고서를 「타겟팅 세그먼트 > 연령」으로 조회해서 노란 칸에 넣으세요.',
-    {size:9,color:'FF808080',border:false}); r+=2;
-
-  const H2 = ['연령대','노출수','클릭수','총비용','구매 전환','구매 매출',
-              '네이버 노출','차이','네이버 클릭','차이','네이버 비용','차이','네이버 전환','차이'];
-  H2.forEach((h,i)=>head(r,i+1,h)); r++;
-
-  const rowsOf = (box, labelMap, order)=>{
-    const keys = order
-      ? order.filter(k=>box && box[k])
-      : Object.keys(box||{}).sort();
-    return keys.map(k=>[ (labelMap[k]||k), box[k] ]);
-  };
-  const numBlock = (row, ourCol, naverCol)=>{
-    const OL = sh.getColumn(ourCol).letter, NL = sh.getColumn(naverCol).letter;
-    const n = sh.getCell(row, naverCol);
-    n.numFmt=AU.WON; n.font={name:'Arial',size:10,color:{argb:'FF0000FF'}};
-    n.alignment={horizontal:'right'}; n.border=auBorder(); n.fill=auFill(AU.YEL);
-    const d = sh.getCell(row, naverCol+1);
-    d.value={formula:'IF('+NL+row+'="","",'+NL+row+'-'+OL+row+')'};
-    d.numFmt=AU.WON; d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'};
-    d.border=auBorder(); d.fill=auFill(AU.GRAY);
-  };
-  const bodyRows = (list)=>{
-    list.forEach(([nm,b])=>{
-      F(r,1,nm,{bold:true});
-      F(r,2,Math.round(b.imp||0),{al:'right',fmt:AU.WON});
-      F(r,3,Math.round(b.clk||0),{al:'right',fmt:AU.WON});
-      F(r,4,Math.round(b.cost||0),{al:'right',fmt:AU.WON});
-      F(r,5,Math.round(b.conv||0),{al:'right',fmt:AU.WON,bold:true});
-      F(r,6,Math.round(b.rev||0),{al:'right',fmt:AU.WON});
-      numBlock(r,2,7); numBlock(r,3,9); numBlock(r,4,11); numBlock(r,5,13);
-      r++;
-    });
-  };
-  if(pf) bodyRows(rowsOf(pf.age, AU_AGE_LABEL, AU_AGE_ORDER));
-  if(pf){
-    const T = auAgeTotals(pf.age);
-    F(r,1,'합계',{bold:true,fill:AU.GREEN});
-    [T.imp,T.clk,T.cost,T.conv,T.rev].forEach((v,i)=>F(r,i+2,Math.round(v),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN}));
-    for(let c=7;c<=14;c++) F(r,c,'',{fill:AU.GREEN});
-    r++;
-  }
-  r += 2;
-
-  // ── 3) 고른 달 · 성별 ────────────────────────────────────────────────
-  F(r,1,'3. 성별 — '+pickLabel,{bold:true,size:11,border:false}); r+=2;
-  H2.forEach((h,i)=>head(r,i+1,h)); r++;
-  if(pf) bodyRows(rowsOf(pf.gender, AU_GENDER_LABEL, ['GNM','GNF','GNU']));
-  r += 2;
-
-  // ── 4) 전환 유형별 ───────────────────────────────────────────────────
-  F(r,1,'4. 전환 유형별 — '+pickLabel,{bold:true,size:11,border:false}); r+=1;
-  F(r,1,'네이버가 이 계정에서 내려주는 전환 유형입니다. 대시보드는 「구매」 유형만 셉니다 — '
-       +'장바구니에도 매출이 찍히는 계정이 있어서, 다 더하면 매출이 부풀려집니다.',
-    {size:9,color:'FF808080',border:false}); r+=2;
-  ['전환 유형','건수','매출','대시보드에 포함?'].forEach((h,i)=>head(r,i+1,h)); r++;
-  if(pf){
-    const types = {};
-    Object.values(pf.age||{}).forEach(b=>{
-      Object.entries(b.byType||{}).forEach(([t,e])=>{
-        const x = types[t] || (types[t]={c:0,s:0});
-        x.c += e.c||0; x.s += e.s||0;
-      });
-    });
-    const T = auAgeTotals(pf.age);
-    const names = Object.keys(types).sort((a,b)=>types[b].c-types[a].c);
-    if(!names.length){
-      F(r,1,'이 달 파일에는 유형별 내역이 없습니다 (2026-09-10 이전에 받은 데이터).',
-        {size:9,color:'FFB07000'}); r++;
-    } else {
-      names.forEach(t=>{
-        F(r,1,t,{bold:true});
-        F(r,2,types[t].c,{al:'right',fmt:AU.WON});
-        F(r,3,Math.round(types[t].s),{al:'right',fmt:AU.WON});
-        // 구매로 셌는지 = 이 유형만으로 conv 합계가 설명되는지로 판정하지 않고,
-        // 구매 합계와 이 유형 건수가 같은지로 표시 (유형이 하나뿐일 때가 대부분)
-        const inDash = (types[t].c === T.conv && Math.round(types[t].s) === Math.round(T.rev));
-        F(r,4, inDash ? '포함 (구매)' : '제외', {al:'center',bold:true,
-          color: inDash ? 'FF1F6F6B' : 'FF808080'});
-        r++;
-      });
-      F(r,1,'대시보드 값',{bold:true,fill:AU.GREEN});
-      F(r,2,Math.round(T.conv),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN});
-      F(r,3,Math.round(T.rev),{al:'right',fmt:AU.WON,bold:true,fill:AU.GREEN});
-      F(r,4,'',{fill:AU.GREEN});
-      r++;
-      F(r,1,'모든 유형 합계',{bold:true,fill:AU.GRAY});
-      F(r,2,Math.round(T.convAll),{al:'right',fmt:AU.WON,fill:AU.GRAY});
-      F(r,3,Math.round(T.revAll),{al:'right',fmt:AU.WON,fill:AU.GRAY});
-      F(r,4,'참고용',{al:'center',color:'FF808080',fill:AU.GRAY});
-      r++;
-    }
-  }
-
-  [16,12,13,13,12,14,13,11,13,11,13,11,13,11].forEach((w,i)=>{ sh.getColumn(i+1).width=w; });
-  sh.views=[{state:'frozen', ySplit:3}];
-}
-
-async function buildAuditWorkbook(name, stats, dailyLabel, ageFiles){
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'km-board';
-  const ws = wb.addWorksheet('월별 대조');
-
-  ws.getCell('A1').value = name + ' 검수표';
-  ws.getCell('A1').font = {name:'Arial',size:14,bold:true};
-  ws.getCell('A2').value = '만든 날짜: ' + new Date().toLocaleDateString('ko-KR') + ' · 플레이스는 수집 단계에서 제외되어 이 표에 없습니다';
-  ws.getCell('A2').font = {name:'Arial',size:9,color:{argb:'FF808080'}};
-
-  auStyleHeader(ws, 4, '월');
-  auExtraHeader(ws, 4, '부가세 기준 확인', ['일별 합계(원)','비율 (캠페인÷일별)','보정계수 k','기준']);
-  let r = 6;
-  stats.forEach(s=>{
-    auDataRow(ws, r, s.label, [s.impressions, s.clicks, s.cost, s.conv]);
-    const R=ws.getCell(r,18); R.value=s.dailySum; R.numFmt=AU.WON; R.font={name:'Arial',size:10}; R.alignment={horizontal:'right'}; R.border=auBorder(); R.fill=auFill(AU.CALC);
-    const S=ws.getCell(r,19); S.value = s.dailySum>0 ? {formula:`H${r}/R${r}`} : ''; S.numFmt='0.0000'; S.font={name:'Arial',size:10}; S.alignment={horizontal:'center'}; S.border=auBorder(); S.fill=auFill(AU.CALC);
-    const T=ws.getCell(r,20); T.value = s.dailySum>0 ? {formula:`R${r}/H${r}`} : ''; T.numFmt='0.000000'; T.font={name:'Arial',size:10}; T.alignment={horizontal:'center'}; T.border=auBorder(); T.fill=auFill(AU.CALC);
-    const U=ws.getCell(r,21); U.value = auBasisLabel(s.campSum, s.dailySum); U.font={name:'Arial',size:10,bold:true}; U.alignment={horizontal:'center'}; U.border=auBorder(); U.fill=auFill(AU.CALC);
-    if(U.value==='통일됨') U.fill=auFill('FFC6EFCE');
-    else if(U.value==='섞임') U.fill=auFill('FFFFC7CE');
-    else if(U.value.indexOf('부가세 포함')===0) U.fill=auFill('FFFFEB9C');
-    r++;
-  });
-  const mLast = r-1;
-  auTotalRow(ws, r, 6, mLast);
-  let cur = r + 2;
-
-  // ── 고른 달의 일별 대조
-  const target = stats.find(s=>s.label===dailyLabel) || stats[stats.length-1];
-  if(target && target.daily.length){
-    const k = (target.dailySum>0 && target.campSum>0) ? (target.dailySum/target.campSum) : 1;
-    const inv = k>0 ? (1/k) : 1;
-    ws.getCell(cur,1).value = target.label + ' 일별 대조 (' + target.daily.length + '일 전체)';
-    ws.getCell(cur,1).font = {name:'Arial',size:11,bold:true};
-    ws.getCell(cur,18).value = '↓ 네이버 총비용을 I열에 넣으면 그 날짜가 부가세 포함인지 제외인지 U열이 알려줍니다';
-    ws.getCell(cur,18).font = {name:'Arial',size:9,color:{argb:'FF808080'}};
-    const hdr = cur + 1;
-    auStyleHeader(ws, hdr, '일자');
-    auExtraHeader(ws, hdr, '부가세 계산', ['부가세 제외(원)','부가세 포함(원)','','네이버는 어느 쪽?']);
-    let dr = hdr + 2;
-    const dFirst = dr;
-    target.daily.forEach(d=>{
-      auDataRow(ws, dr, d.date, [d.impressions, d.clicks, d.cost, d.conv]);
-      const R=ws.getCell(dr,18); R.value={formula:`H${dr}`}; R.numFmt=AU.WON; R.font={name:'Arial',size:10}; R.alignment={horizontal:'right'}; R.border=auBorder(); R.fill=auFill(AU.CALC);
-      const S=ws.getCell(dr,19); S.value={formula:`ROUND(H${dr}*${inv.toFixed(6)},0)`}; S.numFmt=AU.WON; S.font={name:'Arial',size:10}; S.alignment={horizontal:'right'}; S.border=auBorder(); S.fill=auFill(AU.CALC);
-      ws.getCell(dr,20).border=auBorder(); ws.getCell(dr,20).fill=auFill(AU.CALC);
-      const U=ws.getCell(dr,21);
-      U.value={formula:`IF(I${dr}="","",IF(ABS(I${dr}-R${dr})<=2,"부가세 제외",IF(ABS(I${dr}-S${dr})<=2,"부가세 포함","불일치")))`};
-      U.font={name:'Arial',size:10,bold:true}; U.alignment={horizontal:'center'}; U.border=auBorder(); U.fill=auFill(AU.CALC);
-      dr++;
-    });
-    auTotalRow(ws, dr, dFirst, dr-1);
-    [[18,`SUM(R${dFirst}:R${dr-1})`],[19,`SUM(S${dFirst}:S${dr-1})`]].forEach(([c,f])=>{
-      const x=ws.getCell(dr,c); x.value={formula:f}; x.numFmt=AU.WON; x.font={name:'Arial',size:10,bold:true}; x.alignment={horizontal:'right'}; x.border=auBorder(); x.fill=auFill(AU.GREEN);
-    });
-    ws.getCell(dr,20).border=auBorder(); ws.getCell(dr,20).fill=auFill(AU.GREEN);
-    ws.getCell(dr,21).border=auBorder(); ws.getCell(dr,21).fill=auFill(AU.GREEN);
-    cur = dr + 2;
-
-    ws.getCell(cur,1).value='부가세 계산식'; ws.getCell(cur,1).font={name:'Arial',size:11,bold:true}; cur++;
-    [['보정계수 k','그 달 일별 합계 ÷ 캠페인 합계'],
-     ['부가세 제외 비용','캠페인 비용 × k'],
-     ['부가세 포함 비용','부가세 제외 비용 ÷ k'],
-     [target.label + ' k', target.dailySum.toLocaleString('ko-KR') + ' ÷ ' + target.campSum.toLocaleString('ko-KR') + ' = ' + k.toFixed(6)]
-    ].forEach(([a,b])=>{
-      ws.getCell(cur,1).value=a; ws.getCell(cur,1).font={name:'Arial',size:10,bold:true};
-      ws.getCell(cur,3).value=b; ws.getCell(cur,3).font={name:'Arial',size:10};
-      cur++;
-    });
-    cur++;
-  }
-  ['※ 노란 칸(네이버)에만 입력하세요. 나머지는 자동 계산입니다.',
-   '※ 총비용은 1~2원 차이까지는 네이버 반올림 때문이라 정상입니다.',
-   '※ 비율이 1.1이면 네이버가 부가세를 포함해서 준 달, 1이면 빼고 준 달, 그 사이면 달 중간에 기준이 바뀐 달입니다.',
-   '※ 대시보드 화면은 전부 부가세 제외로 맞춰서 보여줍니다. 원본 데이터는 그대로 둡니다.'
-  ].forEach(t=>{ ws.getCell(cur,1).value=t; ws.getCell(cur,1).font={name:'Arial',size:9,color:{argb:'FF808080'}}; cur++; });
-
-  [12,13,13,11,11,11,10,14,14,12,10,10,9,3,3,3,3,16,18,14,18].forEach((w,i)=>{ ws.getColumn(i+1).width=w; });
-  ws.views=[{state:'frozen', xSplit:1, ySplit:5}];
-
-  // ── 표본 대조
-  const s2 = wb.addWorksheet('표본 대조');
-  s2.getCell('A1').value='표본 대조 (1일 · 3일 · 1주일 · 1개월)';
-  s2.getCell('A1').font={name:'Arial',size:14,bold:true};
-  s2.getCell('A2').value='광고를 실제로 집행한 날 중에서 자동으로 뽑았습니다. 어느 단계에서 어긋나는지 보면 원인이 좁혀집니다.';
-  s2.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
-  const H2=['단계','시작','종료','일수','우리 비용','네이버 비용','차이','판정','우리 노출','네이버 노출','판정','우리 클릭','네이버 클릭','판정','우리 전환','네이버 전환','판정'];
-  H2.forEach((h,i)=>{ const c=s2.getCell(4,i+1); c.value=h; c.fill=auFill(AU.NAVY); c.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; c.alignment={horizontal:'center',vertical:'middle'}; c.border=auBorder(); });
-  const samples = auPickSamples(stats);
-  let sr=5;
-  samples.forEach(s=>{
-    const v=[s.stage,s.from,s.to,s.n];
-    v.forEach((x,i)=>{ const c=s2.getCell(sr,i+1); c.value=x; c.font={name:'Arial',size:10,bold:i===0}; c.alignment={horizontal:'center'}; c.border=auBorder(); });
-    const blocks=[[5,s.cost],[9,s.impressions],[12,s.clicks],[15,s.conv]];
-    blocks.forEach(([col,val],bi)=>{
-      const L=s2.getColumn(col).letter, N=s2.getColumn(col+1).letter, J=s2.getColumn(col+2).letter;
-      const a=s2.getCell(sr,col); a.value=val; a.numFmt=AU.WON; a.font={name:'Arial',size:10,bold:true}; a.alignment={horizontal:'right'}; a.border=auBorder();
-      const n=s2.getCell(sr,col+1); n.numFmt=AU.WON; n.font={name:'Arial',size:10,color:{argb:'FF0000FF'}}; n.alignment={horizontal:'right'}; n.border=auBorder(); n.fill=auFill(AU.YEL);
-      const j=s2.getCell(sr,col+2);
-      j.value = bi===0
-        ? {formula:`IF(${N}${sr}="","미입력",IF(ABS(${N}${sr}-${L}${sr})<=2,"일치","불일치"))`}
-        : {formula:`IF(${N}${sr}="","미입력",IF(${N}${sr}=${L}${sr},"일치","불일치"))`};
-      j.font={name:'Arial',size:10,bold:true}; j.alignment={horizontal:'center'}; j.border=auBorder();
-    });
-    const g=s2.getCell(sr,7); g.value={formula:`IF(F${sr}="","",F${sr}-E${sr})`}; g.numFmt=AU.WON; g.font={name:'Arial',size:10}; g.alignment={horizontal:'right'}; g.border=auBorder(); g.fill=auFill(AU.GRAY);
-    const h8=s2.getCell(sr,8); h8.value={formula:`IF(F${sr}="","미입력",IF(ABS(G${sr})<=2,"일치","불일치"))`}; h8.font={name:'Arial',size:10,bold:true}; h8.alignment={horizontal:'center'}; h8.border=auBorder();
-    sr++;
-  });
-  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'].forEach((L,i)=>{ s2.getColumn(i+1).width=[8,12,12,6,14,14,12,9,12,12,9,11,12,9,10,11,9][i]; });
-  s2.views=[{state:'frozen', xSplit:4, ySplit:4}];
-
-  // ── 연령 · 성별  (다른 보고서끼리 대조)
-  if(ageFiles && Object.keys(ageFiles).length){
-    const sAge = wb.addWorksheet('연령·성별');
-    auAgeSheet(sAge, stats, ageFiles, dailyLabel);
-  }
-
-  // ── 월별 x 캠페인  (어느 캠페인에서 어긋나는지)
-  const s4 = wb.addWorksheet('월별x캠페인');
-  auCampSheet(s4, stats, '월별 \u00d7 캠페인 대조',
-    '\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud574\uc11c \ub098\ub780\ud788 \ub193\uace0 \ubcf4\uc138\uc694.');
-
-  // ── 일별 x 캠페인  (어느 날짜에서 어긋나는지)
-  const s5 = wb.addWorksheet('일별x캠페인');
-  auDailyCampSheet(s5, stats, dailyLabel);
-
-  // ── 사용법
-  const s3 = wb.addWorksheet('사용법');
-  s3.getCell('A1').value='검수표 쓰는 법'; s3.getCell('A1').font={name:'Arial',size:14,bold:true};
-  ['',
-   '1. 네이버 검색광고 > 보고서 > 다차원 보고서를 엽니다.',
-   '2. 표에 적힌 기간과 똑같이 조회합니다.',
-   '3. 노출수·클릭수·총비용·전환수를 노란 칸에 넣습니다.',
-   '4. 차이 칸이 0이면 일치입니다. 총비용은 1~2원까지는 네이버 반올림이라 정상입니다.',
-   '',
-   '총비용이 1.1배쯤 어긋날 때',
-   '   네이버가 예전 기간은 부가세를 포함해서 주고, 최근 기간은 빼고 줍니다. 데이터가 틀린 게 아닙니다.',
-   '   「월별 대조」 오른쪽 파란 칸이 두 기준을 다 계산해두었으니 어느 쪽과 맞는지만 보시면 됩니다.',
-   '   일별 표의 맨 오른쪽 칸에 「부가세 포함」이 처음 뜨는 날짜가 네이버가 기준을 바꾼 날입니다.',
-   '',
-   '「연령·성별」 시트',
-   '   1번 표는 입력할 게 없습니다 — 연령 데이터와 일별 데이터가 같은지 자동으로 대조합니다.',
-   '   서로 다른 보고서에서 온 값이라, 둘이 같으면 양쪽 다 맞는 것입니다.',
-   '   2·3번 표의 노란 칸에는 네이버 다차원보고서를 「타겟팅 세그먼트」로 조회해서 넣으시면 됩니다.',
-   '   4번 표는 이 계정에 어떤 전환 유형이 있는지 보여줍니다. 대시보드는 「구매」 유형만 셉니다 —',
-   '   장바구니에도 매출이 찍히는 계정이 있어서, 다 더하면 전환과 매출이 부풀려집니다.',
-   '',
-   '「표본 대조」에서 어디가 틀리는지로 원인이 좁혀집니다',
-   '   1일만 틀림      → 그 날짜 수집 실패',
-   '   3일·1주 틀림    → 구간 누락',
-   '   1개월만 틀림    → 월 합산 문제',
-   '   전부 틀림        → 계정 또는 부가세 기준 문제',
-   '',
-   '어느 캠페인·날짜에서 어긋나는지 보려면',
-   '   「월별×캠페인」 — 네이버를 캠페인 기준으로 조회해서 넣으세요. 어느 캠페인이 문제인지 바로 보입니다.',
-   '   「일별×캠페인」 — 날짜+캠페인 기준으로 조회해서 넣으세요. 어느 날이 문제인지 보입니다.',
-   '   두 표 모두 줄마다 「합계」가 있어서 큰 숫자부터 맞춰보고 내려가면 빠릅니다.',
-   '',
-   '플레이스는 수집 단계에서 이미 빠져 있어서 이 표에 나오지 않습니다.'
-  ].forEach((t,i)=>{ const c=s3.getCell(i+2,1); c.value=t; c.font={name:'Arial',size:10,bold:/^(\d\.|총비용|「표본)/.test(t)}; });
-  s3.getColumn(1).width=100;
-
-  return wb;
-}
-
-async function ensureExcelJS(){
-  if(typeof ExcelJS !== 'undefined') return true;
-  return new Promise(res=>{
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
-    s.onload=()=>res(true); s.onerror=()=>res(false);
-    document.head.appendChild(s);
-  });
-}
-let auCurrentStats = null;
-let auCurrentName = '';
-let auCurrentId = '';
-async function populateAuditClientSelect(){
-  const sel=document.getElementById('au-client-select');
-  if(!sel) return;
-  try{
-    const keys=await listClients();
-    if(!keys.length){ sel.innerHTML='<option value="">등록된 업체 없음</option>'; return; }
-    const dataList=await Promise.all(keys.map(k=>getClientLight(k)));
-    const opts=['<option value="">— 업체 선택 —</option>'];
-    keys.forEach((key,i)=>{
-      const d=dataList[i]; if(!d) return;
-      const n=(d.months||[]).length;
-      opts.push('<option value="'+key+'"'+(n?'':' disabled')+'>'+d.name+(n?' ('+n+'개월)':' (데이터 없음)')+'</option>');
-    });
-    sel.innerHTML=opts.join('');
-  }catch(e){ console.error(e); sel.innerHTML='<option value="">불러오기 실패</option>'; }
-}
-function auWire(){
-  const sel=document.getElementById('au-client-select');
-  const mf=document.getElementById('au-month-field');
-  const ms=document.getElementById('au-month-select');
-  const hint=document.getElementById('au-month-hint');
-  const btn=document.getElementById('downloadAuditBtn');
-  const msg=document.getElementById('auditStatusMsg');
-  if(!sel||!btn) return;
-  sel.addEventListener('change', async ()=>{
-    auCurrentStats=null; btn.disabled=true; mf.style.display='none'; msg.textContent='';
-    const key=sel.value; if(!key) return;
-    msg.textContent='데이터 읽는 중...';
-    const raw=await getClientLight(key);
-    if(!raw || !(raw.months||[]).length){ msg.textContent='데이터가 없습니다.'; return; }
-    auCurrentName = raw.name || key.replace(/^client:/,'');
-    auCurrentId = key.replace(/^client:/,'');
-    auCurrentStats = (raw.months||[]).map(auMonthStats);
-    const def = auPickDefaultMonth(auCurrentStats);
-    ms.innerHTML = auCurrentStats.map(s=>{
-      const basis = auBasisLabel(s.campSum, s.dailySum);
-      return '<option value="'+s.label+'"'+(s.label===def?' selected':'')+'>'+s.label+' ('+s.days+'일 · '+basis+')</option>';
-    }).join('');
-    const mixedCount = auCurrentStats.filter(s=>auBasisLabel(s.campSum,s.dailySum)==='섞임').length;
-    hint.textContent = mixedCount
-      ? '부가세 기준이 섞인 달이 '+mixedCount+'개 있어요. 그 달을 먼저 골라뒀습니다.'
-      : '기본은 데이터가 있는 마지막 달입니다.';
-    mf.style.display=''; btn.disabled=false; msg.textContent='';
-  });
-  btn.addEventListener('click', async ()=>{
-    if(!auCurrentStats) return;
-    btn.disabled=true; msg.textContent='엑셀 만드는 중...';
-    try{
-      const ok=await ensureExcelJS();
-      if(!ok){ msg.textContent='엑셀 만드는 도구를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.'; btn.disabled=false; return; }
-      msg.textContent='연령 데이터 읽는 중...';
-      let ageFiles = {};
-      try{ ageFiles = await auLoadAgeFiles(auCurrentId, auCurrentStats.map(s=>s.label)); }
-      catch(e){ console.error(e); }
-      msg.textContent='엑셀 만드는 중...';
-      const wb=await buildAuditWorkbook(auCurrentName, auCurrentStats, ms.value, ageFiles);
-      const buf=await wb.xlsx.writeBuffer();
-      const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download='검수표_'+auCurrentName+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-      msg.textContent='내려받았습니다.';
-    }catch(e){ console.error(e); msg.textContent='만들지 못했어요: '+(e&&e.message||e); }
-    btn.disabled=false;
-  });
-}
-auWire();
-
 </script>
 </body>
 </html>
