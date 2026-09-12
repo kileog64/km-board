@@ -386,7 +386,10 @@
       실측 대조(담은 2026-09-08): 연령 합계 노출 13,925 · 클릭 258 로 일별 보고서와 <b>완전히 일치</b>,
       비용만 반올림으로 2원 차이.<br>
       <b>알 수 없음</b>은 네이버가 연령을 판별하지 못한 노출입니다 — 빼지 않고 그대로 표시합니다.
-      효율 비교는 <b>전환 3건 이상</b>(B2C는 비용 10만원 이상)인 연령대만 합니다.
+      효율 비교는 <b>전환 5건 이상</b>(B2C형은 비용 10만원 이상)이면서 <b>클릭 30회 이상</b>인 연령대만 합니다.
+      기준에 못 미치는 줄에는 <b>표본 적음</b>이 붙는데, 합계에서 빼는 게 아니라
+      "가장 효율적인 곳" 같은 <b>비교 문구를 뽑을 때만</b> 제외합니다.
+      이 기준은 대시보드 전 화면이 같습니다.
     </p>
   </div>
 </div>
@@ -455,7 +458,42 @@ function ageLabel(c){
   return m[1] + '~' + m[2] + '세';
 }
 const GENDER_LABEL = { GNM:'남성', GNF:'여성', GNU:'알 수 없음' };
-const MIN_CONV = 3, MIN_COST = 100000;
+/* ── 표본 기준 (전 페이지 공통 · 2026-09-11 통일) ──────────────────────────────
+   "이 줄 하나만 보고 좋다/나쁘다를 말해도 되는가"를 가르는 기준.
+   예전엔 화면마다 달라서(연령·매체 전환3건, 캠페인 전환5건, 대시보드 전환5건+클릭30)
+   같은 줄이 화면에 따라 '표본 적음'이 붙었다 말았다 했다. 하나로 맞춤.
+     DB형(전환당 비용으로 판단) : 전환 5건 이상
+     B2C형(ROAS로 판단)         : 비용 10만원 이상
+     공통                       : 클릭 30회 이상
+   모자라면 '표본 적음'으로 표시하고, 좋고 나쁨을 가르는 비교에서만 뺀다.
+   합계·그래프에는 그대로 들어간다.
+   ※ 한 곳을 바꾸면 나머지 페이지도 같이 바꿀 것 — _test/sample.mjs 가 전 페이지를 대조한다. */
+const SAMPLE_MIN_CONV     = 5;       // DB형 최소 전환수
+const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
+const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
+const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
+
+/* 표본이 모자란 줄이 절반을 넘으면 배지를 줄마다 붙이지 않는다 —
+   온통 도배되면 정작 눈에 안 들어오고, 표를 읽는 데 방해만 된다.
+   대신 표 위에 한 줄로 몇 줄이 왜 빠졌는지 알린다.
+   ※ 연령·성별 화면과 매체·기기 화면이 같은 코드를 쓴다 — 한쪽만 고치지 말 것. */
+function sampleNote(rows, isThin){
+  const thin = rows.filter(isThin).length;
+  const many = rows.length >= 4 && thin * 2 > rows.length;   // 절반 초과
+  // 기준은 '그리고'라서, 못 미치는 건 '둘 중 하나라도'가 맞다
+  const why = isDB ? `전환 ${SAMPLE_MIN_CONV}건` : `비용 ${won(SAMPLE_MIN_COST)}원`;
+  return {
+    stamp: !many,                       // 줄마다 배지를 붙일지
+    html: many
+      ? `<div class="sub" style="margin:-2px 0 9px;">
+           ${rows.length}줄 중 <b style="color:var(--warn);">${thin}줄</b>이 표본이 모자랍니다
+           (${why} 미만이거나 클릭 ${SAMPLE_MIN_CLICKS}회 미만).
+           합계와 그래프에는 그대로 들어가고, <b>좋고 나쁨을 가르는 비교에서만</b> 빠집니다.
+           기간을 늘리면 줄어듭니다.</div>`
+      : ''
+  };
+}
+const MIN_CONV = SAMPLE_MIN_CONV, MIN_COST = SAMPLE_MIN_COST;
 
 let clients=[], cur=null, isDB=true, allMonths=[], mFrom=null, mTo=null;
 let merged=null, chart=null;
@@ -472,7 +510,7 @@ function effOf(r){
               : (r.cost>0 ? r.rev/r.cost*100 : null);
 }
 const effFmt = v => v===null ? '—' : (isDB ? won(v)+'원' : Math.round(v)+'%');
-const enough = r => isDB ? r.conv>=MIN_CONV : r.cost>=MIN_COST;
+const enough = r => (r.clk>=SAMPLE_MIN_CLICKS) && (isDB ? r.conv>=MIN_CONV : r.cost>=MIN_COST);
 
 function blank(){ return {imp:0,clk:0,cost:0,conv:0,rev:0}; }
 function addTo(a,b){ a.imp+=b.imp||0; a.clk+=b.clk||0; a.cost+=b.cost||0;
@@ -630,11 +668,12 @@ function renderTable(title, sub, rows, labelFn, showFlag){
   if(showFlag === undefined) showFlag = true;
   if(!rows.length) return '';
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
-  return `<div class="card"><h3>${title}</h3><div class="sub">${sub}</div>
+  const note = sampleNote(rows, r=>!enough(r));
+  return `<div class="card"><h3>${title}</h3><div class="sub">${sub}</div>${note.html}
     <div style="overflow-x:auto;"><table class="ag">
       <thead><tr><th>구분</th><th>비용</th><th>노출</th><th>클릭</th><th>전환</th><th>${effLabel()}</th></tr></thead>
       <tbody>${rows.map(r=>`<tr>
-        <td>${labelFn(r.code)}${(showFlag && !enough(r))?'<span class="flag bad">표본 적음</span>':''}</td>
+        <td>${labelFn(r.code)}${(showFlag && note.stamp && !enough(r))?'<span class="flag bad">표본 적음</span>':''}</td>
         <td>${won(r.cost)}원</td><td>${num(r.imp)}</td><td>${num(r.clk)}</td>
         <td>${num(r.conv)}건</td><td>${effFmt(effOf(r))}</td></tr>`).join('')}
         <tr class="tot"><td>합계</td><td>${won(tot.cost)}원</td><td>${num(tot.imp)}</td>

@@ -1909,10 +1909,25 @@ function searchTypeBadgeHTML(searchType){
 // 인사이트·원인진단에서 쓰는 임계값들을 한 곳에 모음 — 예전엔 각 함수에 매직넘버로 흩어져 있어서
 // 기준을 바꾸려면 여러 곳을 찾아 고쳐야 했음. (파일마다 독립적으로 동작하는 구조라 다른 페이지와
 // 공유하지는 않지만, 이 파일 안에서는 하나로 통일함.)
+/* ── 표본 기준 (전 페이지 공통 · 2026-09-11 통일) ──────────────────────────────
+   "이 줄 하나만 보고 좋다/나쁘다를 말해도 되는가"를 가르는 기준.
+   예전엔 화면마다 달라서(연령·매체 전환3건, 캠페인 전환5건, 대시보드 전환5건+클릭30)
+   같은 줄이 화면에 따라 '표본 적음'이 붙었다 말았다 했다. 하나로 맞춤.
+     DB형(전환당 비용으로 판단) : 전환 5건 이상
+     B2C형(ROAS로 판단)         : 비용 10만원 이상
+     공통                       : 클릭 30회 이상
+   모자라면 '표본 적음'으로 표시하고, 좋고 나쁨을 가르는 비교에서만 뺀다.
+   합계·그래프에는 그대로 들어간다.
+   ※ 한 곳을 바꾸면 나머지 페이지도 같이 바꿀 것 — _test/sample.mjs 가 전 페이지를 대조한다. */
+const SAMPLE_MIN_CONV     = 5;       // DB형 최소 전환수
+const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
+const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
+const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
 const INSIGHT_THRESHOLDS = {
   BIG_MOVE_CPA_PCT: 30,      // "직전 대비 크게 나빠짐" 판단 기준 — CPA 변동률(%)
   BIG_MOVE_ROAS_PP: 20,      // "직전 대비 크게 나빠짐" 판단 기준 — ROAS 변동폭(%p)
-  BIG_MOVE_MIN_SAMPLE: 3,    // 위 두 변동 판단에 필요한 최소 표본(DB는 전환수, B2C는 비용 만원)
+  BIG_MOVE_MIN_CONV: SAMPLE_MIN_CONV,          // 위 두 변동 판단에 필요한 최소 전환수(DB)
+  BIG_MOVE_MIN_COST_MAN: SAMPLE_MIN_COST_MAN,  // 〃 최소 비용(B2C, 만원)
   TREND_DECLINE_PCT: -20,    // 원인진단(diagnose*TrendIssue)에서 "크게 떨어짐" 판단 기준 — CTR/CVR 변동률(%)
   RANK_WORSEN_PCT: 15,       // 원인진단에서 "순위가 밀림" 판단 기준 — 평균노출순위 악화율(%)
   WASTE_HIGH_CLICKS: 10,     // 낭비 키워드 진단 — "클릭은 많은데 전환 0"으로 보는 클릭수 기준
@@ -2354,8 +2369,8 @@ function renderKeywordsPage(data){
     const bigMoves = rows.filter(r=>{
       const t = r.trends||{};
       return (isDB
-        ? (t.cpa!==null && t.cpa!==undefined && Math.abs(t.cpa)>=INSIGHT_THRESHOLDS.BIG_MOVE_CPA_PCT && r.conv>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_SAMPLE)
-        : (t.roas!==null && t.roas!==undefined && Math.abs(t.roas)>=INSIGHT_THRESHOLDS.BIG_MOVE_ROAS_PP && r.cost>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_SAMPLE));
+        ? (t.cpa!==null && t.cpa!==undefined && Math.abs(t.cpa)>=INSIGHT_THRESHOLDS.BIG_MOVE_CPA_PCT && r.conv>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_CONV)
+        : (t.roas!==null && t.roas!==undefined && Math.abs(t.roas)>=INSIGHT_THRESHOLDS.BIG_MOVE_ROAS_PP && r.cost>=INSIGHT_THRESHOLDS.BIG_MOVE_MIN_COST_MAN));
     }).slice(0,2);
     bigMoves.forEach(r=>{
       const t = r.trends;

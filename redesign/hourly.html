@@ -2166,7 +2166,21 @@ function renderHourlyPage(data){
 
   // 시간대 운영 추천
   const withConv = realHours(hourlyEnriched).filter(h=>h.conv>0 && h.cost>0);
-  const MIN_CONV_HOUR = 5; // 표본이 너무 적은 시간대는 우연일 수 있어서 제외
+/* ── 표본 기준 (전 페이지 공통 · 2026-09-11 통일) ──────────────────────────────
+   "이 줄 하나만 보고 좋다/나쁘다를 말해도 되는가"를 가르는 기준.
+   예전엔 화면마다 달라서(연령·매체 전환3건, 캠페인 전환5건, 대시보드 전환5건+클릭30)
+   같은 줄이 화면에 따라 '표본 적음'이 붙었다 말았다 했다. 하나로 맞춤.
+     DB형(전환당 비용으로 판단) : 전환 5건 이상
+     B2C형(ROAS로 판단)         : 비용 10만원 이상
+     공통                       : 클릭 30회 이상
+   모자라면 '표본 적음'으로 표시하고, 좋고 나쁨을 가르는 비교에서만 뺀다.
+   합계·그래프에는 그대로 들어간다.
+   ※ 한 곳을 바꾸면 나머지 페이지도 같이 바꿀 것 — _test/sample.mjs 가 전 페이지를 대조한다. */
+const SAMPLE_MIN_CONV     = 5;       // DB형 최소 전환수
+const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
+const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
+const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
+  const MIN_CONV_HOUR = SAMPLE_MIN_CONV; // 표본이 너무 적은 시간대는 우연일 수 있어서 제외
   const totalCostWithConv = withConv.reduce((s,h)=>s+h.cost,0), totalConvWithConv = withConv.reduce((s,h)=>s+h.conv,0), totalRevenueWithConv = withConv.reduce((s,h)=>s+h.revenue,0);
   const avgCpaHour = totalConvWithConv>0 ? (totalCostWithConv*10000/totalConvWithConv) : null; // 전환수로 가중한 평균 CPA (시간대별 단순평균이 아님)
   const avgRoasHour = totalCostWithConv>0 ? (totalRevenueWithConv/totalCostWithConv*100) : null; // 비용으로 가중한 평균 ROAS

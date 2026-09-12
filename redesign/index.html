@@ -580,6 +580,21 @@ table tbody tr:hover td{background:#1b1e2c}
 </div>
 
 <script>
+/* ── 표본 기준 (전 페이지 공통 · 2026-09-11 통일) ──────────────────────────────
+   "이 줄 하나만 보고 좋다/나쁘다를 말해도 되는가"를 가르는 기준.
+   예전엔 화면마다 달라서(연령·매체 전환3건, 캠페인 전환5건, 대시보드 전환5건+클릭30)
+   같은 줄이 화면에 따라 '표본 적음'이 붙었다 말았다 했다. 하나로 맞춤.
+     DB형(전환당 비용으로 판단) : 전환 5건 이상
+     B2C형(ROAS로 판단)         : 비용 10만원 이상
+     공통                       : 클릭 30회 이상
+   모자라면 '표본 적음'으로 표시하고, 좋고 나쁨을 가르는 비교에서만 뺀다.
+   합계·그래프에는 그대로 들어간다.
+   ※ 한 곳을 바꾸면 나머지 페이지도 같이 바꿀 것 — _test/sample.mjs 가 전 페이지를 대조한다. */
+const SAMPLE_MIN_CONV     = 5;       // DB형 최소 전환수
+const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
+const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
+const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
+
 let activeSlug = null;
 let chartA = null, chartB = null, chartC = null, trendChart = null, hourChart = null, compareChart = null;
 const filterState = {}; // key -> { types:Set, campaigns:Set }
@@ -1526,8 +1541,8 @@ function mergedCampaignList(data, monthsScope){
 // 기준을 바꾸려면 여러 곳을 찾아 고쳐야 했음. (파일마다 독립적으로 동작하는 구조라 다른 페이지와
 // 공유하지는 않지만, 이 파일 안에서는 하나로 통일함.)
 const INSIGHT_THRESHOLDS = {
-  MIN_SAMPLE_CONV: 5,        // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 전환수(DB)
-  MIN_SAMPLE_COST_MAN: 5,    // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 비용(B2C, 만원)
+  MIN_SAMPLE_CONV: SAMPLE_MIN_CONV,        // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 전환수(DB)
+  MIN_SAMPLE_COST_MAN: SAMPLE_MIN_COST_MAN,    // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 비용(B2C, 만원)
   DIAG_MIN_IMPRESSIONS: 100, // 캠페인 원인진단 — 이 미만이면 "노출 자체가 적음"으로 판단
   DIAG_LOW_CTR_RATIO: 0.6,   // 캠페인 원인진단 — best 캠페인 CTR의 이 비율 미만이면 "CTR 낮음"
   DIAG_LOW_CVR_RATIO: 0.6,   // 캠페인 원인진단 — best 캠페인 CVR의 이 비율 미만이면 "CVR 낮음"
@@ -2209,8 +2224,8 @@ function buildInsightsHTML(insights){
    자동 수집기가 API 원본에서 따로 집계해 month.mediaStats로 넣어준다(계정에 자동수집을 켠 업체만 표시).
    판정 원칙: 표본이 작은 매체는 CPA가 극단적으로 나오므로 최소 표본(전환·클릭)을 넘는 곳만 상대 비교하고,
    나머지는 "표본 부족"으로 판정을 보류한다 — 클릭 몇 번짜리 관측이 결론이 되면 안 되므로. */
-const MEDIA_MIN_CONV = 5;     // 상대 CPA 판정 최소 전환수
-const MEDIA_MIN_CLICKS = 30;  // 상대 CPA 판정 최소 클릭수
+const MEDIA_MIN_CONV = SAMPLE_MIN_CONV;      // 상대 CPA 판정 최소 전환수
+const MEDIA_MIN_CLICKS = SAMPLE_MIN_CLICKS;  // 상대 CPA 판정 최소 클릭수
 function buildMediaStatsHTML(data, months, isDB){
   const rows = [];
   // mediaStats는 배열이지만, 예전 저장분이나 로드 실패 시 {}가 들어올 수 있어 형태를 확인하고 씀
