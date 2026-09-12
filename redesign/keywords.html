@@ -777,6 +777,76 @@ const DETAIL_DATA_FIELDS = ['keywordsByCampaign','wasteKeywordsByCampaign','expa
 // DETAIL_DATA_FIELDS에서는 빠졌지만 예전에 그 이름으로 저장된 문서가 남아있을 수 있어서 정리 대상에 포함.
 const RETIRED_DETAIL_FIELDS = ['hourlyByDowByAdgroup'];
 function fieldEmptyDefault(f){ return (f==='hourly'||f==='hourlyByCampaign'||f==='hourlyByDow'||f==='hourlyByDowByCampaign'||f==='hourlyByAdgroup'||f==='hourlyByCampaignDate'||f==='dailyByCampaign'||f==='dailyByKeyword') ? [] : {}; }
+/* RANKBAND-START */
+/* ── 순위대별 최적 ──────────────────────────────────────────────────────────
+   네이버는 "몇 위일 때 얼마"를 알려주지 않는다. 대신 날짜별 평균노출순위가 저장돼 있어서,
+   같은 키워드를 순위 구간으로 묶고 그 구간에 있었던 날의 비용·전환만 합치면 구간별 전환당
+   비용이 나온다. 표본이 얇으면 판정하지 않는다 — 클릭 몇 번짜리 관측이 결론이 되면 안 된다. */
+const RANK_BANDS = [
+  { b:'1위권', lo:0,   hi:1.5 },
+  { b:'2위권', lo:1.5, hi:2.5 },
+  { b:'3위권', lo:2.5, hi:3.5 },
+  { b:'4~5위', lo:3.5, hi:5.5 },
+  { b:'6위+',  lo:5.5, hi:Infinity },
+];
+const RANK_MIN_BAND_CONV  = 3;   // 한 구간에 전환 3건은 있어야 그 구간을 판정에 쓴다
+const RANK_MIN_TOTAL_CONV = 10;  // 키워드 전체 전환이 10건은 돼야 구간을 나눠볼 만하다
+function rankBandOf(r){
+  if(r===null || r===undefined || !isFinite(r)) return null;
+  const f = RANK_BANDS.find(x => r >= x.lo && r < x.hi);
+  return f ? f.b : null;
+}
+function buildRankBands(dailyRows){
+  const map = {};
+  (dailyRows||[]).forEach(r=>{
+    // 키워드 이름이 '-' 로 오는 줄이 섞여 있다(키워드가 없는 광고 유형). 판정 대상이 아니다.
+    if(!r || !r.keyword || r.keyword === '-') return;
+    const b = rankBandOf(r.avgRank); if(!b) return;
+    const o = map[r.keyword] || (map[r.keyword] = { tot:{cost:0,conv:0}, band:{} });
+    const x = o.band[b] || (o.band[b] = { cost:0, conv:0, clicks:0, revenue:0, n:0 });
+    x.cost += r.cost||0; x.conv += r.conv||0; x.clicks += r.clicks||0; x.revenue += r.revenue||0; x.n++;
+    o.tot.cost += r.cost||0; o.tot.conv += r.conv||0;
+  });
+  const out = {};
+  Object.keys(map).forEach(kw=>{
+    const o = map[kw];
+    const rows = RANK_BANDS.map(x=>x.b)
+      .filter(b => o.band[b] && o.band[b].conv >= RANK_MIN_BAND_CONV && o.band[b].cost > 0)
+      .map(b => { const x = o.band[b];
+        return { band:b, cpa: Math.round(x.cost*10000/x.conv), conv: Math.round(x.conv*10)/10,
+                 cost:x.cost, revenue:x.revenue, roas: x.cost>0 ? x.revenue/x.cost*100 : 0, n:x.n }; });
+    if(o.tot.conv < RANK_MIN_TOTAL_CONV || rows.length < 2){ out[kw] = { thin:true, rows:rows }; return; }
+    const best  = rows.reduce((a,x)=> x.cpa < a.cpa ? x : a);
+    const worst = rows.reduce((a,x)=> x.cpa > a.cpa ? x : a);
+    out[kw] = { thin:false, rows:rows, best:best, worst:worst, gap: best.cpa>0 ? worst.cpa/best.cpa : 0 };
+  });
+  return out;
+}
+// 표의 한 칸. 지금 평균순위와 견줘 올릴지 내릴지까지 적는다.
+function rankBandCellHTML(info, curRank, isDB){
+  if(!info || info.thin) return '<td class="km-sub" style="white-space:nowrap;">표본 부족</td>';
+  const ORD = RANK_BANDS.map(x=>x.b);
+  const bi = ORD.indexOf(info.best.band);
+  const ci = (curRank!==null && curRank!==undefined && isFinite(curRank)) ? ORD.indexOf(rankBandOf(curRank)) : -1;
+  let dir = '유지', col = 'var(--muted)';
+  if(ci >= 0 && bi < ci){ dir = '올리기'; col = 'var(--accent)'; }
+  else if(ci >= 0 && bi > ci){ dir = '내리기'; col = 'var(--down)'; }
+  const gapTxt = info.gap >= 1.15 ? (Math.round(info.gap*10)/10) + '배 싸게' : '';
+  const body = info.rows.map(r=>`<tr${r.band===info.best.band?' style="font-weight:800;color:var(--up);"':''}>`
+    + `<td style="padding:3px 8px 3px 0;white-space:nowrap;">${esc(r.band)}</td>`
+    + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;">${r.cpa.toLocaleString('ko-KR')}원</td>`
+    + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;color:var(--muted);">전환 ${r.conv}건</td>`
+    + (isDB ? '' : `<td style="padding:3px 0 3px 8px;text-align:right;white-space:nowrap;color:var(--muted);">ROAS ${Math.round(r.roas)}</td>`)
+    + '</tr>').join('');
+  return '<td class="km-text" style="white-space:nowrap;min-width:126px;">'
+    + `<button type="button" class="kw-band-toggle" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;border:1px solid ${col};background:var(--panel-2);color:${col};cursor:pointer;">${esc(info.best.band)} ${dir} ▾</button>`
+    + (gapTxt ? `<span style="margin-left:5px;font-size:11px;color:var(--muted);">${gapTxt}</span>` : '')
+    + '<div class="kw-band-rest" hidden style="margin-top:5px;">'
+    + `<table style="border-collapse:collapse;font-size:11.5px;">${body}</table>`
+    + '<div style="margin-top:4px;font-size:10.5px;color:var(--muted);">불러온 전 기간 기준 · 전환 3건 이상인 구간만</div>'
+    + '</div></td>';
+}
+/* RANKBAND-END */
 // Firebase Storage 상세데이터 경로 — 업체(id)별 폴더 아래 "월라벨__필드명.json" 파일 하나씩.
 function detailStorageRef(id, label, field){ return storage.ref(`clients/${id}/${label}__${field}.json`); }
 // 반환값: { notFound:true }(파일이 원래 없음 — 정상, 빈 값으로 취급해도 안전) |
@@ -2107,6 +2177,7 @@ function renderKeywordsPage(data){
   // 날짜 범위 자체는 아래 TOP 표 필터에 계속 쓰임.
   let allDailyByKeyword = [];
   months.forEach(m=>{ (m.dailyByKeyword||[]).forEach(r=>{ if(fstate.campaigns.has(r.campaign) && (r.sourceMode||'powerlink')===mode) allDailyByKeyword.push(r); }); });
+  const rankBands = buildRankBands(allDailyByKeyword);
   const dayBoundsMinKw = allDailyByKeyword.length ? toDateInputValue(allDailyByKeyword.slice().sort((a,b)=>dateKey(a.date).localeCompare(dateKey(b.date)))[0].date) : null;
   const dayBoundsMaxKwArr = allDailyByKeyword.length ? allDailyByKeyword.slice().sort((a,b)=>dateKey(a.date).localeCompare(dateKey(b.date))) : [];
   const dayBoundsMaxKw = dayBoundsMaxKwArr.length ? toDateInputValue(dayBoundsMaxKwArr[dayBoundsMaxKwArr.length-1].date) : null;
@@ -2514,6 +2585,7 @@ function renderKeywordsPage(data){
           ${noConv ? '' : sortTh('CPA','cpa',sort,'top')}
           ${(noConv || isDB) ? '' : sortTh('ROAS','roas',sort,'top')}
           ${sortTh('평균노출순위','avgRank',sort,'top')}
+          ${noConv ? '' : '<th>순위대별 최적</th>'}
         </tr></thead>
         <tbody>
           ${rows.length ? rows.slice(0, topVisibleCount[key]).map(k=>{
@@ -2529,6 +2601,7 @@ function renderKeywordsPage(data){
             // 전환 0은 "돈만 쓰고 성과 없음" 신호라 빨강으로 눈에 걸리게 한다.
             const convCell = `<td class="${(k.conv||0)>0?'km-key':'km-bad'}">${k.conv}건${cellTrend(t.conv,'up')}</td>`;
             const rankCell = `<td>${k.avgRank!==null?k.avgRank.toFixed(1)+'위':'-'}${cellTrend(t.avgRank,'down')}</td>`;
+            const bandCell = noConv ? '' : rankBandCellHTML(rankBands[k.keyword], k.avgRank, isDB);
             // 같은 키워드가 여러 캠페인에 있으면 합산된 수치이므로 "외 N개"로 알려주고,
             // 클릭하면 나머지 캠페인 이름을 그 자리에서 펼쳐 보여준다.
             const recCell = `<td class="km-text">${k.rec==='expand'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--up);color:#12131c;white-space:nowrap;">확대</span>':(k.rec==='waste'?'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--down);color:#fff;white-space:nowrap;">제외</span>':'<span style="color:var(--muted);">-</span>')}</td>`;
@@ -2540,10 +2613,10 @@ function renderKeywordsPage(data){
             <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td class="km-key">${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${rankCell}</tr>
           `;}
             return isDB ? `
-            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td class="km-key">${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${convCell}<td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>${rankCell}</tr>
+            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td class="km-key">${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${convCell}<td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td>${rankCell}${bandCell}</tr>
           ` : `
-            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td class="km-key">${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${convCell}<td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td><td>${roasCellText(k)}${cellTrend(t.roas,'up')}</td>${rankCell}</tr>
-          `;}).join('') : `<tr><td colspan="${noConv ? 9 : (isDB ? 11 : 13)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
+            <tr><td class="kw-name">${kwLabelHTML(k.keyword)}${newBadge}${typeBadge}</td>${campCell}${recCell}<td class="km-key">${fmtWon(k.cost)}원${cellTrend(t.cost,'down')}</td>${baseCells}${convCell}<td>${fmtWon(k.revenue)}원${cellTrend(t.revenue,'up')}</td><td>${k.cpa!==null?k.cpa.toLocaleString('ko-KR')+'원':'-'}${cellTrend(t.cpa,'down')}</td><td>${roasCellText(k)}${cellTrend(t.roas,'up')}</td>${rankCell}${bandCell}</tr>
+          `;}).join('') : `<tr><td colspan="${noConv ? 9 : (isDB ? 12 : 14)}" style="color:var(--muted);">표시할 데이터가 없어요.</td></tr>`}
         </tbody>
       </table>
       ${rows.length > topVisibleCount[key] ? `<button class="btn btn-ghost kw-more-btn" data-target="top" style="margin-top:10px;width:100%;">더보기 (${rows.length - topVisibleCount[key]}개 더 있음)</button>` : ''}
@@ -2675,6 +2748,16 @@ function renderKeywordsPage(data){
       const opened = !box.hidden;
       box.hidden = opened;
       btn.textContent = btn.textContent.replace(opened ? '▴' : '▾', opened ? '▾' : '▴');
+    };
+  });
+  // '순위대별 최적' 단추 → 구간별 전환당 비용 표를 그 칸에서 펼침/접음.
+  document.querySelectorAll('.kw-band-toggle').forEach(btn=>{
+    btn.onclick = ()=>{
+      const box = btn.parentElement && btn.parentElement.querySelector('.kw-band-rest');
+      if(!box) return;
+      const opened = !box.hidden;
+      box.hidden = opened;
+      btn.textContent = btn.textContent.replace(opened ? '\u25b4' : '\u25be', opened ? '\u25be' : '\u25b4');
     };
   });
   document.querySelectorAll('.ai-summary-btn').forEach(btn=>{

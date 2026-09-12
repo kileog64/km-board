@@ -371,6 +371,37 @@
     .al-title,.al-h{font-size:13.5px;}
     .al-big{font-size:22px;}
   }
+
+  /* 선택지 — 사람이 보고 고르는 자리 */
+  .al-opts{margin-top:9px;padding:10px 12px;border:1px solid var(--border);
+    border-radius:10px;background:var(--panel-2);max-width:560px;}
+  /* 큰 카드(.al-t)는 3칸 표라서, 선택지는 아래줄 전체를 쓰게 한다 */
+  .al-t > .al-opts{grid-column:1 / -1;margin-top:2px;}
+  .al-q{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px;}
+  .al-op{display:block;padding:8px 10px;border:1px solid transparent;border-radius:8px;
+    cursor:pointer;transition:border-color .12s ease,background .12s ease;}
+  .al-op + .al-op{margin-top:3px;}
+  .al-op:hover{background:rgba(168,171,196,.08);}
+  .al-op.on{border-color:var(--accent);background:rgba(139,124,255,.12);}
+  .al-op input{margin:0 7px 0 0;vertical-align:middle;accent-color:var(--accent);}
+  .al-op-t{font-size:13px;font-weight:600;color:var(--tx);vertical-align:middle;
+    word-break:keep-all;}
+  .al-rec{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;
+    color:#fff;background:var(--accent);border-radius:5px;padding:1px 6px;
+    vertical-align:middle;letter-spacing:.2px;}
+  .al-op-r{display:block;margin:3px 0 0 24px;font-size:11.5px;line-height:1.6;}
+  .al-op-r .g{display:block;color:var(--good,#5ad39a);word-break:keep-all;}
+  .al-op-r .l{display:block;color:var(--muted);word-break:keep-all;}
+  .al-op.on .al-op-r .l{color:var(--warn,#ffb454);}
+  .al-go{margin-top:9px;width:100%;padding:9px 12px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;font-family:inherit;font-size:12.5px;
+    font-weight:700;cursor:pointer;transition:filter .12s ease;}
+  .al-go:hover{filter:brightness(1.08);}
+  .al-go.done{background:var(--panel);color:var(--muted);border:1px solid var(--border);cursor:default;}
+  @media (max-width:600px){
+    .al-opts{padding:9px 10px;}
+    .al-op-r{margin-left:0;}
+  }
 </style>
 <body>
 
@@ -613,9 +644,11 @@ let fSev = 'all', fKind = 'all', fClient = 'all';
 let showRest = false;                 // 나머지 목록 펼침 여부
 let DONE = {};                        // 처리함 기록 { 키: {at, todoId} }
 const expanded = {};                  // 본문을 펼친 줄
+const PICK = {};                      // 고른 선택지 { 키: 'hard' }
 
 const TOP_N = 5;                      // 맨 위에 띄우는 '오늘 할 일' 개수
-const HIDE_DAYS = 7;                  // 처리함 누르면 며칠 숨길지
+const HIDE_DAYS = 7;                  // '나중에' 누르면 며칠 숨길지
+const NA_DAYS   = 90;                 // '해당없음' 은 오래 숨긴다 (문제가 아니라고 본 것)
 const TEST_DAYS = 14;                 // A/B 시험 기간
 
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g,
@@ -700,7 +733,7 @@ const keyOf = a => [a.client, a.type, a.campaign || ''].join('|');
 function isDone(a){
   const r = DONE[keyOf(a)];
   if (!r || !r.at) return false;
-  return (Date.now() - r.at) < HIDE_DAYS * 86400000;
+  return (Date.now() - r.at) < (r.days || HIDE_DAYS) * 86400000;
 }
 
 // 본문에서 '▶' 뒤는 조치 문구라 따로 뗀다
@@ -750,6 +783,58 @@ function renderPills(){
   document.querySelectorAll('#clientPills .pill').forEach(b=>b.onclick=()=>{ fClient=b.dataset.client; render(); });
 }
 
+
+/* ── 선택지 ─────────────────────────────────────────────────────────────────
+   "이렇게 하세요" 한 방향만 말하면 사람이 판단할 게 없다.
+   두세 갈래를 놓고 각각 무엇을 얻고 무엇을 잃는지 붙여야 고를 수 있다.
+
+   숫자를 쓰는 규칙(중요):
+     · 확실한 것만 숫자로 쓴다 — 끄면 그 돈은 확실히 안 나간다
+     · 추정은 숫자를 만들지 않고 "해봐야 압니다" 라고 쓴다
+       (입찰가를 30 낮추면 비용이 30 준다는 보장이 없다)                      */
+function optionsFor(a){
+  const m = moneyOf(a);
+  const won2 = n => num(n) + '원';
+  const per = m ? `한 달에 약 ${won2(Math.round(m))}` : '';
+
+  switch(a.type){
+    case 'zero_conv': case 'kw_off': case 'media_off': case 'hour_off': case 'hourly_waste':
+      return [
+        { k:'keep', t:'그대로 둔다',
+          g:'', l: m ? `${per}이 전환 없이 계속 나갑니다` : '지금 상태가 이어집니다' },
+        { k:'soft', t:'약하게 — 입찰가·가중치를 낮춘다',
+          g:'노출은 유지됩니다', l:'얼마나 줄어들지는 해봐야 압니다' },
+        { k:'hard', t:'세게 — 끄거나 뺀다', rec:true,
+          g: m ? `${won2(Math.round(m))}을 전부 아낍니다` : '이 비용이 사라집니다',
+          l:'최근 기간 전환이 0이라 잃는 전환은 없습니다' },
+      ];
+    case 'budget_hit':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'예산에서 계속 막혀 오후 노출이 빕니다' },
+        { k:'up',   t:'하루예산을 1.5배로', rec:true,
+          g:'막히던 시간대가 살아납니다', l:'전환이 그만큼 늘지는 해봐야 압니다' },
+        { k:'talk', t:'업체와 먼저 정한다',
+          g:'나중에 예산 얘기가 다시 나와도 근거가 됩니다', l:'그동안은 계속 막힙니다' },
+      ];
+    case 'age_bid': case 'device_bid':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'잘 버는 쪽과 못 버는 쪽에 같은 값이 계속 들어갑니다' },
+        { k:'half', t:'절반만 넣는다 — 추천값과 100의 가운데',
+          g:'조심스럽게 갈 수 있습니다', l:'효과도 절반쯤입니다' },
+        { k:'full', t:'추천 숫자를 그대로 넣는다', rec:true,
+          g:'성과가 좋은 쪽에 돈이 몰립니다', l:'낮춘 쪽은 노출이 줄어듭니다' },
+      ];
+    case 'bid_flat':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'성과가 다른 그룹에 같은 입찰가가 계속 들어갑니다' },
+        { k:'split', t:'성과 순으로 나눈다 — 상위 20 올리고 하위 30 내림', rec:true,
+          g:'잘 되는 그룹에 돈이 갑니다', l:'낮춘 그룹은 노출이 줄어듭니다' },
+      ];
+    default:
+      return null;   // 확인 성격 — 고를 게 아니라 보고 판단할 것
+  }
+}
+
 // ── 오늘 할 일 카드 (금액 큰 순 다섯 개) ────────────────────────────────────
 function topCard(a, i){
   const c = clients.find(x=>x.id===a.client) || {};
@@ -775,9 +860,29 @@ function topCard(a, i){
         ${K.ab?`<br><b>확인하는 법</b> — ${K.ab}`:''}</div>
     </div>
     <div class="al-side">
-      ${K.ab?`<button class="al-done" data-test="${i}">${TEST_DAYS}일 시험 만들기</button>`:''}
-      <button class="al-done${done?' on':''}" data-done="${i}">${done?'처리함 ✓':'처리함'}</button>
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'나중에 ✓':'나중에'}</button>
+      <button class="al-done" data-na="${i}">해당없음</button>
     </div>
+    ${optBlock(a, i)}
+  </div>`;
+}
+
+/* 선택지 묶음 — 고르고 나서 '이걸로 14일 해보기' 를 누른다 */
+function optBlock(a, i){
+  const opts = optionsFor(a);
+  if(!opts) return '';
+  const picked = PICK[keyOf(a)] || (opts.find(o=>o.rec)||{}).k;
+  return `<div class="al-opts" data-i="${i}">
+    <div class="al-q">어떻게 할까요?</div>
+    ${opts.map(o=>`<label class="al-op${picked===o.k?' on':''}">
+      <input type="radio" name="op${i}" value="${o.k}"${picked===o.k?' checked':''}>
+      <span class="al-op-t">${esc2(o.t)}${o.rec?'<span class="al-rec">추천</span>':''}</span>
+      <span class="al-op-r">
+        ${o.g?`<span class="g">+ ${esc2(o.g)}</span>`:''}
+        ${o.l?`<span class="l">− ${esc2(o.l)}</span>`:''}
+      </span>
+    </label>`).join('')}
+    <button class="al-go" data-test="${i}">이걸로 ${TEST_DAYS}일 해보기</button>
   </div>`;
 }
 
@@ -800,9 +905,10 @@ function alertRow(a, i){
     ${sp.why?`<div class="al-detail${open?'':' clip'}" data-x="${esc2(keyOf(a))}">${esc2(sp.why)}</div>
       <span class="al-exp" data-x="${esc2(keyOf(a))}">${open?'접기':'더 보기'}</span>`:''}
     <div class="al-do" style="margin-top:6px;"><b>할 일</b> — ${sp.doTxt ? esc2(sp.doTxt) : (K.do||'확인이 필요합니다.')}</div>
+    ${optBlock(a, i)}
     <div style="margin-top:6px;display:flex;gap:6px;">
-      ${K.ab?`<button class="al-done" data-test="${i}">${TEST_DAYS}일 시험 만들기</button>`:''}
-      <button class="al-done${done?' on':''}" data-done="${i}">${done?'처리함 ✓':'처리함'}</button>
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'나중에 ✓':'나중에'}</button>
+      <button class="al-done" data-na="${i}">해당없음</button>
     </div>
   </div>`;
 }
@@ -899,14 +1005,21 @@ function wire(){
     try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){} });
   document.querySelectorAll('.al-exp').forEach(s=>s.onclick=()=>{
     expanded[s.dataset.x] = !expanded[s.dataset.x]; render(); });
-  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.done], b));
+  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.done], b, HIDE_DAYS));
+  document.querySelectorAll('[data-na]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.na], b, NA_DAYS, true));
   document.querySelectorAll('[data-test]').forEach(b=>b.onclick=()=>makeTest(ALL[+b.dataset.test], b));
+  document.querySelectorAll('.al-opts input[type=radio]').forEach(r=>r.onchange=()=>{
+    const box = r.closest('.al-opts');
+    const a = ALL[+box.dataset.i];
+    PICK[keyOf(a)] = r.value;
+    box.querySelectorAll('.al-op').forEach(l=>l.classList.toggle('on', l.contains(r) || l.querySelector('input').checked));
+  });
 }
 
 /* ── 처리함 ─────────────────────────────────────────────────────────────────
    config/alertsDone 에 남긴다. 여러 사람이 동시에 눌러도 서로 지우지 않도록
    서버 값을 다시 읽고 내가 누른 것만 얹는다 (체크리스트와 같은 방식). */
-async function markDone(a, btn){
+async function markDone(a, btn, days, na){
   if(!a) return;
   const k = keyOf(a);
   const on = isDone(a);
@@ -917,7 +1030,8 @@ async function markDone(a, btn){
       const doc = await tx.get(ref);
       const items = (doc.exists && doc.data().items) || {};
       if(on) delete items[k];
-      else items[k] = { at: Date.now(), by: (auth.currentUser||{}).email || '' };
+      else items[k] = { at: Date.now(), by: (auth.currentUser||{}).email || '',
+                        days: days || HIDE_DAYS, na: !!na };
       tx.set(ref, { items }, { merge:true });
       DONE = items;
     });
@@ -935,12 +1049,18 @@ function abPlain(html){ return String(html||'').replace(/<[^>]+>/g,''); }
 async function makeTest(a, btn){
   if(!a) return;
   const K = kindOf(a.type);
-  if(!K.ab){ alert('이 종류는 A/B로 확인할 항목이 아닙니다.'); return; }
+  const opts = optionsFor(a);
+  const chosen = opts ? (opts.find(o=>o.k === (PICK[keyOf(a)] || (opts.find(x=>x.rec)||{}).k)) || null) : null;
+  if(!K.ab && !chosen){ alert('이 종류는 골라서 해볼 항목이 아닙니다.'); return; }
+  if(chosen && chosen.k === 'keep'){
+    alert("'그대로 둔다'를 고르셨습니다. 할 일을 만들지 않고 '나중에'로 접어두시면 됩니다.");
+    return;
+  }
   const sp = splitDetail(a);
   const start = todayStr(), due = plusDays(TEST_DAYS);
   const item = {
     id: 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-    title: `[${kindName(a.type)}] ${a.title}`.slice(0, 120),
+    title: `[${kindName(a.type)}] ${chosen ? chosen.t + ' — ' : ''}${a.title}`.slice(0, 140),
     clientKey: 'client:' + a.client,
     owner: (auth.currentUser||{}).email || null,
     start, due, status: 'todo',
@@ -949,6 +1069,9 @@ async function makeTest(a, btn){
       '알림에서 만든 ' + TEST_DAYS + '일 시험입니다.',
       '',
       '[왜] ' + (sp.why || a.title),
+      '[고른 방법] ' + (chosen ? chosen.t : (sp.doTxt || K.do || '')),
+      chosen && chosen.g ? '  얻는 것: ' + chosen.g : '',
+      chosen && chosen.l ? '  잃을 수 있는 것: ' + chosen.l : '',
       '[할 일] ' + (sp.doTxt || K.do || ''),
       '[확인하는 법] ' + abPlain(K.ab),
       '',
