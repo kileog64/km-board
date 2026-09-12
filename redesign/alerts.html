@@ -296,6 +296,42 @@
   background:var(--panel-2);border:1px solid var(--border);border-radius:9px;font-size:12.5px;color:var(--muted)}
 .grp-sum b{color:var(--tx)}
   /* ── 알림 모아보기 ─────────────────────────────────────────── */
+  .al-top-sum{display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;margin:2px 0 2px;}
+  .al-big{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.1;}
+  .al-big small{font-size:12px;font-weight:600;color:var(--muted);margin-left:5px;letter-spacing:0;}
+
+  /* 오늘 할 일 카드 */
+  .al-today{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+  .al-t{display:grid;grid-template-columns:132px 1fr auto;gap:14px;align-items:start;
+    background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--bad);
+    border-radius:12px;padding:13px 15px;}
+  .al-t.warn{border-left-color:var(--warn);}
+  .al-t.none{border-left-color:var(--muted);}
+  .al-money{font-size:21px;font-weight:800;line-height:1.15;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;color:var(--bad);}
+  .al-t.warn .al-money{color:var(--warn);}
+  .al-t.none .al-money{color:var(--muted);font-size:15px;}
+  .al-money .u{font-size:12px;font-weight:700;margin-left:2px;}
+  .al-mlab{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .al-h{font-size:15px;font-weight:700;line-height:1.45;word-break:keep-all;margin-bottom:4px;}
+  .al-why{font-size:12.5px;color:var(--muted);line-height:1.6;word-break:keep-all;max-width:80ch;}
+  .al-do{margin-top:7px;font-size:12.5px;line-height:1.6;word-break:keep-all;max-width:80ch;
+    background:rgba(139,124,255,.10);border-left:2px solid var(--accent);
+    border-radius:0 7px 7px 0;padding:6px 10px;}
+  .al-do b{color:var(--accent);}
+  .al-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  .al-done{font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;
+    background:var(--panel);color:var(--muted);border:1px solid var(--border);
+    border-radius:7px;padding:5px 10px;}
+  .al-done:hover{border-color:var(--good);color:var(--good);}
+  .al-done.on{border-color:var(--good);color:var(--good);background:rgba(59,201,141,.12);}
+
+  /* 접히는 나머지 목록 */
+  .al-more-btn{margin-top:10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+    background:var(--panel-2);color:var(--tx);border:1px solid var(--border);
+    border-radius:9px;padding:8px 14px;width:100%;}
+  .al-more-btn:hover{border-color:var(--accent);}
+
   .al-cards{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .al-card{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);
     border:1px solid var(--border);border-radius:10px;padding:7px 11px;cursor:pointer;
@@ -308,22 +344,32 @@
   .al-card .al-n.bad{background:rgba(255,107,133,.16);color:var(--bad);}
   .al-dot{width:9px;height:9px;border-radius:3px;flex:none;}
 
-  /* '주의' 배지 — 좋고 나쁨이 아니라 등급 표시라 회색으로 */
-  .al-row .flag:not(.good):not(.bad){background:rgba(245,165,36,.15);color:var(--warn);font-weight:700;}
-  .al-row{padding:13px 0;border-top:1px solid var(--border);}
+  .al-row{padding:12px 0;border-top:1px solid var(--border);}
   .al-row:first-of-type{border-top:none;}
-  .al-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+  .al-row.done{opacity:.45;}
+  .al-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
   .al-cli{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;}
   .al-cli:hover{text-decoration:underline;}
   .al-kind{font-size:11px;font-weight:600;color:var(--muted);background:var(--panel-2);
     border:1px solid var(--border);border-radius:6px;padding:1px 7px;}
+  .al-amt{font-size:12px;font-weight:800;color:var(--bad);font-variant-numeric:tabular-nums;}
   .al-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto;}
   .al-title{font-size:14px;font-weight:600;line-height:1.5;word-break:keep-all;}
-  .al-detail{font-size:12px;color:var(--muted);line-height:1.65;margin-top:4px;
-    word-break:keep-all;max-width:92ch;}
+  .al-detail{font-size:12px;color:var(--muted);line-height:1.65;margin-top:3px;
+    word-break:keep-all;max-width:88ch;}
+  /* 긴 나열은 두 줄까지만 보이고, 누르면 펼쳐진다 */
+  .al-detail.clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .al-exp{font-size:11px;color:var(--accent);cursor:pointer;margin-top:2px;display:inline-block;}
+
+  @media (max-width:820px){
+    .al-t{grid-template-columns:1fr;gap:8px;}
+    .al-side{flex-direction:row;align-items:center;}
+    .al-money{font-size:19px;}
+  }
   @media (max-width:600px){
     .al-date{margin-left:0;}
-    .al-title{font-size:13px;}
+    .al-title,.al-h{font-size:13.5px;}
+    .al-big{font-size:22px;}
   }
 </style>
 <body>
@@ -419,18 +465,18 @@
     <div id="body"></div>
 
     <p class="foot">
-      수집기가 <b>매일 새벽 자동 수집을 끝낸 뒤</b> 그날 기준으로 다시 계산합니다.
-      여기 보이는 건 <b>지금 열려 있는 알림</b>이고, 다음 수집 때 새로 계산되면서 통째로 바뀝니다
-      (지난 알림은 따로 쌓아두지 않습니다).<br>
-      <b>꺼둔 캠페인은 빠집니다</b> — 수집기가 캠페인 ON/OFF를 같이 조회해서, 일부러 끈 캠페인에는
-      "노출 급감" 같은 알림을 띄우지 않습니다.
-      새로 만든 캠페인도 관측 기간이 짧으면(노출 급감 10일 · CPA 급등 14일) 판단을 미룹니다.<br>
-      <b>설정 바뀜 · 예산 막힘 · 입찰가 일괄</b>은 성과 숫자가 아니라 <b>광고 세팅</b>을 보고 만듭니다 —
-      예산·입찰가·ON/OFF를 매일 한 벌씩 받아두고 어제 것과 맞대봅니다.
-      그래서 누가 무엇을 언제 바꿨는지가 여기에 그대로 남습니다.<br>
-      <b>연령대 가중치 · PC·모바일 가중치 · 지면 빼기 · 키워드 빼기 · 시간대 빼기</b>는 숫자만 보여주지 않고
-      <b>넣을 숫자와 뺄 대상까지</b> 알려줍니다. 순위를 같이 말해주는 건 <b>키워드와 시간대뿐</b>입니다 —
-      네이버가 연령·기기·지면에는 순위를 주지 않습니다.<br>
+      <b>순서는 '걸린 돈'이 큰 것부터입니다.</b> 심각·주의 등급이 아니라 금액으로 줄을 세웁니다 —
+      등급만으로는 뭘 먼저 할지 못 고르기 때문입니다. 금액은 알림 본문에 적힌 숫자에서 읽어오고,
+      읽지 못한 건 '금액 미상'으로 아래에 둡니다(없는 숫자를 만들지 않습니다).<br>
+      <b>겹치는 돈이 있을 수 있습니다</b> — 같은 캠페인이 '전환 0'과 '키워드 빼기'에 동시에 잡히면
+      같은 돈이 두 번 세어집니다. 맨 위 합계는 어림치로 보세요.<br>
+      <b>[처리함]</b>을 누르면 그 알림은 7일간 숨습니다. 7일 뒤에도 같은 문제면 다시 올라옵니다.
+      <b>[14일 시험 만들기]</b>를 누르면 체크리스트에 오늘부터 2주짜리 할 일이 생기고,
+      메모에 A안·B안과 무엇을 비교할지가 같이 들어갑니다.<br>
+      <b>설정 바뀜 · 예산 막힘 · 입찰가 일괄</b>과 <b>연령대 가중치 · PC·모바일 가중치 · 지면 · 키워드 · 시간대 빼기</b>는
+      성과 숫자가 아니라 <b>광고 세팅</b>을 같이 보고 만듭니다. 순위를 같이 말해주는 건
+      <b>키워드와 시간대뿐</b>입니다 — 네이버가 연령·기기·지면에는 순위를 주지 않습니다.<br>
+      수집기가 매일 새벽 다시 계산하며, 지난 알림은 따로 쌓아두지 않습니다.
       업체 이름을 누르면 그 업체 대시보드로 갑니다.
     </p>
   </div>
@@ -550,47 +596,118 @@ document.querySelectorAll('.client-switcher-biztab').forEach(btn=>{
 
 
 /* ─────────── 알림 모아보기 ───────────
-   수집기가 업체 문서의 collectorInsights 에 넣어둔 알림을 전 업체에서 긁어 한 화면에 모은다.
-     collectorInsights = { alerts:[], asOf:'2026-09-11', generatedAt:'...' }
-     알림 한 건      = { type, severity('high'|'warn'), campaign, title, detail, date, metrics }
-   Storage 는 안 건드린다 — 업체 문서만 읽어서 가볍다.                                   */
+   두 곳에서 알림을 모은다.
+     collectorInsights  = 성과를 보고 만든 것 (수집기 index.js)
+     collectorSettings  = 세팅을 보고 만든 것 + 추천 (settings.js)
+   칸을 나눠 쓰는 이유: 같은 칸을 쓰면 밤 수집이 통째로 덮어쓴다.
+
+   화면이 하는 일 세 가지
+     1) 걸린 돈이 큰 순서로 줄을 세워 '오늘 할 일 5건'만 먼저 보여준다
+     2) 알림마다 '할 일'과 'A/B로 확인하는 법'을 붙인다
+     3) [2주 시험 만들기] 를 누르면 체크리스트에 2주짜리 할 일이 생기고,
+        [처리함] 을 누르면 7일간 숨는다 (기록은 config/alertsDone 에 남는다)      */
 
 let clients = [], cur = null, ALL = [];
 let fSev = 'all', fKind = 'all', fClient = 'all';
+let showRest = false;                 // 나머지 목록 펼침 여부
+let DONE = {};                        // 처리함 기록 { 키: {at, todoId} }
+const expanded = {};                  // 본문을 펼친 줄
+
+const TOP_N = 5;                      // 맨 위에 띄우는 '오늘 할 일' 개수
+const HIDE_DAYS = 7;                  // 처리함 누르면 며칠 숨길지
+const TEST_DAYS = 14;                 // A/B 시험 기간
 
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g,
   c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
+const todayStr = () => new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);
+function plusDays(n){ return new Date(Date.now()+9*3600*1000+n*86400000).toISOString().slice(0,10); }
 
 /* 알림 종류 — 수집기가 내려주는 type 그대로 쓰되, 화면 이름은 사장님 말로 바꾼다.
-   수집기에 새 종류가 생기면 여기 없어도 '기타'로 그냥 보인다(빠지지 않게). */
+   do  : 그래서 뭘 하면 되는지 (한 줄)
+   ab  : 바꾸기 전에 2주 동안 A/B로 확인하는 법
+   money: 금액이 '버려지는 돈'인지 '걸린 돈'인지 — 절감액이라고 단정하지 않기 위해 구분한다 */
 const KIND = {
-  zero_conv:      { t:'전환 0',          d:'비용은 쓰는데 전환이 안 나오는 캠페인' },
-  hourly_waste:   { t:'버려지는 시간대',  d:'전환 없이 돈만 나가는 시간대가 몰려 있는 캠페인' },
-  imp_drop:       { t:'노출 급감',        d:'갑자기 노출이 확 줄어든 캠페인' },
-  cpa_spike:      { t:'CPA 급등',         d:'전환당 비용이 직전 기간보다 크게 오른 캠페인' },
-  worst_streak:   { t:'연속 최저효율',    d:'여러 기간 연달아 제일 나빴던 캠페인' },
-  pacing:         { t:'집행 속도',        d:'이번 달 쓰는 속도가 지난달과 많이 다름' },
-  collection_gap: { t:'수집 점검',        d:'자료가 안 들어왔거나 노출이 아예 없음' },
-  // 아래 셋은 '세팅'을 매일 받아 보고 만드는 것 (settings.js)
-  setting_change: { t:'설정 바뀜',        d:'예산·입찰가·ON/OFF 같은 세팅이 어제와 달라진 곳' },
-  budget_hit:     { t:'예산 막힘',        d:'하루예산을 거의 다 써서 광고가 중간에 멈추는 캠페인' },
-  bid_flat:       { t:'입찰가 일괄',      d:'광고그룹 입찰가가 전부 같아 성과를 안 보고 넣은 것으로 보이는 캠페인' },
-  // 아래 다섯은 '이렇게 바꾸세요'까지 말해주는 추천
-  age_bid:        { t:'연령대 가중치',    d:'연령대별로 버는 돈이 달라서 입찰 가중치를 바꿔야 하는 경우' },
-  device_bid:     { t:'PC·모바일 가중치', d:'PC와 모바일 성과 차이에 비해 가중치가 안 맞는 경우' },
-  media_off:      { t:'지면 빼기',        d:'돈만 쓰고 전환이 없어 빼는 게 나은 지면' },
-  kw_off:         { t:'키워드 빼기',      d:'돈만 쓰고 전환이 없어 빼거나 순위를 낮출 키워드' },
-  hour_off:       { t:'시간대 빼기',      d:'돈만 쓰고 전환이 없는 시간대' },
+  zero_conv: { t:'전환 0', d:'비용은 쓰는데 전환이 안 나오는 캠페인', money:'버려지는 돈',
+    do:'이 캠페인을 끄거나 입찰가를 낮춰 비용부터 줄이세요.',
+    ab:'A안 지금 그대로 / B안 입찰가 30 낮춤 · 2주 뒤 <b>전환수와 총비용</b>을 비교' },
+  hourly_waste: { t:'버려지는 시간대', d:'전환 없이 돈만 나가는 시간대가 몰려 있는 캠페인', money:'버려지는 돈',
+    do:'그 시간대 입찰 가중치를 낮추거나 꺼두세요 (광고그룹 > 고급옵션 > 요일·시간대).',
+    ab:'A안 24시간 그대로 / B안 해당 시간대 가중치 50 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
+  imp_drop: { t:'노출 급감', d:'갑자기 노출이 확 줄어든 캠페인', money:'',
+    do:'입찰가·예산·소재 검수 상태를 먼저 확인하세요. 일부러 끈 게 아니면 원인을 찾아야 합니다.',
+    ab:'' },
+  cpa_spike: { t:'CPA 급등', d:'전환당 비용이 직전 기간보다 크게 오른 캠페인', money:'',
+    do:'어떤 키워드에서 올랐는지 먼저 쪼개 보세요. 경쟁 입찰이면 순위 목표를 낮추는 것도 방법입니다.',
+    ab:'A안 지금 순위 / B안 목표 순위 한 단계 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
+  worst_streak: { t:'연속 최저효율', d:'여러 기간 연달아 제일 나빴던 캠페인', money:'버려지는 돈',
+    do:'계속 꼴찌면 예산을 다른 캠페인으로 옮기는 걸 검토하세요.',
+    ab:'A안 예산 그대로 / B안 예산 절반을 잘 되는 캠페인으로 옮김 · 2주 뒤 <b>전체 전환수</b>를 비교' },
+  pacing: { t:'집행 속도', d:'이번 달 쓰는 속도가 지난달과 많이 다름', money:'',
+    do:'이대로 두면 월말에 어떻게 되는지 계산해서 업체와 먼저 정해두세요.', ab:'' },
+  collection_gap: { t:'수집 점검', d:'자료가 안 들어왔거나 노출이 아예 없음', money:'',
+    do:'일부러 끈 게 아니면 계정 상태와 수집 설정을 확인하세요.', ab:'' },
+
+  // 세팅을 보고 만드는 것
+  setting_change: { t:'설정 바뀜', d:'예산·입찰가·ON/OFF 같은 세팅이 어제와 달라진 곳', money:'',
+    do:'의도한 변경인지 확인하세요. 아니면 되돌려야 합니다.', ab:'' },
+  budget_hit: { t:'예산 막힘', d:'하루예산을 거의 다 써서 광고가 중간에 멈추는 캠페인', money:'걸린 돈',
+    do:'예산을 올릴지, 이대로 둘지 업체와 먼저 정해두세요. 막히면 오후 노출이 통째로 빕니다.',
+    ab:'A안 예산 그대로 / B안 예산 1.5배 · 2주 뒤 <b>전환수와 전환당 비용</b>을 비교' },
+  bid_flat: { t:'입찰가 일괄', d:'광고그룹 입찰가가 전부 같아 성과를 안 보고 넣은 것으로 보이는 캠페인', money:'',
+    do:'그룹마다 전환·매출이 다르면 입찰가도 달라야 합니다.',
+    ab:'A안 일괄 그대로 / B안 성과 상위 그룹 20 올리고 하위 30 내림 · 2주 뒤 <b>캠페인 전환당 비용</b>을 비교' },
+
+  // '이렇게 바꾸세요' 추천
+  age_bid: { t:'연령대 가중치', d:'연령대별로 버는 돈이 달라서 입찰 가중치를 바꿔야 하는 경우', money:'',
+    do:'알림에 적힌 숫자를 광고그룹 > 타겟 > 연령대에 넣으세요.',
+    ab:'A안 지금 가중치 / B안 추천 가중치 · 2주 뒤 <b>연령대별 전환당 비용</b>을 비교' },
+  device_bid: { t:'PC·모바일 가중치', d:'PC와 모바일 성과 차이에 비해 가중치가 안 맞는 경우', money:'',
+    do:'알림에 적힌 숫자를 광고그룹 > 입찰가 > PC·모바일 가중치에 넣으세요.',
+    ab:'A안 지금 가중치 / B안 추천 가중치 · 2주 뒤 <b>기기별 전환당 비용</b>을 비교' },
+  media_off: { t:'지면 빼기', d:'돈만 쓰고 전환이 없어 빼는 게 나은 지면', money:'버려지는 돈',
+    do:'광고그룹 > 매체 설정에서 그 지면을 제외하세요.',
+    ab:'A안 지면 그대로 / B안 해당 지면 제외 · 2주 뒤 <b>전체 전환수와 전환당 비용</b>을 비교' },
+  kw_off: { t:'키워드 빼기', d:'돈만 쓰고 전환이 없어 빼거나 순위를 낮출 키워드', money:'버려지는 돈',
+    do:'제외 키워드로 넣거나, 입찰가를 내려 순위를 낮추세요.',
+    ab:'A안 지금 그대로 / B안 해당 키워드 제외 · 2주 뒤 <b>캠페인 전환수와 총비용</b>을 비교' },
+  hour_off: { t:'시간대 빼기', d:'돈만 쓰고 전환이 없는 시간대', money:'버려지는 돈',
+    do:'광고그룹 > 고급옵션 > 요일·시간대에서 그 시간대 가중치를 낮추세요.',
+    ab:'A안 24시간 그대로 / B안 해당 시간대 가중치 50 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
 };
 const kindName = t => (KIND[t] || {}).t || t;
+const kindOf = t => KIND[t] || {};
 
-// 심각한 것 · 최근 것부터
-const SEV_RANK = { high:0, warn:1 };
-function sortAlerts(a, b){
-  return (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9)
-      || String(b.date||'').localeCompare(String(a.date||''))
-      || String(a.client||'').localeCompare(String(b.client||''), 'ko');
+/* ── 걸린 돈 ────────────────────────────────────────────────────────────────
+   수집기가 metrics.money 에 숫자를 넣어주면 그걸 쓰고,
+   아직 없는 알림은 본문에 적힌 '합계 N원' · '비용 N원' 을 읽어 쓴다.
+   읽지 못하면 0으로 두고 목록 아래쪽으로 보낸다(거짓 숫자를 만들지 않기 위해). */
+function moneyOf(a){
+  // 이 종류의 숫자가 '버려지는 돈'을 뜻하지 않으면 아예 안 센다.
+  // (집행 속도의 하루 평균 비용 같은 숫자를 '걸린 돈'으로 보여주면 거짓말이 된다)
+  if (!kindOf(a.type).money) return 0;
+  const m = a.metrics || {};
+  if (typeof m.money === 'number' && isFinite(m.money)) return m.money;
+  const txt = String(a.detail || '') + ' ' + String(a.title || '');
+  const pick = (re) => { const x = txt.match(re); return x ? Number(x[1].replace(/,/g,'')) : 0; };
+  return pick(/합계\s*([0-9,]{4,})\s*원/) || pick(/비용\s*([0-9,]{4,})\s*원/)
+      || pick(/([0-9,]{6,})\s*원/) || 0;
+}
+
+// 같은 문제는 날마다 같은 열쇠를 갖는다 — 그래야 '처리함'이 다음 날에도 먹는다
+const keyOf = a => [a.client, a.type, a.campaign || ''].join('|');
+function isDone(a){
+  const r = DONE[keyOf(a)];
+  if (!r || !r.at) return false;
+  return (Date.now() - r.at) < HIDE_DAYS * 86400000;
+}
+
+// 본문에서 '▶' 뒤는 조치 문구라 따로 뗀다
+function splitDetail(a){
+  const d = String(a.detail || '');
+  const i = d.indexOf('▶');
+  return i >= 0 ? { why: d.slice(0, i).trim(), doTxt: d.slice(i).replace(/▶/g, '· ').trim() }
+                : { why: d, doTxt: '' };
 }
 
 function pass(a){
@@ -599,11 +716,13 @@ function pass(a){
   if(fClient !== 'all' && a.client !== fClient) return false;
   return true;
 }
+const sortMoney = (a,b) => moneyOf(b) - moneyOf(a)
+  || (a.severity==='high'?0:1) - (b.severity==='high'?0:1)
+  || String(a.client||'').localeCompare(String(b.client||''),'ko');
 
 function renderPills(){
   const shown = ALL;
   const cnt = (fn) => shown.filter(fn).length;
-
   const sev = [['all','전체',shown.length],
                ['high','심각',cnt(a=>a.severity==='high')],
                ['warn','주의',cnt(a=>a.severity==='warn')]];
@@ -616,7 +735,7 @@ function renderPills(){
   document.getElementById('kindPills').innerHTML =
     `<button class="pill ${fKind==='all'?'on':''}" data-kind="all">전체</button>` +
     kl.map(k=>`<button class="pill ${fKind===k?'on':''}" data-kind="${esc2(k)}"
-       title="${esc2((KIND[k]||{}).d||'')}">${esc2(kindName(k))} ${kinds[k]}</button>`).join('');
+       title="${esc2(kindOf(k).d||'')}">${esc2(kindName(k))} ${kinds[k]}</button>`).join('');
 
   const cc = {};
   shown.forEach(a=>{ cc[a.client] = (cc[a.client]||0)+1; });
@@ -630,22 +749,60 @@ function renderPills(){
   document.querySelectorAll('#clientPills .pill').forEach(b=>b.onclick=()=>{ fClient=b.dataset.client; render(); });
 }
 
-function alertRow(a){
+// ── 오늘 할 일 카드 (금액 큰 순 다섯 개) ────────────────────────────────────
+function topCard(a, i){
   const c = clients.find(x=>x.id===a.client) || {};
-  const dot = c.color || '#8b7cff';
-  const sev = a.severity==='high'
-    ? '<span class="flag bad">심각</span>'
-    : '<span class="flag">주의</span>';
-  return `<div class="al-row">
+  const K = kindOf(a.type);
+  const mv = moneyOf(a);
+  const cls = mv >= 1000000 ? '' : (mv > 0 ? 'warn' : 'none');
+  const sp = splitDetail(a);
+  const done = isDone(a);
+  return `<div class="al-t ${cls}${done?' done':''}" data-k="${esc2(keyOf(a))}">
+    <div>
+      <div class="al-money">${mv ? num(mv) + '<span class="u">원</span>' : '금액 미상'}</div>
+      <div class="al-mlab">${mv ? esc2(K.money || '걸린 돈') + ' · 최근 기준' : '금액을 셀 수 없는 종류'}</div>
+    </div>
+    <div>
+      <div class="al-top" style="margin-bottom:5px;">
+        <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+        <a class="al-cli" href="index.html" data-go="${esc2(a.client)}">${esc2(a.client)}</a>
+        <span class="al-kind">${esc2(kindName(a.type))}</span>
+      </div>
+      <div class="al-h">${esc2(a.title)}</div>
+      ${sp.why?`<div class="al-why">${esc2(sp.why)}</div>`:''}
+      <div class="al-do"><b>할 일</b> — ${sp.doTxt ? esc2(sp.doTxt) : (K.do||'확인이 필요합니다.')}
+        ${K.ab?`<br><b>확인하는 법</b> — ${K.ab}`:''}</div>
+    </div>
+    <div class="al-side">
+      ${K.ab?`<button class="al-done" data-test="${i}">${TEST_DAYS}일 시험 만들기</button>`:''}
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'처리함 ✓':'처리함'}</button>
+    </div>
+  </div>`;
+}
+
+function alertRow(a, i){
+  const c = clients.find(x=>x.id===a.client) || {};
+  const K = kindOf(a.type);
+  const mv = moneyOf(a);
+  const sp = splitDetail(a);
+  const done = isDone(a);
+  const open = expanded[keyOf(a)];
+  return `<div class="al-row${done?' done':''}">
     <div class="al-top">
-      <span class="al-dot" style="background:${esc2(dot)};"></span>
+      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
       <a class="al-cli" href="index.html" data-go="${esc2(a.client)}">${esc2(a.client)}</a>
       <span class="al-kind">${esc2(kindName(a.type))}</span>
-      ${sev}
+      ${mv?`<span class="al-amt">${num(mv)}원</span>`:''}
       ${a.date?`<span class="al-date">${esc2(a.date)}</span>`:''}
     </div>
     <div class="al-title">${esc2(a.title)}</div>
-    ${a.detail?`<div class="al-detail">${esc2(a.detail)}</div>`:''}
+    ${sp.why?`<div class="al-detail${open?'':' clip'}" data-x="${esc2(keyOf(a))}">${esc2(sp.why)}</div>
+      <span class="al-exp" data-x="${esc2(keyOf(a))}">${open?'접기':'더 보기'}</span>`:''}
+    <div class="al-do" style="margin-top:6px;"><b>할 일</b> — ${sp.doTxt ? esc2(sp.doTxt) : (K.do||'확인이 필요합니다.')}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;">
+      ${K.ab?`<button class="al-done" data-test="${i}">${TEST_DAYS}일 시험 만들기</button>`:''}
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'처리함 ✓':'처리함'}</button>
+    </div>
   </div>`;
 }
 
@@ -660,41 +817,149 @@ function render(){
   }
   renderPills();
 
-  const rows = ALL.filter(pass).sort(sortAlerts);
-  const high = ALL.filter(a=>a.severity==='high').length;
-  const asOfs = [...new Set(ALL.map(a=>a.asOf).filter(Boolean))].sort();
-  document.getElementById('cdesc').textContent =
-    `${clients.length}개 업체 · 알림 ${ALL.length}건(심각 ${high}건)` +
-    (asOfs.length ? ` · 기준일 ${asOfs[0]===asOfs[asOfs.length-1]?asOfs[0]:(asOfs[0]+' ~ '+asOfs[asOfs.length-1])}` : '');
+  const rows = ALL.filter(pass).sort(sortMoney);
+  const SETUP0 = ['age_bid','device_bid','bid_flat','setting_change'];
+  const live = rows.filter(a=>!isDone(a) && SETUP0.indexOf(a.type) < 0);
+  const top = live.slice(0, TOP_N);
+  const rest = rows.filter(a=>top.indexOf(a) < 0 && SETUP0.indexOf(a.type) < 0);
 
-  // 업체별 요약 — 어디가 급한지 한눈에
+  const totalMoney = ALL.filter(a=>(kindOf(a.type).money==='버려지는 돈')).reduce((s,a)=>s+moneyOf(a),0);
+  const doneN = ALL.filter(isDone).length;
+  document.getElementById('cdesc').textContent =
+    `${clients.length}개 업체 · 알림 ${ALL.length}건` + (doneN?` (처리함 ${doneN}건)`:'') +
+    ([...new Set(ALL.map(a=>a.asOf).filter(Boolean))].length ? ` · 기준일 ${[...new Set(ALL.map(a=>a.asOf).filter(Boolean))].sort().pop()}` : '');
+
   const cc = {};
-  ALL.forEach(a=>{ const o = cc[a.client] || (cc[a.client]={h:0,w:0,asOf:a.asOf}); o[a.severity==='high'?'h':'w']++; });
-  const order = Object.keys(cc).sort((a,b)=> cc[b].h-cc[a].h || cc[b].w-cc[a].w || a.localeCompare(b,'ko'));
+  ALL.forEach(a=>{ const o = cc[a.client] || (cc[a.client]={n:0,m:0}); o.n++; o.m += moneyOf(a); });
+  const order = Object.keys(cc).sort((a,b)=> cc[b].m-cc[a].m || cc[b].n-cc[a].n);
   const cards = order.map(id=>{
     const c = clients.find(x=>x.id===id) || {};
     const o = cc[id];
     return `<button class="al-card${fClient===id?' on':''}" data-card="${esc2(id)}">
       <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
       <b>${esc2(id)}</b>
-      <span class="al-n bad">${o.h}</span>
-      ${o.w?`<span class="al-n">${o.w}</span>`:''}
+      ${o.m?`<span class="al-n bad">${num(Math.round(o.m/10000))}만원</span>`:''}
+      <span class="al-n">${o.n}건</span>
     </button>`;
   }).join('');
 
-  el.innerHTML = `<div class="card"><h3>업체별</h3>
-      <div class="sub">빨간 숫자가 <b>심각</b>, 회색이 주의. 누르면 그 업체만 봅니다.</div>
-      <div class="al-cards">${cards}</div></div>`
-    + `<div class="card"><h3>알림 ${rows.length}건</h3>
-      <div class="sub">심각한 것부터 · 같은 등급이면 최근 날짜부터</div>
-      ${rows.length ? rows.map(alertRow).join('') :
-        '<div class="empty" style="margin:10px 0 0;">고른 조건에 맞는 알림이 없습니다.</div>'}</div>`;
+  // 금액으로는 줄 세울 수 없지만 바로 손댈 수 있는 것들 — 따로 모아 둔다
+  const SETUP = ['age_bid','device_bid','bid_flat','setting_change'];
+  const setup = rows.filter(a=>SETUP.indexOf(a.type)>=0 && !isDone(a));
 
+  el.innerHTML =
+    `<div class="card">
+      <div class="al-top-sum">
+        <div><div class="al-big">${num(Math.round(totalMoney/10000))}<small>만원</small></div>
+          <div class="sub" style="margin:2px 0 0;">전환 없이 나가고 있는 돈 (최근 기준 · 겹치는 돈이 있을 수 있음)</div></div>
+        <div><div class="al-big">${live.length}<small>건</small></div>
+          <div class="sub" style="margin:2px 0 0;">아직 손대지 않은 알림</div></div>
+      </div>
+     </div>`
+    + `<div class="card"><h3>오늘 할 일 ${top.length}건</h3>
+        <div class="sub">걸린 돈이 큰 것부터. 처리하면 ${HIDE_DAYS}일간 숨고, 그 뒤에도 같으면 다시 올라옵니다.</div>
+        <div class="al-today">${top.length ? top.map((a)=>topCard(a, ALL.indexOf(a))).join('')
+          : '<div class="empty" style="margin:8px 0 0;">오늘 볼 건 다 봤습니다.</div>'}</div></div>`
+    + (setup.length ? `<div class="card"><h3>설정 바꾸기 ${setup.length}건</h3>
+        <div class="sub">돈으로 줄 세울 수 없지만 바로 손댈 수 있는 것들입니다. 넣을 숫자가 알림 안에 적혀 있어요.</div>
+        <div class="al-today">${setup.map((a)=>topCard(a, ALL.indexOf(a))).join('')}</div></div>` : '')
+    + `<div class="card"><h3>업체별</h3>
+        <div class="sub">버려지는 돈이 큰 업체부터. 누르면 그 업체만 봅니다.</div>
+        <div class="al-cards">${cards}</div></div>`
+    + `<div class="card"><h3>나머지 ${rest.length}건</h3>
+        <div class="sub">금액 큰 순</div>
+        <button class="al-more-btn" id="moreBtn">${showRest?'접기':'펼쳐 보기'}</button>
+        <div id="restBox" style="${showRest?'':'display:none;'}margin-top:10px;">
+          ${rest.length ? rest.map((a)=>alertRow(a, ALL.indexOf(a))).join('')
+            : '<div class="empty" style="margin:10px 0 0;">더 볼 게 없습니다.</div>'}</div></div>`;
+
+  wire();
+}
+
+function wire(){
+  const mb = document.getElementById('moreBtn');
+  if(mb) mb.onclick = ()=>{ showRest = !showRest; render(); };
   document.querySelectorAll('.al-card').forEach(b=>b.onclick=()=>{
     fClient = (fClient===b.dataset.card) ? 'all' : b.dataset.card; render(); });
-  document.querySelectorAll('.al-cli').forEach(a=>a.onclick=(e)=>{
-    try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){}
-  });
+  document.querySelectorAll('.al-cli').forEach(a=>a.onclick=()=>{
+    try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){} });
+  document.querySelectorAll('.al-exp').forEach(s=>s.onclick=()=>{
+    expanded[s.dataset.x] = !expanded[s.dataset.x]; render(); });
+  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.done], b));
+  document.querySelectorAll('[data-test]').forEach(b=>b.onclick=()=>makeTest(ALL[+b.dataset.test], b));
+}
+
+/* ── 처리함 ─────────────────────────────────────────────────────────────────
+   config/alertsDone 에 남긴다. 여러 사람이 동시에 눌러도 서로 지우지 않도록
+   서버 값을 다시 읽고 내가 누른 것만 얹는다 (체크리스트와 같은 방식). */
+async function markDone(a, btn){
+  if(!a) return;
+  const k = keyOf(a);
+  const on = isDone(a);
+  btn.disabled = true;
+  try{
+    const ref = db.collection('config').doc('alertsDone');
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const items = (doc.exists && doc.data().items) || {};
+      if(on) delete items[k];
+      else items[k] = { at: Date.now(), by: (auth.currentUser||{}).email || '' };
+      tx.set(ref, { items }, { merge:true });
+      DONE = items;
+    });
+    render();
+  }catch(e){
+    alert('처리함 표시를 저장하지 못했습니다. 잠시 뒤 다시 눌러주세요.');
+    btn.disabled = false;
+  }
+}
+
+/* ── 2주 시험 만들기 ────────────────────────────────────────────────────────
+   체크리스트(config/todos)에 오늘부터 2주짜리 할 일을 만든다.
+   메모에 A안·B안과 무엇을 비교할지 적어두어, 2주 뒤 그대로 보고 판단할 수 있게 한다. */
+function abPlain(html){ return String(html||'').replace(/<[^>]+>/g,''); }
+async function makeTest(a, btn){
+  if(!a) return;
+  const K = kindOf(a.type);
+  if(!K.ab){ alert('이 종류는 A/B로 확인할 항목이 아닙니다.'); return; }
+  const sp = splitDetail(a);
+  const start = todayStr(), due = plusDays(TEST_DAYS);
+  const item = {
+    id: 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    title: `[${kindName(a.type)}] ${a.title}`.slice(0, 120),
+    clientKey: 'client:' + a.client,
+    owner: (auth.currentUser||{}).email || null,
+    start, due, status: 'todo',
+    priority: a.severity === 'high' ? 'high' : 'mid',
+    memo: [
+      '알림에서 만든 ' + TEST_DAYS + '일 시험입니다.',
+      '',
+      '[왜] ' + (sp.why || a.title),
+      '[할 일] ' + (sp.doTxt || K.do || ''),
+      '[확인하는 법] ' + abPlain(K.ab),
+      '',
+      '기간 ' + start + ' ~ ' + due + ' · 끝나면 위 지표를 A안 기간과 비교해 결론을 적어주세요.',
+    ].join('\n'),
+    createdAt: Date.now(),
+    createdBy: (auth.currentUser||{}).email || null,
+  };
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '만드는 중…';
+  try{
+    const ref = db.collection('config').doc('todos');
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const items = (doc.exists && doc.data().items) || [];
+      items.push(item);
+      tx.set(ref, { items }, { merge:true });
+    });
+    btn.textContent = '체크리스트에 넣음 ✓';
+    btn.classList.add('on');
+  }catch(e){
+    btn.textContent = old; btn.disabled = false;
+    alert('체크리스트에 넣지 못했습니다. 잠시 뒤 다시 눌러주세요.');
+  }
 }
 
 // 업체 문서에서 알림만 긁어 온다 (Storage 는 안 읽어서 가볍다)
@@ -709,13 +974,16 @@ async function loadAlerts(){
       ALL.push(Object.assign({}, a, { client:d.id, asOf:ci.asOf || '' }));
     });
     // 세팅 확인(settings.js)이 따로 넣어둔 알림도 같이 모은다.
-    // 칸을 나눠 쓰는 이유: 같은 칸을 쓰면 밤 수집이 통째로 덮어써 버린다.
     const cs = v.collectorSettings || {};
     (cs.alerts || []).forEach(a=>{
       ALL.push(Object.assign({}, a, { client:d.id, asOf:cs.asOf || '' }));
     });
   });
   clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  try{
+    const dd = await db.collection('config').doc('alertsDone').get();
+    DONE = (dd.exists && dd.data().items) || {};
+  }catch(e){ DONE = {}; }
   renderClientSwitcher('');
   const storedKey = getStoredActiveClient();
   const storedId = storedKey ? storedKey.replace(/^client:/,'') : null;
