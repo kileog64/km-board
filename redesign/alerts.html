@@ -410,6 +410,7 @@
         <div class="mdrop">
           <a href="alerts.html">알림</a>
           <a href="audit.html">검수</a>
+          <a href="status.html">진행상황</a>
           <a href="live.html">예산 · 목표</a>
           <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
           <a href="memo.html">메모</a>
@@ -446,7 +447,7 @@
     <div class="chead2">
       <div class="avatar" id="ava" style="background:#f5a524;">!</div>
       <span class="nm2">알림</span>
-      <span class="badge">전체 업체 한 화면</span>
+      <span class="badge" id="scopeBadge">전체 업체 한 화면</span>
       <div class="desc" id="cdesc"></div>
     </div>
 
@@ -823,11 +824,16 @@ function render(){
   const top = live.slice(0, TOP_N);
   const rest = rows.filter(a=>top.indexOf(a) < 0 && SETUP0.indexOf(a.type) < 0);
 
-  const totalMoney = ALL.filter(a=>(kindOf(a.type).money==='버려지는 돈')).reduce((s,a)=>s+moneyOf(a),0);
-  const doneN = ALL.filter(isDone).length;
+  // 맨 위 숫자와 머리말은 '지금 보고 있는 것' 기준이어야 한다 (고른 업체가 있으면 그 업체)
+  const totalMoney = rows.filter(a=>(kindOf(a.type).money==='버려지는 돈')).reduce((s,a)=>s+moneyOf(a),0);
+  const doneN = rows.filter(isDone).length;
+  const asOfs = [...new Set(rows.map(a=>a.asOf).filter(Boolean))].sort();
+  const who = fClient==='all' ? `${clients.length}개 업체 전체` : fClient;
   document.getElementById('cdesc').textContent =
-    `${clients.length}개 업체 · 알림 ${ALL.length}건` + (doneN?` (처리함 ${doneN}건)`:'') +
-    ([...new Set(ALL.map(a=>a.asOf).filter(Boolean))].length ? ` · 기준일 ${[...new Set(ALL.map(a=>a.asOf).filter(Boolean))].sort().pop()}` : '');
+    `${who} · 알림 ${rows.length}건` + (doneN?` (처리함 ${doneN}건)`:'') +
+    (asOfs.length ? ` · 기준일 ${asOfs[asOfs.length-1]}` : '');
+  const bg = document.getElementById('scopeBadge');
+  if(bg) bg.textContent = fClient==='all' ? '전체 업체 한 화면' : fClient + '만 보는 중';
 
   const cc = {};
   ALL.forEach(a=>{ const o = cc[a.client] || (cc[a.client]={n:0,m:0}); o.n++; o.m += moneyOf(a); });
@@ -846,6 +852,14 @@ function render(){
   // 금액으로는 줄 세울 수 없지만 바로 손댈 수 있는 것들 — 따로 모아 둔다
   const SETUP = ['age_bid','device_bid','bid_flat','setting_change'];
   const setup = rows.filter(a=>SETUP.indexOf(a.type)>=0 && !isDone(a));
+
+  if(!rows.length){
+    el.innerHTML = `<div class="empty"><b>${esc2(who)}</b>는 지금 열려 있는 알림이 없습니다.<br>
+      <button class="al-more-btn" id="allBtn" style="max-width:260px;margin-top:12px;">전체 업체 보기</button></div>`;
+    const ab = document.getElementById('allBtn');
+    if(ab) ab.onclick = ()=>{ fClient='all'; fKind='all'; fSev='all'; render(); };
+    return;
+  }
 
   el.innerHTML =
     `<div class="card">
@@ -989,6 +1003,9 @@ async function loadAlerts(){
   const storedId = storedKey ? storedKey.replace(/^client:/,'') : null;
   cur = clients.find(c=>c.id===storedId) || clients[0] || null;
   if(cur) syncSwitcherBtn();
+  // 위쪽 드롭다운에서 고른 업체가 있으면 그 업체만 보여준다.
+  // 다른 화면들과 같은 동작이라, 알림만 전체가 나오면 헷갈린다.
+  if(cur) fClient = cur.id;
   render();
 }
 
