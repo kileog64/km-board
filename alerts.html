@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>알림 · 광고 성과 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+  const storage = firebase.storage();
+</script>
+<style>
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --tx:#f5f6fa; --muted:#a8abc4; --good:#4ade9a; --bad:#ff6b85; --warn:#f5a524;
+    --accent:#8b7cff; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);
+    color:var(--tx);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;
+    line-height:1.5;font-variant-numeric:tabular-nums;}
+  input,button{font-family:inherit;}
+  /* ── 상단 메뉴바 (드롭다운) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ── */
+  .topbar{max-width:1480px;margin:14px auto 0;padding:8px 14px;display:flex;align-items:center;
+    gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:14px;flex-wrap:wrap;row-gap:8px;}
+  .brandmark{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;
+    letter-spacing:-.02em;margin-right:6px;white-space:nowrap;}
+  .brandmark .bdot{width:16px;height:16px;border-radius:5px;background:var(--accent);flex:none;}
+  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
+  .kmenu .mitem{position:relative;}
+  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
+  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
+    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
+    transition:background .12s ease,color .12s ease;}
+  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
+  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
+  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
+  .kmenu .mitem.on .mdrop{display:block;}
+  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent);}
+  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
+  .kmenu .mdrop .msep{height:1px;background:var(--border);margin:5px 8px;}
+  /* 메뉴는 로고와 오른쪽 묶음 사이의 가운데 — 다른 페이지와 같은 배치 */
+  .topbar .kmenu{margin-left:auto;margin-right:auto;}
+  .navright{margin-left:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .navright .who{font-size:12px;color:var(--muted);}
+  @media(max-width:760px){
+    .topbar{margin:10px 12px 0;}
+    .navright{margin-left:0;width:100%;justify-content:flex-end;}
+    .kmenu .mdrop{left:auto;right:0;}
+  }
+  .wrap{max-width:1480px;margin:0 auto;padding:18px 20px 64px;}
+
+  .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .brand{font-size:19px;font-weight:800;letter-spacing:-.02em;}
+  .stamp{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);}
+  .spacer{flex:1;}
+  .save{font-size:12px;color:var(--muted);}
+
+  .totals{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+  @media(max-width:820px){.totals{grid-template-columns:repeat(2,1fr);}}
+  .tot{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .tot.lead{border-color:rgba(139,124,255,.5);
+    background:linear-gradient(180deg,rgba(139,124,255,.13),rgba(139,124,255,.03));}
+  .tlbl{font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .tval{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.2;}
+  .tnote{font-size:12px;color:var(--muted);margin-top:3px;}
+
+  .hint{background:rgba(139,124,255,.08);border:1px solid rgba(139,124,255,.28);
+    border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.7;color:#cfd2e6;margin-bottom:16px;}
+  .hint b{color:#b9aeff;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:12px;}
+  .card.over{border-color:rgba(255,107,133,.55);}
+  .card.tight{border-color:rgba(245,165,36,.5);}
+  .card.fine{border-color:rgba(74,222,154,.4);}
+  .chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .nm{font-size:15px;font-weight:700;}
+  .biz{font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;}
+  .biz.b2c{background:rgba(139,124,255,.18);color:#b9aeff;}
+  .biz.dbt{background:rgba(74,222,154,.15);color:var(--good);}
+  .nsub{font-size:12px;color:var(--muted);}
+  .verdict{margin-left:auto;font-size:12px;font-weight:700;}
+  .v-bad{color:var(--bad);} .v-warn{color:var(--warn);} .v-good{color:var(--good);} .v-none{color:var(--muted);}
+
+  .panes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:820px){.panes{grid-template-columns:1fr;}}
+  .pane{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:12px;}
+  .ptitle{font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:600;}
+  .inrow{display:flex;align-items:center;gap:6px;}
+  input.n{flex:1;min-width:0;background:var(--bg);border:1px solid var(--border);color:var(--tx);
+    border-radius:7px;padding:7px 9px;font-size:13px;text-align:right;}
+  input.n:focus{outline:none;border-color:var(--accent);}
+  .unit{font-size:12px;color:var(--muted);flex:none;}
+  .track{position:relative;height:8px;border-radius:5px;background:var(--bg);
+    overflow:hidden;margin-top:10px;}
+  .fill{height:100%;border-radius:5px;}
+  .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--muted);opacity:.85;}
+  .barlbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .big{font-size:17px;font-weight:800;margin-top:7px;letter-spacing:-.01em;}
+  .bigsub{font-size:11.5px;color:var(--muted);}
+  .empty{font-size:12px;color:var(--muted);margin-top:10px;}
+
+  .foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:20px;
+    border-top:1px solid var(--border);padding-top:14px;}
+  .foot b{color:var(--tx);}
+  .warnbox{background:rgba(245,165,36,.10);border:1px solid rgba(245,165,36,.4);
+    border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.7;margin-bottom:16px;color:#f0dcb8;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--tx);
+    border-radius:8px;padding:9px 11px;font-size:13px;}
+  .status-msg{font-size:12px;margin-top:10px;color:var(--bad);}
+
+  /* ── 연령·성별 화면 ── */
+  .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .ctl select{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+    border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;}
+  .ctl .lab{font-size:12px;color:var(--muted);}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--border);
+    border-radius:9px;padding:2px;gap:2px;}
+  .seg button{background:none;border:none;color:var(--muted);font-size:12.5px;
+    padding:6px 12px;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .seg button.on{background:var(--accent);color:#12131f;font-weight:700;}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+  @media(max-width:820px){.tiles{grid-template-columns:1fr;}}
+  .tile{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .tile .k{font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .tile .v{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.25;}
+  .tile .s{font-size:12px;color:var(--muted);margin-top:3px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:14px;}
+  .card h3{margin:0 0 3px;font-size:14px;font-weight:700;}
+  .card .sub{font-size:12px;color:var(--muted);margin-bottom:12px;max-width:78ch;line-height:1.65;}
+  table.ag{width:100%;border-collapse:collapse;font-size:13px;}
+  table.ag th{font-size:11.5px;color:var(--muted);font-weight:600;text-align:right;
+    padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  table.ag th:first-child,table.ag td:first-child{text-align:left;}
+  table.ag td{padding:8px;text-align:right;border-bottom:1px solid #23253a;white-space:nowrap;}
+  table.ag tr:last-child td{border-bottom:none;}
+  table.ag tr.tot td{border-top:1px solid var(--border);font-weight:700;color:var(--tx);}
+  .barcell{width:36%;}
+  .agbar{height:11px;border-radius:0 4px 4px 0;background:var(--accent);min-width:2px;}
+  .agbar.good{background:var(--good);} .agbar.bad{background:var(--bad);}
+  .barwrap{background:#1b1d2e;border-radius:4px;overflow:hidden;}
+  .flag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;margin-left:6px;}
+  .flag.good{background:rgba(74,222,154,.16);color:var(--good);}
+  .flag.bad{background:rgba(255,107,133,.16);color:var(--bad);}
+  .empty{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:26px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8;}
+  .foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:18px;
+    border-top:1px solid var(--border);padding-top:14px;}
+  .foot b{color:var(--tx);}
+
+  /* 시간대별 페이지와 같은 결: 결론 먼저 → 문장 → 차트 → 표 */
+  .chead2{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+  .avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-weight:800;font-size:17px;color:#12131f;flex:none;}
+  .chead2 .nm2{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+  .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);}
+  .chead2 .desc{font-size:12px;color:var(--muted);width:100%;margin-top:-6px;}
+  .reco{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;}
+  @media(max-width:820px){.reco{grid-template-columns:1fr;}}
+  .rbox{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .rbox .rk{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .rbox .rk .d{width:7px;height:7px;border-radius:50%;}
+  .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
+  .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
+
+  /* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
+  .wt-basis{margin:10px 0 4px;padding:11px 14px;border-left:3px solid var(--accent);
+    border-radius:0 10px 10px 0;background:rgba(139,124,255,.12);
+    font-size:12.5px;line-height:1.75;color:var(--tx);word-break:keep-all;}
+  .wt-basis b{color:var(--accent);font-weight:700;}
+  .wt-tbl{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  .wt-tbl th,.wt-tbl td{padding:8px 9px;border-top:1px solid var(--border);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wt-tbl th{font-size:11px;color:var(--muted);font-weight:600;border-top:none;}
+  .wt-tbl td.l,.wt-tbl th.l{text-align:left;}
+  .wt-tbl tr.base td{background:rgba(59,201,141,.10);}
+  .wt-tbl tr.thin td{color:var(--muted);}
+  .wt-num{font-weight:800;font-size:15px;}
+  .wt-base{font-size:11px;font-weight:700;color:var(--good);
+    background:rgba(59,201,141,.15);border-radius:6px;padding:1px 6px;margin-left:5px;}
+  .wt-warn{margin-top:10px;font-size:12px;color:var(--warn);line-height:1.6;word-break:keep-all;}
+  .wt-copy{margin-top:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;
+    background:var(--panel-2);color:var(--tx);border:1px solid var(--border);
+    border-radius:8px;padding:6px 12px;}
+  .wt-copy:hover{border-color:var(--accent);}
+  .wt-wrap{overflow-x:auto;}
+  .says{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.9;}
+  .says div+div{margin-top:4px;}
+  .says b{color:var(--tx);}
+  .metricrow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+  .metricrow label{display:flex;align-items:center;gap:5px;font-size:12px;
+    color:var(--tx);cursor:pointer;white-space:nowrap;}
+  .chartbox{height:300px;}
+
+  /* 기간 위젯 — 대시보드·캠페인·키워드 페이지와 같은 형식 */
+  :root{ --accent-solid:#6354d6; }
+  .filterbar{display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--panel);
+    border:1px solid var(--border);border-radius:11px;padding:4px 6px;margin:0 0 14px;}
+  .fb-g{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;
+    border-right:1px solid var(--border);}
+  .fb-g:last-child{border-right:0;}
+  .fb-lab{font-size:11px;color:var(--muted);letter-spacing:.04em;font-weight:600;}
+  .fb-btn{background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .fb-btn:hover{color:var(--tx);}
+  .fb-sel{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+    border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .pill{border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;
+    cursor:pointer;font-family:inherit;background:var(--panel-2);color:var(--muted);}
+  .pill.on{background:var(--accent-solid);color:#fff;border-color:var(--accent-solid);}
+  .pill:disabled{opacity:.45;cursor:default;}
+  .fb-date{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+    border-radius:6px;padding:3px 6px;font-size:12px;font-family:inherit;}
+
+  /* 업체 선택 — 다른 페이지와 동일한 상단 드롭다운 */
+  .client-switcher{position:relative;display:inline-block;}
+  .client-switcher-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-size:14px;font-weight:600;color:var(--tx);min-width:170px;}
+  .client-switcher-btn .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-btn .chev{margin-left:auto;font-size:12px;color:var(--muted);}
+  .client-switcher-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:50;width:280px;max-height:360px;overflow-y:auto;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:none;}
+  .client-switcher-dropdown.open{display:block;}
+  .client-switcher-search{width:100%;box-sizing:border-box;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--tx);font-size:14px;outline:none;position:sticky;top:0;background:var(--panel-2);}
+  .client-switcher-biztabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:37px;background:var(--panel-2);z-index:1;}
+  .client-switcher-biztab{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 0;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .client-switcher-biztab.active{border-color:var(--accent);color:var(--accent-text,var(--accent));background:rgba(139,124,255,.03);}
+  .client-switcher-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:14px;color:var(--tx);}
+  .client-switcher-item:hover{background:var(--panel);}
+  .client-switcher-item.active{background:rgba(139,124,255,.15);color:var(--accent-text,var(--accent));font-weight:700;}
+  .client-switcher-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .client-switcher-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center;}
+
+/* 캠페인별 · 광고그룹별 연령 */
+.cmp-search{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);
+  color:var(--tx);border-radius:8px;padding:7px 10px;font:inherit;font-size:12.5px;margin:10px 0 0;}
+.cmp-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;max-height:136px;overflow-y:auto;padding-right:2px;}
+.cmp-chip{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx);background:var(--panel-2);
+  padding:5px 10px;border-radius:13px;border:1px solid var(--border);max-width:260px;cursor:pointer;}
+.cmp-chip.on{background:rgba(139,124,255,.2);border-color:rgba(139,124,255,.55);}
+.cmp-chip.off{opacity:.42;cursor:not-allowed;}
+.cmp-chip input{accent-color:var(--accent);width:12px;height:12px;flex:none;}
+.cmp-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmp-chip i{font-style:normal;color:var(--muted);font-size:11px;flex:none;}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap;}
+.grp-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;}
+.grp-bar select{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);border-radius:8px;
+  padding:6px 10px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  flex:1 1 240px;min-width:0;max-width:100%;width:100%;box-sizing:border-box;}
+@media (max-width:640px){ .cmp-chip{max-width:100%;} }
+
+/* 좁은 화면에서 페이지 전체가 옆으로 밀리던 문제 — 표는 각자 가로 스크롤을 갖고 있어서
+   바깥 테두리를 화면 폭에 맞춰 잠가도 안이 잘리지 않는다. */
+.wrap{min-width:0;}
+.card .card{margin-bottom:10px;}
+.card .card:last-child{margin-bottom:0;}
+
+/* 캠페인 → 광고그룹 고르는 줄 */
+.grp-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px}
+.grp-pick label{display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0}
+.grp-lab{font-size:11.5px;color:var(--muted)}
+.grp-pick select{background:var(--panel-2);border:1px solid var(--border);color:var(--tx);border-radius:8px;
+  padding:8px 10px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.grp-pick select:focus{outline:none;border-color:var(--accent)}
+.grp-pick .pill{flex:0 0 auto;padding:8px 14px}
+.grp-sum{display:flex;flex-wrap:wrap;gap:5px 15px;margin-top:12px;padding:10px 13px;
+  background:var(--panel-2);border:1px solid var(--border);border-radius:9px;font-size:12.5px;color:var(--muted)}
+.grp-sum b{color:var(--tx)}
+  /* ── 알림 모아보기 ─────────────────────────────────────────── */
+  .al-top-sum{display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;margin:2px 0 2px;}
+  .al-big{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.1;}
+  .al-big small{font-size:12px;font-weight:600;color:var(--muted);margin-left:5px;letter-spacing:0;}
+
+  /* 오늘 할 일 카드 */
+  .al-today{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+  .al-t{display:grid;grid-template-columns:132px 1fr auto;gap:14px;align-items:start;
+    background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--bad);
+    border-radius:12px;padding:13px 15px;}
+  .al-t.warn{border-left-color:var(--warn);}
+  .al-t.none{border-left-color:var(--muted);}
+  .al-money{font-size:21px;font-weight:800;line-height:1.15;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;color:var(--bad);}
+  .al-t.warn .al-money{color:var(--warn);}
+  .al-t.none .al-money{color:var(--muted);font-size:15px;}
+  .al-money .u{font-size:12px;font-weight:700;margin-left:2px;}
+  .al-mlab{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .al-h{font-size:15px;font-weight:700;line-height:1.45;word-break:keep-all;margin-bottom:4px;}
+  .al-why{font-size:12.5px;color:var(--muted);line-height:1.6;word-break:keep-all;max-width:80ch;}
+  .al-do{margin-top:7px;font-size:12.5px;line-height:1.6;word-break:keep-all;max-width:80ch;
+    background:rgba(139,124,255,.10);border-left:2px solid var(--accent);
+    border-radius:0 7px 7px 0;padding:6px 10px;}
+  .al-do b{color:var(--accent);}
+  .al-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  .al-done{font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;
+    background:var(--panel);color:var(--muted);border:1px solid var(--border);
+    border-radius:7px;padding:5px 10px;}
+  .al-done:hover{border-color:var(--good);color:var(--good);}
+  .al-done.on{border-color:var(--good);color:var(--good);background:rgba(59,201,141,.12);}
+
+  /* 접히는 나머지 목록 */
+  .al-more-btn{margin-top:10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+    background:var(--panel-2);color:var(--tx);border:1px solid var(--border);
+    border-radius:9px;padding:8px 14px;width:100%;}
+  .al-more-btn:hover{border-color:var(--accent);}
+
+  .al-cards{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .al-card{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:10px;padding:7px 11px;cursor:pointer;
+    color:var(--tx);font-family:inherit;font-size:13px;line-height:1.3;
+    transition:border-color .12s ease,background .12s ease;}
+  .al-card:hover{border-color:var(--accent);}
+  .al-card.on{border-color:var(--accent);background:rgba(139,124,255,.14);}
+  .al-card .al-n{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px;
+    padding:1px 7px;border-radius:6px;background:rgba(168,171,196,.16);color:var(--muted);}
+  .al-card .al-n.bad{background:rgba(255,107,133,.16);color:var(--bad);}
+  .al-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+
+  .al-row{padding:12px 0;border-top:1px solid var(--border);}
+  .al-row:first-of-type{border-top:none;}
+  .al-row.done{opacity:.45;}
+  .al-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+  .al-cli{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;}
+  .al-cli:hover{text-decoration:underline;}
+  .al-kind{font-size:11px;font-weight:600;color:var(--muted);background:var(--panel-2);
+    border:1px solid var(--border);border-radius:6px;padding:1px 7px;}
+  .al-amt{font-size:12px;font-weight:800;color:var(--bad);font-variant-numeric:tabular-nums;}
+  .al-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto;}
+  .al-title{font-size:14px;font-weight:600;line-height:1.5;word-break:keep-all;}
+  .al-detail{font-size:12px;color:var(--muted);line-height:1.65;margin-top:3px;
+    word-break:keep-all;max-width:88ch;}
+  /* 긴 나열은 두 줄까지만 보이고, 누르면 펼쳐진다 */
+  .al-detail.clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .al-exp{font-size:11px;color:var(--accent);cursor:pointer;margin-top:2px;display:inline-block;}
+
+  @media (max-width:820px){
+    .al-t{grid-template-columns:1fr;gap:8px;}
+    .al-side{flex-direction:row;align-items:center;}
+    .al-money{font-size:19px;}
+  }
+  @media (max-width:600px){
+    .al-date{margin-left:0;}
+    .al-title,.al-h{font-size:13.5px;}
+    .al-big{font-size:22px;}
+  }
+
+  /* 선택지 — 사람이 보고 고르는 자리 */
+  .al-opts{margin-top:9px;padding:10px 12px;border:1px solid var(--border);
+    border-radius:10px;background:var(--panel-2);max-width:560px;}
+  /* 큰 카드(.al-t)는 3칸 표라서, 선택지는 아래줄 전체를 쓰게 한다 */
+  .al-t > .al-opts{grid-column:1 / -1;margin-top:2px;}
+  .al-q{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px;}
+  .al-op{display:block;padding:8px 10px;border:1px solid transparent;border-radius:8px;
+    cursor:pointer;transition:border-color .12s ease,background .12s ease;}
+  .al-op + .al-op{margin-top:3px;}
+  .al-op:hover{background:rgba(168,171,196,.08);}
+  .al-op.on{border-color:var(--accent);background:rgba(139,124,255,.12);}
+  .al-op input{margin:0 7px 0 0;vertical-align:middle;accent-color:var(--accent);}
+  .al-op-t{font-size:13px;font-weight:600;color:var(--tx);vertical-align:middle;
+    word-break:keep-all;}
+  .al-rec{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;
+    color:#fff;background:var(--accent);border-radius:5px;padding:1px 6px;
+    vertical-align:middle;letter-spacing:.2px;}
+  .al-op-r{display:block;margin:3px 0 0 24px;font-size:11.5px;line-height:1.6;}
+  .al-op-r .g{display:block;color:var(--good,#5ad39a);word-break:keep-all;}
+  .al-op-r .l{display:block;color:var(--muted);word-break:keep-all;}
+  .al-op.on .al-op-r .l{color:var(--warn,#ffb454);}
+  .al-go{margin-top:9px;width:100%;padding:9px 12px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;font-family:inherit;font-size:12.5px;
+    font-weight:700;cursor:pointer;transition:filter .12s ease;}
+  .al-go:hover{filter:brightness(1.08);}
+  .al-go.done{background:var(--panel);color:var(--muted);border:1px solid var(--border);cursor:default;}
+  @media (max-width:600px){
+    .al-opts{padding:9px 10px;}
+    .al-op-r{margin-left:0;}
+  }
+
+  /* 묶음 — 같은 업체·같은 종류를 한 장으로 */
+  .al-grp{border:1px solid var(--border);border-radius:12px;background:var(--panel-2);
+    margin-bottom:8px;overflow:hidden;}
+  .al-grp.open{border-color:var(--accent);}
+  .al-ghead{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;
+    background:none;border:none;color:var(--tx);font-family:inherit;text-align:left;
+    cursor:pointer;transition:background .12s ease;}
+  .al-ghead:hover{background:rgba(139,124,255,.09);}
+  .al-gname{font-size:14px;font-weight:600;word-break:keep-all;flex:1;min-width:0;}
+  .al-gname b{color:var(--accent);font-weight:700;}
+  .al-gn{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:6px;background:rgba(168,171,196,.16);color:var(--muted);
+    vertical-align:1px;}
+  .al-gmoney{font-size:15px;font-weight:800;color:var(--bad);white-space:nowrap;
+    font-variant-numeric:tabular-nums;}
+  .al-gcar{font-size:10px;color:var(--muted);flex:none;transition:transform .15s ease;}
+  .al-grp.open .al-gcar{transform:rotate(180deg);}
+  .al-gpeek{padding:0 16px 13px 42px;font-size:12px;color:var(--muted);
+    word-break:keep-all;line-height:1.6;margin-top:-6px;}
+  .al-gbody{padding:2px 16px 8px;border-top:1px solid var(--border);}
+  @media (max-width:600px){
+    .al-ghead{padding:12px 13px;gap:8px;flex-wrap:wrap;}
+    .al-gmoney{font-size:14px;}
+    .al-gpeek{padding-left:13px;}
+    .al-gbody{padding:2px 12px 8px;}
+  }
+</style>
+<body>
+
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 알림</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인해주세요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn" style="width:100%;padding:9px;">로그인</button>
+    <div class="status-msg" id="authStatus"></div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none;">
+  <div class="topbar">
+    <span class="brandmark"><span class="bdot"></span>km-board</span>
+    <nav class="kmenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+          <a href="age.html">연령 · 성별</a>
+          <a href="media.html">매체 · 기기</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="alerts.html">알림</a>
+          <a href="audit.html">검수</a>
+          <a href="status.html">진행상황</a>
+          <a href="live.html">예산 · 목표</a>
+          <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="memo.html">메모</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav>
+    <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
+          <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
+          <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
+            <input class="client-switcher-search" id="clientSwitcherSearch" placeholder="업체 검색...">
+            <div class="client-switcher-biztabs" id="clientSwitcherBizTabs">
+              <button class="client-switcher-biztab active" data-biztype="ALL" type="button">전체</button>
+              <button class="client-switcher-biztab" data-biztype="DB" type="button">DB</button>
+              <button class="client-switcher-biztab" data-biztype="B2C" type="button">B2C</button>
+            </div>
+            <div id="clientSwitcherList"></div>
+          </div>
+        </div>
+    <div class="navright">
+      <span class="who" id="who"></span>
+      <button class="btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="chead2">
+      <div class="avatar" id="ava" style="background:#f5a524;">!</div>
+      <span class="nm2">알림</span>
+      <span class="badge" id="scopeBadge">전체 업체 한 화면</span>
+      <div class="desc" id="cdesc"></div>
+    </div>
+
+    <div class="filterbar" id="fbar" style="display:none;">
+      <div class="fb-g"><span class="fb-lab">심각도</span>
+        <span id="sevPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+      </div>
+      <div class="fb-g"><span class="fb-lab">종류</span>
+        <span id="kindPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+      </div>
+      <div class="fb-g"><span class="fb-lab">업체</span>
+        <span id="clientPills" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+      </div>
+    </div>
+
+    <div id="body"></div>
+
+    <p class="foot">
+      <b>순서는 '걸린 돈'이 큰 것부터입니다.</b> 심각·주의 등급이 아니라 금액으로 줄을 세웁니다 —
+      등급만으로는 뭘 먼저 할지 못 고르기 때문입니다. 금액은 알림 본문에 적힌 숫자에서 읽어오고,
+      읽지 못한 건 '금액 미상'으로 아래에 둡니다(없는 숫자를 만들지 않습니다).<br>
+      <b>겹치는 돈이 있을 수 있습니다</b> — 같은 캠페인이 '전환 0'과 '키워드 빼기'에 동시에 잡히면
+      같은 돈이 두 번 세어집니다. 맨 위 합계는 어림치로 보세요.<br>
+      <b>[처리함]</b>을 누르면 그 알림은 7일간 숨습니다. 7일 뒤에도 같은 문제면 다시 올라옵니다.
+      <b>[14일 시험 만들기]</b>를 누르면 체크리스트에 오늘부터 2주짜리 할 일이 생기고,
+      메모에 A안·B안과 무엇을 비교할지가 같이 들어갑니다.<br>
+      <b>설정 바뀜 · 예산 막힘 · 입찰가 일괄</b>과 <b>연령대 가중치 · PC·모바일 가중치 · 지면 · 키워드 · 시간대 빼기</b>는
+      성과 숫자가 아니라 <b>광고 세팅</b>을 같이 보고 만듭니다. 순위를 같이 말해주는 건
+      <b>키워드와 시간대뿐</b>입니다 — 네이버가 연령·기기·지면에는 순위를 주지 않습니다.<br>
+      수집기가 매일 새벽 다시 계산하며, 지난 알림은 따로 쌓아두지 않습니다.
+      업체 이름을 누르면 그 업체 대시보드로 갑니다.
+    </p>
+  </div>
+
+</div>
+
+<script>
+// ── 상단 메뉴 (대메뉴 + 소메뉴) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ──
+(function initMenu(){
+  const items = [...document.querySelectorAll('.kmenu .mitem[data-menu]')];
+  const closeAll = except => items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+
+  items.forEach(it=>{
+    const btn = it.querySelector('.mbtn');
+    // 마우스로는 올리면 바로 펴지고, 손가락/클릭으로는 눌러서 펴고 닫음
+    // 마우스가 잠깐 벗어나도 곧바로 닫지 않고 조금 기다린다 (대각선으로 내려갈 때 끊기지 않게)
+    let closeTimer = null;
+    it.addEventListener('mouseenter', ()=>{
+      clearTimeout(closeTimer);
+      closeAll(it); it.classList.add('on');
+    });
+    it.addEventListener('mouseleave', ()=>{
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(()=> it.classList.remove('on'), 260);
+    });
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      const open = it.classList.contains('on');
+      closeAll(it);
+      it.classList.toggle('on', !open);
+    });
+  });
+
+  document.addEventListener('click', e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+
+  // 지금 보고 있는 페이지를 대메뉴·소메뉴 양쪽에 표시
+  const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
+    if(a.getAttribute('href').toLowerCase() !== here) return;
+    a.classList.add('cur');
+    const parent = a.closest('.mitem');
+    const pbtn = parent && parent.querySelector('button.mbtn');
+    if(pbtn) pbtn.classList.add('cur');
+  });
+})();
+
+function authStatus(m){ document.getElementById('authStatus').textContent = m || ''; }
+document.getElementById('loginBtn').onclick = async ()=>{
+  const e=document.getElementById('auth-email').value.trim();
+  const p=document.getElementById('auth-pw').value;
+  if(!e||!p){ authStatus('이메일과 비밀번호를 입력해주세요.'); return; }
+  try{ await auth.signInWithEmailAndPassword(e,p); }
+  catch(err){ authStatus('로그인 실패: '+err.message); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+// ── 업체 선택 드롭다운 (다른 페이지와 같은 동작 · 선택은 페이지 간 공유) ──
+const ACTIVE_CLIENT_STORAGE = 'ad_dashboard_active_client';
+function getStoredActiveClient(){
+  try{ return localStorage.getItem(ACTIVE_CLIENT_STORAGE) || null; }catch(e){ return null; } }
+function setStoredActiveClient(id){
+  try{ localStorage.setItem(ACTIVE_CLIENT_STORAGE, 'client:'+id); }catch(e){} }
+let switcherBiz = 'ALL';
+
+function renderClientSwitcher(term){
+  const list = document.getElementById('clientSwitcherList');
+  if(!list) return;
+  const q = (term||'').trim().toLowerCase();
+  const rows = clients.filter(c=>{
+    if(switcherBiz==='DB'  && c.bizType==='B2C') return false;
+    if(switcherBiz==='B2C' && c.bizType!=='B2C') return false;
+    return !q || (c.name||'').toLowerCase().includes(q);
+  });
+  list.innerHTML = rows.length ? rows.map(c=>`
+    <div class="client-switcher-item${cur&&cur.id===c.id?' active':''}" data-id="${c.id}">
+      <span class="dot" style="background:${c.color||'#8b7cff'};"></span>
+      <span>${c.name}</span>
+      <span class="biz">${c.bizType==='B2C'?'B2C':'DB'}</span>
+    </div>`).join('')
+    : '<div style="padding:14px;color:var(--muted);font-size:12px;">업체가 없어요.</div>';
+  list.querySelectorAll('.client-switcher-item').forEach(el=>{
+    el.onclick = ()=>{
+      document.getElementById('clientSwitcherDropdown').classList.remove('open');
+      pickClient(el.dataset.id);
+    };
+  });
+}
+function syncSwitcherBtn(){
+  if(!cur) return;
+  document.getElementById('clientSwitcherLabel').textContent = cur.name;
+  document.getElementById('clientSwitcherDot').style.background = cur.color || '#8b7cff';
+}
+document.getElementById('clientSwitcherBtn').onclick = (e)=>{
+  e.stopPropagation();
+  const d = document.getElementById('clientSwitcherDropdown');
+  d.classList.toggle('open');
+  if(d.classList.contains('open')){
+    const inp = document.getElementById('clientSwitcherSearch');
+    if(inp){ inp.value=''; renderClientSwitcher(''); inp.focus(); }
+  }
+};
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#clientSwitcher'))
+    document.getElementById('clientSwitcherDropdown').classList.remove('open');
+});
+const _sIn = document.getElementById('clientSwitcherSearch');
+if(_sIn) _sIn.oninput = e=> renderClientSwitcher(e.target.value);
+document.querySelectorAll('.client-switcher-biztab').forEach(btn=>{
+  btn.onclick = ()=>{
+    switcherBiz = btn.dataset.biztype || 'ALL';
+    document.querySelectorAll('.client-switcher-biztab')
+      .forEach(b=> b.classList.toggle('active', b===btn));
+    renderClientSwitcher(document.getElementById('clientSwitcherSearch').value);
+  };
+});
+
+
+/* ─────────── 알림 모아보기 ───────────
+   두 곳에서 알림을 모은다.
+     collectorInsights  = 성과를 보고 만든 것 (수집기 index.js)
+     collectorSettings  = 세팅을 보고 만든 것 + 추천 (settings.js)
+   칸을 나눠 쓰는 이유: 같은 칸을 쓰면 밤 수집이 통째로 덮어쓴다.
+
+   화면이 하는 일 세 가지
+     1) 걸린 돈이 큰 순서로 줄을 세워 '오늘 할 일 5건'만 먼저 보여준다
+     2) 알림마다 '할 일'과 'A/B로 확인하는 법'을 붙인다
+     3) [2주 시험 만들기] 를 누르면 체크리스트에 2주짜리 할 일이 생기고,
+        [처리함] 을 누르면 7일간 숨는다 (기록은 config/alertsDone 에 남는다)      */
+
+let clients = [], cur = null, ALL = [];
+let fSev = 'all', fKind = 'all', fClient = 'all';
+let showRest = false;                 // 나머지 목록 펼침 여부
+let DONE = {};                        // 처리함 기록 { 키: {at, todoId} }
+const expanded = {};                  // 본문을 펼친 줄
+const PICK = {};                      // 고른 선택지 { 키: 'hard' }
+
+const TOP_N = 3;                      // 맨 위에 띄우는 '오늘 할 일' 묶음 개수
+const GROUP_MIN = 2;                  // 이만큼부터 한 장으로 묶는다
+const openGroup = {};                 // 펼쳐 놓은 묶음
+const HIDE_DAYS = 7;                  // '나중에' 누르면 며칠 숨길지
+const NA_DAYS   = 90;                 // '해당없음' 은 오래 숨긴다 (문제가 아니라고 본 것)
+const TEST_DAYS = 14;                 // A/B 시험 기간
+
+const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = n => Math.round(n||0).toLocaleString('ko-KR');
+const todayStr = () => new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);
+function plusDays(n){ return new Date(Date.now()+9*3600*1000+n*86400000).toISOString().slice(0,10); }
+
+/* 알림 종류 — 수집기가 내려주는 type 그대로 쓰되, 화면 이름은 사장님 말로 바꾼다.
+   do  : 그래서 뭘 하면 되는지 (한 줄)
+   ab  : 바꾸기 전에 2주 동안 A/B로 확인하는 법
+   money: 금액이 '버려지는 돈'인지 '걸린 돈'인지 — 절감액이라고 단정하지 않기 위해 구분한다 */
+const KIND = {
+  zero_conv: { t:'전환 0', d:'비용은 쓰는데 전환이 안 나오는 캠페인', money:'버려지는 돈',
+    do:'이 캠페인을 끄거나 입찰가를 낮춰 비용부터 줄이세요.',
+    ab:'A안 지금 그대로 / B안 입찰가 30 낮춤 · 2주 뒤 <b>전환수와 총비용</b>을 비교' },
+  hourly_waste: { t:'버려지는 시간대', d:'전환 없이 돈만 나가는 시간대가 몰려 있는 캠페인', money:'버려지는 돈',
+    do:'그 시간대 입찰 가중치를 낮추거나 꺼두세요 (광고그룹 > 고급옵션 > 요일·시간대).',
+    ab:'A안 24시간 그대로 / B안 해당 시간대 가중치 50 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
+  imp_drop: { t:'노출 급감', d:'갑자기 노출이 확 줄어든 캠페인', money:'',
+    do:'입찰가·예산·소재 검수 상태를 먼저 확인하세요. 일부러 끈 게 아니면 원인을 찾아야 합니다.',
+    ab:'' },
+  cpa_spike: { t:'CPA 급등', d:'전환당 비용이 직전 기간보다 크게 오른 캠페인', money:'',
+    do:'어떤 키워드에서 올랐는지 먼저 쪼개 보세요. 경쟁 입찰이면 순위 목표를 낮추는 것도 방법입니다.',
+    ab:'A안 지금 순위 / B안 목표 순위 한 단계 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
+  worst_streak: { t:'연속 최저효율', d:'여러 기간 연달아 제일 나빴던 캠페인', money:'버려지는 돈',
+    do:'계속 꼴찌면 예산을 다른 캠페인으로 옮기는 걸 검토하세요.',
+    ab:'A안 예산 그대로 / B안 예산 절반을 잘 되는 캠페인으로 옮김 · 2주 뒤 <b>전체 전환수</b>를 비교' },
+  pacing: { t:'집행 속도', d:'이번 달 쓰는 속도가 지난달과 많이 다름', money:'',
+    do:'이대로 두면 월말에 어떻게 되는지 계산해서 업체와 먼저 정해두세요.', ab:'' },
+  collection_gap: { t:'수집 점검', d:'자료가 안 들어왔거나 노출이 아예 없음', money:'',
+    do:'일부러 끈 게 아니면 계정 상태와 수집 설정을 확인하세요.', ab:'' },
+
+  // 세팅을 보고 만드는 것
+  setting_change: { t:'설정 바뀜', d:'예산·입찰가·ON/OFF 같은 세팅이 어제와 달라진 곳', money:'',
+    do:'의도한 변경인지 확인하세요. 아니면 되돌려야 합니다.', ab:'' },
+  budget_hit: { t:'예산 막힘', d:'하루예산을 거의 다 써서 광고가 중간에 멈추는 캠페인', money:'걸린 돈',
+    do:'예산을 올릴지, 이대로 둘지 업체와 먼저 정해두세요. 막히면 오후 노출이 통째로 빕니다.',
+    ab:'A안 예산 그대로 / B안 예산 1.5배 · 2주 뒤 <b>전환수와 전환당 비용</b>을 비교' },
+  bid_flat: { t:'입찰가 일괄', d:'광고그룹 입찰가가 전부 같아 성과를 안 보고 넣은 것으로 보이는 캠페인', money:'',
+    do:'그룹마다 전환·매출이 다르면 입찰가도 달라야 합니다.',
+    ab:'A안 일괄 그대로 / B안 성과 상위 그룹 20 올리고 하위 30 내림 · 2주 뒤 <b>캠페인 전환당 비용</b>을 비교' },
+
+  // '이렇게 바꾸세요' 추천
+  age_bid: { t:'연령대 가중치', d:'연령대별로 버는 돈이 달라서 입찰 가중치를 바꿔야 하는 경우', money:'',
+    do:'알림에 적힌 숫자를 광고그룹 > 타겟 > 연령대에 넣으세요.',
+    ab:'A안 지금 가중치 / B안 추천 가중치 · 2주 뒤 <b>연령대별 전환당 비용</b>을 비교' },
+  device_bid: { t:'PC·모바일 가중치', d:'PC와 모바일 성과 차이에 비해 가중치가 안 맞는 경우', money:'',
+    do:'알림에 적힌 숫자를 광고그룹 > 입찰가 > PC·모바일 가중치에 넣으세요.',
+    ab:'A안 지금 가중치 / B안 추천 가중치 · 2주 뒤 <b>기기별 전환당 비용</b>을 비교' },
+  media_off: { t:'지면 빼기', d:'돈만 쓰고 전환이 없어 빼는 게 나은 지면', money:'버려지는 돈',
+    do:'광고그룹 > 매체 설정에서 그 지면을 제외하세요.',
+    ab:'A안 지면 그대로 / B안 해당 지면 제외 · 2주 뒤 <b>전체 전환수와 전환당 비용</b>을 비교' },
+  kw_off: { t:'키워드 빼기', d:'돈만 쓰고 전환이 없어 빼거나 순위를 낮출 키워드', money:'버려지는 돈',
+    do:'제외 키워드로 넣거나, 입찰가를 내려 순위를 낮추세요.',
+    ab:'A안 지금 그대로 / B안 해당 키워드 제외 · 2주 뒤 <b>캠페인 전환수와 총비용</b>을 비교' },
+  hour_off: { t:'시간대 빼기', d:'돈만 쓰고 전환이 없는 시간대', money:'버려지는 돈',
+    do:'광고그룹 > 고급옵션 > 요일·시간대에서 그 시간대 가중치를 낮추세요.',
+    ab:'A안 24시간 그대로 / B안 해당 시간대 가중치 50 낮춤 · 2주 뒤 <b>전환당 비용</b>을 비교' },
+};
+const kindName = t => (KIND[t] || {}).t || t;
+const kindOf = t => KIND[t] || {};
+
+/* ── 걸린 돈 ────────────────────────────────────────────────────────────────
+   수집기가 metrics.money 에 숫자를 넣어주면 그걸 쓰고,
+   아직 없는 알림은 본문에 적힌 '합계 N원' · '비용 N원' 을 읽어 쓴다.
+   읽지 못하면 0으로 두고 목록 아래쪽으로 보낸다(거짓 숫자를 만들지 않기 위해). */
+function moneyOf(a){
+  // 이 종류의 숫자가 '버려지는 돈'을 뜻하지 않으면 아예 안 센다.
+  // (집행 속도의 하루 평균 비용 같은 숫자를 '걸린 돈'으로 보여주면 거짓말이 된다)
+  if (!kindOf(a.type).money) return 0;
+  const m = a.metrics || {};
+  if (typeof m.money === 'number' && isFinite(m.money)) return m.money;
+  const txt = String(a.detail || '') + ' ' + String(a.title || '');
+  const pick = (re) => { const x = txt.match(re); return x ? Number(x[1].replace(/,/g,'')) : 0; };
+  return pick(/합계\s*([0-9,]{4,})\s*원/) || pick(/비용\s*([0-9,]{4,})\s*원/)
+      || pick(/([0-9,]{6,})\s*원/) || 0;
+}
+
+// 같은 문제는 날마다 같은 열쇠를 갖는다 — 그래야 '처리함'이 다음 날에도 먹는다
+const keyOf = a => [a.client, a.type, a.campaign || ''].join('|');
+function isDone(a){
+  const r = DONE[keyOf(a)];
+  if (!r || !r.at) return false;
+  return (Date.now() - r.at) < (r.days || HIDE_DAYS) * 86400000;
+}
+
+// 본문에서 '▶' 뒤는 조치 문구라 따로 뗀다
+function splitDetail(a){
+  const d = String(a.detail || '');
+  const i = d.indexOf('▶');
+  return i >= 0 ? { why: d.slice(0, i).trim(), doTxt: d.slice(i).replace(/▶/g, '· ').trim() }
+                : { why: d, doTxt: '' };
+}
+
+function pass(a){
+  if(fSev !== 'all' && a.severity !== fSev) return false;
+  if(fKind !== 'all' && a.type !== fKind) return false;
+  if(fClient !== 'all' && a.client !== fClient) return false;
+  return true;
+}
+const sortMoney = (a,b) => moneyOf(b) - moneyOf(a)
+  || (a.severity==='high'?0:1) - (b.severity==='high'?0:1)
+  || String(a.client||'').localeCompare(String(b.client||''),'ko');
+
+function renderPills(){
+  const shown = ALL;
+  const cnt = (fn) => shown.filter(fn).length;
+  const sev = [['all','전체',shown.length],
+               ['high','심각',cnt(a=>a.severity==='high')],
+               ['warn','주의',cnt(a=>a.severity==='warn')]];
+  document.getElementById('sevPills').innerHTML = sev.map(([k,t,n])=>
+    `<button class="pill ${fSev===k?'on':''}" data-sev="${k}"${n?'':' disabled'}>${t} ${n}</button>`).join('');
+
+  const kinds = {};
+  shown.forEach(a=>{ kinds[a.type] = (kinds[a.type]||0)+1; });
+  const kl = Object.keys(kinds).sort((a,b)=>kinds[b]-kinds[a]);
+  document.getElementById('kindPills').innerHTML =
+    `<button class="pill ${fKind==='all'?'on':''}" data-kind="all">전체</button>` +
+    kl.map(k=>`<button class="pill ${fKind===k?'on':''}" data-kind="${esc2(k)}"
+       title="${esc2(kindOf(k).d||'')}">${esc2(kindName(k))} ${kinds[k]}</button>`).join('');
+
+  const cc = {};
+  shown.forEach(a=>{ cc[a.client] = (cc[a.client]||0)+1; });
+  const cl = clients.map(c=>c.id).filter(id=>cc[id]);
+  document.getElementById('clientPills').innerHTML =
+    `<button class="pill ${fClient==='all'?'on':''}" data-client="all">전체</button>` +
+    cl.map(id=>`<button class="pill ${fClient===id?'on':''}" data-client="${esc2(id)}">${esc2(id)} ${cc[id]}</button>`).join('');
+
+  document.querySelectorAll('#sevPills .pill').forEach(b=>b.onclick=()=>{ fSev=b.dataset.sev; render(); });
+  document.querySelectorAll('#kindPills .pill').forEach(b=>b.onclick=()=>{ fKind=b.dataset.kind; render(); });
+  document.querySelectorAll('#clientPills .pill').forEach(b=>b.onclick=()=>{ fClient=b.dataset.client; render(); });
+}
+
+
+/* ── 선택지 ─────────────────────────────────────────────────────────────────
+   "이렇게 하세요" 한 방향만 말하면 사람이 판단할 게 없다.
+   두세 갈래를 놓고 각각 무엇을 얻고 무엇을 잃는지 붙여야 고를 수 있다.
+
+   숫자를 쓰는 규칙(중요):
+     · 확실한 것만 숫자로 쓴다 — 끄면 그 돈은 확실히 안 나간다
+     · 추정은 숫자를 만들지 않고 "해봐야 압니다" 라고 쓴다
+       (입찰가를 30 낮추면 비용이 30 준다는 보장이 없다)                      */
+function optionsFor(a){
+  const m = moneyOf(a);
+  const won2 = n => num(n) + '원';
+  const per = m ? `한 달에 약 ${won2(Math.round(m))}` : '';
+
+  switch(a.type){
+    case 'zero_conv': case 'kw_off': case 'media_off': case 'hour_off': case 'hourly_waste':
+      return [
+        { k:'keep', t:'그대로 둔다',
+          g:'', l: m ? `${per}이 전환 없이 계속 나갑니다` : '지금 상태가 이어집니다' },
+        { k:'soft', t:'약하게 — 입찰가·가중치를 낮춘다',
+          g:'노출은 유지됩니다', l:'얼마나 줄어들지는 해봐야 압니다' },
+        { k:'hard', t:'세게 — 끄거나 뺀다', rec:true,
+          g: m ? `${won2(Math.round(m))}을 전부 아낍니다` : '이 비용이 사라집니다',
+          l:'최근 기간 전환이 0이라 잃는 전환은 없습니다' },
+      ];
+    case 'budget_hit':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'예산에서 계속 막혀 오후 노출이 빕니다' },
+        { k:'up',   t:'하루예산을 1.5배로', rec:true,
+          g:'막히던 시간대가 살아납니다', l:'전환이 그만큼 늘지는 해봐야 압니다' },
+        { k:'talk', t:'업체와 먼저 정한다',
+          g:'나중에 예산 얘기가 다시 나와도 근거가 됩니다', l:'그동안은 계속 막힙니다' },
+      ];
+    case 'age_bid': case 'device_bid':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'잘 버는 쪽과 못 버는 쪽에 같은 값이 계속 들어갑니다' },
+        { k:'half', t:'절반만 넣는다 — 추천값과 100의 가운데',
+          g:'조심스럽게 갈 수 있습니다', l:'효과도 절반쯤입니다' },
+        { k:'full', t:'추천 숫자를 그대로 넣는다', rec:true,
+          g:'성과가 좋은 쪽에 돈이 몰립니다', l:'낮춘 쪽은 노출이 줄어듭니다' },
+      ];
+    case 'bid_flat':
+      return [
+        { k:'keep', t:'그대로 둔다', g:'', l:'성과가 다른 그룹에 같은 입찰가가 계속 들어갑니다' },
+        { k:'split', t:'성과 순으로 나눈다 — 상위 20 올리고 하위 30 내림', rec:true,
+          g:'잘 되는 그룹에 돈이 갑니다', l:'낮춘 그룹은 노출이 줄어듭니다' },
+      ];
+    default:
+      return null;   // 확인 성격 — 고를 게 아니라 보고 판단할 것
+  }
+}
+
+// ── 오늘 할 일 카드 (금액 큰 순 다섯 개) ────────────────────────────────────
+/* GROUP-START */
+/* ── 묶기 ────────────────────────────────────────────────────────────────────
+   낱개로 두면 한 화면에 120장이 뜬다(태림 '전환 0'만 26건). 하루에 볼 수 있는 양이
+   아니라서, 같은 업체·같은 종류는 한 장으로 묶고 누를 때만 안을 펼친다. */
+function groupKeyOf(a){ return a.client + '|' + a.type; }
+function buildGroups(list){
+  const m = {}, order = [];
+  (list||[]).forEach(a=>{ const k = groupKeyOf(a); if(!m[k]){ m[k] = []; order.push(k); } m[k].push(a); });
+  return order.map(k=>{
+    const items = m[k].slice().sort(sortMoney);
+    return { key:k, client: items[0].client, type: items[0].type, items: items,
+             money: items.reduce((s,x)=> s + moneyOf(x), 0),
+             openN: items.filter(x=>!isDone(x)).length };
+  }).sort((a,b)=> b.money - a.money || b.items.length - a.items.length);
+}
+/* 묶음 한 장. 한 건짜리는 예전처럼 그냥 카드로 보여준다. */
+function groupCard(g, small){
+  if(g.items.length < GROUP_MIN){
+    const a = g.items[0];
+    return small ? alertRow(a, ALL.indexOf(a)) : topCard(a, ALL.indexOf(a));
+  }
+  const open = !!openGroup[g.key];
+  const c = clients.find(x=>x.id===g.client) || {};
+  const peek = g.items.slice(0,3).map(a=> String(a.campaign || a.title || '').slice(0,26)).filter(Boolean);
+  const doneN = g.items.length - g.openN;
+  return `<div class="al-grp${open?' open':''}">
+    <button class="al-ghead" data-grp="${esc2(g.key)}">
+      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+      <span class="al-gname"><b>${esc2(g.client)}</b> · ${esc2(kindName(g.type))}
+        <span class="al-gn">${g.items.length}건</span>${doneN?`<span class="al-gn">처리함 ${doneN}</span>`:''}</span>
+      ${g.money?`<span class="al-gmoney">${num(Math.round(g.money))}원</span>`:''}
+      <span class="al-gcar">▾</span>
+    </button>
+    ${open?'':`<div class="al-gpeek">${peek.map(n=>esc2(n)).join(' · ')}${g.items.length>3?` 외 ${g.items.length-3}개`:''}</div>`}
+    <div class="al-gbody"${open?'':' hidden'}>
+      ${g.items.map(a=> alertRow(a, ALL.indexOf(a))).join('')}
+    </div>
+  </div>`;
+}
+/* GROUP-END */
+
+function topCard(a, i){
+  const c = clients.find(x=>x.id===a.client) || {};
+  const K = kindOf(a.type);
+  const mv = moneyOf(a);
+  const cls = mv >= 1000000 ? '' : (mv > 0 ? 'warn' : 'none');
+  const sp = splitDetail(a);
+  const done = isDone(a);
+  return `<div class="al-t ${cls}${done?' done':''}" data-k="${esc2(keyOf(a))}">
+    <div>
+      <div class="al-money">${mv ? num(mv) + '<span class="u">원</span>' : '금액 미상'}</div>
+      <div class="al-mlab">${mv ? esc2(K.money || '걸린 돈') + ' · 최근 기준' : '금액을 셀 수 없는 종류'}</div>
+    </div>
+    <div>
+      <div class="al-top" style="margin-bottom:5px;">
+        <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+        <a class="al-cli" href="index.html" data-go="${esc2(a.client)}">${esc2(a.client)}</a>
+        <span class="al-kind">${esc2(kindName(a.type))}</span>
+      </div>
+      <div class="al-h">${esc2(a.title)}</div>
+      ${sp.why?`<div class="al-why">${esc2(sp.why)}</div>`:''}
+      <div class="al-do"><b>할 일</b> — ${sp.doTxt ? esc2(sp.doTxt) : (K.do||'확인이 필요합니다.')}
+        ${K.ab?`<br><b>확인하는 법</b> — ${K.ab}`:''}</div>
+    </div>
+    <div class="al-side">
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'나중에 ✓':'나중에'}</button>
+      <button class="al-done" data-na="${i}">해당없음</button>
+    </div>
+    ${optBlock(a, i)}
+  </div>`;
+}
+
+/* 선택지 묶음 — 고르고 나서 '이걸로 14일 해보기' 를 누른다 */
+function optBlock(a, i){
+  const opts = optionsFor(a);
+  if(!opts) return '';
+  const picked = PICK[keyOf(a)] || (opts.find(o=>o.rec)||{}).k;
+  return `<div class="al-opts" data-i="${i}">
+    <div class="al-q">어떻게 할까요?</div>
+    ${opts.map(o=>`<label class="al-op${picked===o.k?' on':''}">
+      <input type="radio" name="op${i}" value="${o.k}"${picked===o.k?' checked':''}>
+      <span class="al-op-t">${esc2(o.t)}${o.rec?'<span class="al-rec">추천</span>':''}</span>
+      <span class="al-op-r">
+        ${o.g?`<span class="g">+ ${esc2(o.g)}</span>`:''}
+        ${o.l?`<span class="l">− ${esc2(o.l)}</span>`:''}
+      </span>
+    </label>`).join('')}
+    <button class="al-go" data-test="${i}">이걸로 ${TEST_DAYS}일 해보기</button>
+  </div>`;
+}
+
+function alertRow(a, i){
+  const c = clients.find(x=>x.id===a.client) || {};
+  const K = kindOf(a.type);
+  const mv = moneyOf(a);
+  const sp = splitDetail(a);
+  const done = isDone(a);
+  const open = expanded[keyOf(a)];
+  return `<div class="al-row${done?' done':''}">
+    <div class="al-top">
+      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+      <a class="al-cli" href="index.html" data-go="${esc2(a.client)}">${esc2(a.client)}</a>
+      <span class="al-kind">${esc2(kindName(a.type))}</span>
+      ${mv?`<span class="al-amt">${num(mv)}원</span>`:''}
+      ${a.date?`<span class="al-date">${esc2(a.date)}</span>`:''}
+    </div>
+    <div class="al-title">${esc2(a.title)}</div>
+    ${sp.why?`<div class="al-detail${open?'':' clip'}" data-x="${esc2(keyOf(a))}">${esc2(sp.why)}</div>
+      <span class="al-exp" data-x="${esc2(keyOf(a))}">${open?'접기':'더 보기'}</span>`:''}
+    <div class="al-do" style="margin-top:6px;"><b>할 일</b> — ${sp.doTxt ? esc2(sp.doTxt) : (K.do||'확인이 필요합니다.')}</div>
+    ${optBlock(a, i)}
+    <div style="margin-top:6px;display:flex;gap:6px;">
+      <button class="al-done${done?' on':''}" data-done="${i}">${done?'나중에 ✓':'나중에'}</button>
+      <button class="al-done" data-na="${i}">해당없음</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const el = document.getElementById('body');
+  document.getElementById('fbar').style.display = ALL.length ? 'flex' : 'none';
+
+  if(!ALL.length){
+    el.innerHTML = `<div class="empty">지금 열려 있는 알림이 없습니다.<br>
+      수집은 매일 새벽에 돌고, 그때 다시 계산합니다.</div>`;
+    return;
+  }
+  renderPills();
+
+  const rows = ALL.filter(pass).sort(sortMoney);
+  const SETUP0 = ['age_bid','device_bid','bid_flat','setting_change'];
+  const live = rows.filter(a=>!isDone(a) && SETUP0.indexOf(a.type) < 0);
+  // 묶음 단위로 세운다 — 오늘 할 일도 '묶음 3장'이지 '알림 3건'이 아니다
+  const liveGroups = buildGroups(live);
+  const topG = liveGroups.slice(0, TOP_N);
+  const topKeys = {}; topG.forEach(g=>{ topKeys[g.key] = 1; });
+  const restG = buildGroups(rows.filter(a=> SETUP0.indexOf(a.type) < 0 && !topKeys[groupKeyOf(a)]));
+  const restN = restG.reduce((s2,g)=> s2 + g.items.length, 0);
+
+  // 맨 위 숫자와 머리말은 '지금 보고 있는 것' 기준이어야 한다 (고른 업체가 있으면 그 업체)
+  const totalMoney = rows.filter(a=>(kindOf(a.type).money==='버려지는 돈')).reduce((s,a)=>s+moneyOf(a),0);
+  const doneN = rows.filter(isDone).length;
+  const asOfs = [...new Set(rows.map(a=>a.asOf).filter(Boolean))].sort();
+  const who = fClient==='all' ? `${clients.length}개 업체 전체` : fClient;
+  document.getElementById('cdesc').textContent =
+    `${who} · 알림 ${rows.length}건` + (doneN?` (처리함 ${doneN}건)`:'') +
+    (asOfs.length ? ` · 기준일 ${asOfs[asOfs.length-1]}` : '');
+  const bg = document.getElementById('scopeBadge');
+  if(bg) bg.textContent = fClient==='all' ? '전체 업체 한 화면' : fClient + '만 보는 중';
+
+  const cc = {};
+  ALL.forEach(a=>{ const o = cc[a.client] || (cc[a.client]={n:0,m:0}); o.n++; o.m += moneyOf(a); });
+  const order = Object.keys(cc).sort((a,b)=> cc[b].m-cc[a].m || cc[b].n-cc[a].n);
+  const cards = order.map(id=>{
+    const c = clients.find(x=>x.id===id) || {};
+    const o = cc[id];
+    return `<button class="al-card${fClient===id?' on':''}" data-card="${esc2(id)}">
+      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+      <b>${esc2(id)}</b>
+      ${o.m?`<span class="al-n bad">${num(Math.round(o.m/10000))}만원</span>`:''}
+      <span class="al-n">${o.n}건</span>
+    </button>`;
+  }).join('');
+
+  // 금액으로는 줄 세울 수 없지만 바로 손댈 수 있는 것들 — 따로 모아 둔다
+  const SETUP = ['age_bid','device_bid','bid_flat','setting_change'];
+  const setup = rows.filter(a=>SETUP.indexOf(a.type)>=0 && !isDone(a));
+
+  if(!rows.length){
+    el.innerHTML = `<div class="empty"><b>${esc2(who)}</b>는 지금 열려 있는 알림이 없습니다.<br>
+      <button class="al-more-btn" id="allBtn" style="max-width:260px;margin-top:12px;">전체 업체 보기</button></div>`;
+    const ab = document.getElementById('allBtn');
+    if(ab) ab.onclick = ()=>{ fClient='all'; fKind='all'; fSev='all'; render(); };
+    return;
+  }
+
+  el.innerHTML =
+    `<div class="card">
+      <div class="al-top-sum">
+        <div><div class="al-big">${num(Math.round(totalMoney/10000))}<small>만원</small></div>
+          <div class="sub" style="margin:2px 0 0;">전환 없이 나가고 있는 돈 (최근 기준 · 겹치는 돈이 있을 수 있음)</div></div>
+        <div><div class="al-big">${live.length}<small>건</small></div>
+          <div class="sub" style="margin:2px 0 0;">아직 손대지 않은 알림</div></div>
+      </div>
+     </div>`
+    + `<div class="card"><h3>오늘 할 일 ${topG.length}장</h3>
+        <div class="sub">같은 업체·같은 종류는 한 장으로 묶었습니다. 걸린 돈이 큰 것부터.
+          처리하면 ${HIDE_DAYS}일간 숨고, 그 뒤에도 같으면 다시 올라옵니다.</div>
+        <div class="al-today">${topG.length ? topG.map(g=>groupCard(g, false)).join('')
+          : '<div class="empty" style="margin:8px 0 0;">오늘 볼 건 다 봤습니다.</div>'}</div></div>`
+    + (setup.length ? `<div class="card"><h3>설정 바꾸기 ${setup.length}건</h3>
+        <div class="sub">돈으로 줄 세울 수 없지만 바로 손댈 수 있는 것들입니다. 넣을 숫자가 알림 안에 적혀 있어요.</div>
+        <div class="al-today">${setup.map((a)=>topCard(a, ALL.indexOf(a))).join('')}</div></div>` : '')
+    + `<div class="card"><h3>업체별</h3>
+        <div class="sub">버려지는 돈이 큰 업체부터. 누르면 그 업체만 봅니다.</div>
+        <div class="al-cards">${cards}</div></div>`
+    + `<div class="card"><h3>나머지 ${restG.length}장 (알림 ${restN}건)</h3>
+        <div class="sub">금액 큰 순</div>
+        <button class="al-more-btn" id="moreBtn">${showRest?'접기':'펼쳐 보기'}</button>
+        <div id="restBox" style="${showRest?'':'display:none;'}margin-top:10px;">
+          ${restG.length ? restG.map(g=>groupCard(g, true)).join('')
+            : '<div class="empty" style="margin:10px 0 0;">더 볼 게 없습니다.</div>'}</div></div>`;
+
+  wire();
+}
+
+function wire(){
+  const mb = document.getElementById('moreBtn');
+  if(mb) mb.onclick = ()=>{ showRest = !showRest; render(); };
+  document.querySelectorAll('.al-card').forEach(b=>b.onclick=()=>{
+    fClient = (fClient===b.dataset.card) ? 'all' : b.dataset.card; render(); });
+  // 묶음 제목 누르면 그 안의 알림들을 펼침/접음
+  document.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{
+    const k = b.dataset.grp; openGroup[k] = !openGroup[k]; render(); });
+  document.querySelectorAll('.al-cli').forEach(a=>a.onclick=()=>{
+    try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){} });
+  document.querySelectorAll('.al-exp').forEach(s=>s.onclick=()=>{
+    expanded[s.dataset.x] = !expanded[s.dataset.x]; render(); });
+  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.done], b, HIDE_DAYS));
+  document.querySelectorAll('[data-na]').forEach(b=>b.onclick=()=>markDone(ALL[+b.dataset.na], b, NA_DAYS, true));
+  document.querySelectorAll('[data-test]').forEach(b=>b.onclick=()=>makeTest(ALL[+b.dataset.test], b));
+  document.querySelectorAll('.al-opts input[type=radio]').forEach(r=>r.onchange=()=>{
+    const box = r.closest('.al-opts');
+    const a = ALL[+box.dataset.i];
+    PICK[keyOf(a)] = r.value;
+    box.querySelectorAll('.al-op').forEach(l=>l.classList.toggle('on', l.contains(r) || l.querySelector('input').checked));
+  });
+}
+
+/* ── 처리함 ─────────────────────────────────────────────────────────────────
+   config/alertsDone 에 남긴다. 여러 사람이 동시에 눌러도 서로 지우지 않도록
+   서버 값을 다시 읽고 내가 누른 것만 얹는다 (체크리스트와 같은 방식). */
+async function markDone(a, btn, days, na){
+  if(!a) return;
+  const k = keyOf(a);
+  const on = isDone(a);
+  btn.disabled = true;
+  try{
+    const ref = db.collection('config').doc('alertsDone');
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const items = (doc.exists && doc.data().items) || {};
+      if(on) delete items[k];
+      else items[k] = { at: Date.now(), by: (auth.currentUser||{}).email || '',
+                        days: days || HIDE_DAYS, na: !!na };
+      tx.set(ref, { items }, { merge:true });
+      DONE = items;
+    });
+    render();
+  }catch(e){
+    alert('처리함 표시를 저장하지 못했습니다. 잠시 뒤 다시 눌러주세요.');
+    btn.disabled = false;
+  }
+}
+
+/* ── 2주 시험 만들기 ────────────────────────────────────────────────────────
+   체크리스트(config/todos)에 오늘부터 2주짜리 할 일을 만든다.
+   메모에 A안·B안과 무엇을 비교할지 적어두어, 2주 뒤 그대로 보고 판단할 수 있게 한다. */
+function abPlain(html){ return String(html||'').replace(/<[^>]+>/g,''); }
+async function makeTest(a, btn){
+  if(!a) return;
+  const K = kindOf(a.type);
+  const opts = optionsFor(a);
+  const chosen = opts ? (opts.find(o=>o.k === (PICK[keyOf(a)] || (opts.find(x=>x.rec)||{}).k)) || null) : null;
+  if(!K.ab && !chosen){ alert('이 종류는 골라서 해볼 항목이 아닙니다.'); return; }
+  if(chosen && chosen.k === 'keep'){
+    alert("'그대로 둔다'를 고르셨습니다. 할 일을 만들지 않고 '나중에'로 접어두시면 됩니다.");
+    return;
+  }
+  const sp = splitDetail(a);
+  const start = todayStr(), due = plusDays(TEST_DAYS);
+  const item = {
+    id: 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    title: `[${kindName(a.type)}] ${chosen ? chosen.t + ' — ' : ''}${a.title}`.slice(0, 140),
+    clientKey: 'client:' + a.client,
+    owner: (auth.currentUser||{}).email || null,
+    start, due, status: 'todo',
+    priority: a.severity === 'high' ? 'high' : 'mid',
+    memo: [
+      '알림에서 만든 ' + TEST_DAYS + '일 시험입니다.',
+      '',
+      '[왜] ' + (sp.why || a.title),
+      '[고른 방법] ' + (chosen ? chosen.t : (sp.doTxt || K.do || '')),
+      chosen && chosen.g ? '  얻는 것: ' + chosen.g : '',
+      chosen && chosen.l ? '  잃을 수 있는 것: ' + chosen.l : '',
+      '[할 일] ' + (sp.doTxt || K.do || ''),
+      '[확인하는 법] ' + abPlain(K.ab),
+      '',
+      '기간 ' + start + ' ~ ' + due + ' · 끝나면 위 지표를 A안 기간과 비교해 결론을 적어주세요.',
+    ].join('\n'),
+    createdAt: Date.now(),
+    createdBy: (auth.currentUser||{}).email || null,
+  };
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '만드는 중…';
+  try{
+    const ref = db.collection('config').doc('todos');
+    await db.runTransaction(async (tx)=>{
+      const doc = await tx.get(ref);
+      const items = (doc.exists && doc.data().items) || [];
+      items.push(item);
+      tx.set(ref, { items }, { merge:true });
+    });
+    btn.textContent = '체크리스트에 넣음 ✓';
+    btn.classList.add('on');
+  }catch(e){
+    btn.textContent = old; btn.disabled = false;
+    alert('체크리스트에 넣지 못했습니다. 잠시 뒤 다시 눌러주세요.');
+  }
+}
+
+// 업체 문서에서 알림만 긁어 온다 (Storage 는 안 읽어서 가볍다)
+async function loadAlerts(){
+  const snap = await db.collection('clients').get();
+  clients = []; ALL = [];
+  snap.forEach(d=>{
+    const v = d.data() || {};
+    clients.push({ id:d.id, name:v.name||d.id, bizType:v.bizType, color:v.color, months:v.months||[] });
+    const ci = v.collectorInsights || {};
+    (ci.alerts || []).forEach(a=>{
+      ALL.push(Object.assign({}, a, { client:d.id, asOf:ci.asOf || '' }));
+    });
+    // 세팅 확인(settings.js)이 따로 넣어둔 알림도 같이 모은다.
+    const cs = v.collectorSettings || {};
+    (cs.alerts || []).forEach(a=>{
+      ALL.push(Object.assign({}, a, { client:d.id, asOf:cs.asOf || '' }));
+    });
+  });
+  clients.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  try{
+    const dd = await db.collection('config').doc('alertsDone').get();
+    DONE = (dd.exists && dd.data().items) || {};
+  }catch(e){ DONE = {}; }
+  renderClientSwitcher('');
+  const storedKey = getStoredActiveClient();
+  const storedId = storedKey ? storedKey.replace(/^client:/,'') : null;
+  cur = clients.find(c=>c.id===storedId) || clients[0] || null;
+  if(cur) syncSwitcherBtn();
+  // 위쪽 드롭다운에서 고른 업체가 있으면 그 업체만 보여준다.
+  // 다른 화면들과 같은 동작이라, 알림만 전체가 나오면 헷갈린다.
+  if(cur) fClient = cur.id;
+  render();
+}
+
+// 업체 드롭다운에서 고르면 그 업체만 보여준다 (다른 화면과 선택은 계속 공유)
+async function pickClient(id){
+  cur = clients.find(c=>c.id===id) || clients[0];
+  if(!cur) return;
+  setStoredActiveClient(cur.id);
+  syncSwitcherBtn();
+  renderClientSwitcher('');
+  fClient = cur.id;
+  render();
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  if(!user){
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('mainApp').style.display='none';
+    return;
+  }
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('who').textContent=user.email;
+  await loadAlerts();
+});
+
+</script>
+</body>
+</html>

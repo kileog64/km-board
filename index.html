@@ -430,7 +430,97 @@ table tbody tr:hover td{background:#1b1e2c}
 
 <div class="wrap" id="mainApp" style="display:none;grid-template-columns:1fr;max-width:1280px;margin:0 auto;">
   <div class="topbar">
-    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><a class="nv" href="overview.html">전체 업체</a><span class="nv nv-on">대시보드</span><a class="nv" href="campaigns.html">캠페인</a><a class="nv" href="keywords.html">파워링크 키워드</a><a class="nv" href="shopping.html">쇼핑검색 상품</a><a class="nv" href="hourly.html">시간대</a><a class="nv" href="todo.html">할 일<b class="nv-b" id="navTodoBadge" style="display:none"></b></a><a class="nv" href="ab-test.html">A/B</a><a class="nv" href="input.html">데이터 입력</a><a class="nv" href="changelog.html">개발 이력</a>
+    <span class="nv-logo"><span class="nv-mark"></span>km-board</span><nav class="kmenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+          <a href="age.html">연령 · 성별</a>
+          <a href="media.html">매체 · 기기</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="alerts.html">알림</a>
+          <a href="audit.html">검수</a>
+          <a href="status.html">진행상황</a>
+          <a href="live.html">예산 · 목표</a>
+          <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="memo.html">메모</a>
+        </div>
+      </div>
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav><style id="km-menu-style">
+  /* ── 상단 메뉴 (대메뉴 + 소메뉴) — 전 페이지 공통 ── */
+  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
+  .kmenu .mitem{position:relative;}
+  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
+  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
+    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
+    transition:background .12s ease,color .12s ease;}
+  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
+  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
+  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
+    background:var(--panel,#171829);border:1px solid var(--border,#33354a);border-radius:12px;
+    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  /* 버튼과 메뉴 사이 빈틈을 안 보이는 판으로 덮음 — 없으면 내려가다 바로 닫힘 */
+  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
+  .kmenu .mitem.on .mdrop{display:block;}
+  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent,#8b7cff);}
+  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
+  .kmenu .mdrop .msep{height:1px;background:var(--border,#33354a);margin:5px 8px;}
+  @media(max-width:760px){.kmenu .mdrop{left:auto;right:0;}}
+  /* 배치 — 메뉴는 로고와 오른쪽 묶음 사이의 가운데.
+     바의 자로 잰 정중앙에 놓으면 오른쪽 묶음이 넓어서 눈에는 오른쪽으로 치우쳐 보임.
+     양옆 빈 공간을 똑같이 나누는 쪽이 실제로 가운데로 보임. */
+  .topbar .kmenu{margin-left:auto;margin-right:auto;}
+  .topbar .client-switcher{margin-left:0;}
+  .topbar #logoutBtn{margin-left:0;}
+  /* 이 블록이 topbar 안에 들어가 있어 flex 항목으로 잡히는 걸 막음 */
+  .topbar > style, .topbar > script{display:none;}
+</style><script>
+(function initKmMenu(){
+  const items=[...document.querySelectorAll('.kmenu .mitem[data-menu]')];
+  const closeAll=except=>items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+  items.forEach(it=>{
+    const btn=it.querySelector('.mbtn');
+    let closeTimer=null;
+    it.addEventListener('mouseenter',()=>{ clearTimeout(closeTimer); closeAll(it); it.classList.add('on'); });
+    it.addEventListener('mouseleave',()=>{ clearTimeout(closeTimer); closeTimer=setTimeout(()=>it.classList.remove('on'),260); });
+    btn.addEventListener('click',e=>{ e.preventDefault(); const open=it.classList.contains('on'); closeAll(it); it.classList.toggle('on',!open); });
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAll(null); });
+  const here=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
+    if((a.getAttribute('href')||'').toLowerCase()!==here) return;
+    a.classList.add('cur');
+    const p=a.closest('.mitem'), pb=p&&p.querySelector('button.mbtn');
+    if(pb) pb.classList.add('cur');
+  });
+})();
+</script>
     <div class="client-switcher" id="clientSwitcher" style="margin-left:auto;">
       <button class="client-switcher-btn" id="clientSwitcherBtn" type="button"><span class="dot" id="clientSwitcherDot" style="background:#666;"></span><span id="clientSwitcherLabel">업체 선택</span><span class="chev">▾</span></button>
       <div class="client-switcher-dropdown" id="clientSwitcherDropdown">
@@ -493,6 +583,21 @@ table tbody tr:hover td{background:#1b1e2c}
 </div>
 
 <script>
+/* ── 표본 기준 (전 페이지 공통 · 2026-09-11 통일) ──────────────────────────────
+   "이 줄 하나만 보고 좋다/나쁘다를 말해도 되는가"를 가르는 기준.
+   예전엔 화면마다 달라서(연령·매체 전환3건, 캠페인 전환5건, 대시보드 전환5건+클릭30)
+   같은 줄이 화면에 따라 '표본 적음'이 붙었다 말았다 했다. 하나로 맞춤.
+     DB형(전환당 비용으로 판단) : 전환 5건 이상
+     B2C형(ROAS로 판단)         : 비용 10만원 이상
+     공통                       : 클릭 30회 이상
+   모자라면 '표본 적음'으로 표시하고, 좋고 나쁨을 가르는 비교에서만 뺀다.
+   합계·그래프에는 그대로 들어간다.
+   ※ 한 곳을 바꾸면 나머지 페이지도 같이 바꿀 것 — _test/sample.mjs 가 전 페이지를 대조한다. */
+const SAMPLE_MIN_CONV     = 5;       // DB형 최소 전환수
+const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
+const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
+const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
+
 let activeSlug = null;
 let chartA = null, chartB = null, chartC = null, trendChart = null, hourChart = null, compareChart = null;
 const filterState = {}; // key -> { types:Set, campaigns:Set }
@@ -703,6 +808,9 @@ function normalizeCostBasis(data){
   return data;
 }
 function stripPlaceCampaigns(data){
+  /* 2026-09-11: 플레이스를 다시 보여주기로 함 — 수집기가 플레이스를 정상 저장하므로
+     화면에서 걸러내면 네이버 관리자 화면 금액과 어긋난다. 아래 옛 제외 로직은 그대로 두되 쓰지 않는다. */
+  return data;
   if(!data || !Array.isArray(data.months)) return data;
   data.months.forEach(m=>{
     const camps = m.campaigns || [];
@@ -1436,8 +1544,8 @@ function mergedCampaignList(data, monthsScope){
 // 기준을 바꾸려면 여러 곳을 찾아 고쳐야 했음. (파일마다 독립적으로 동작하는 구조라 다른 페이지와
 // 공유하지는 않지만, 이 파일 안에서는 하나로 통일함.)
 const INSIGHT_THRESHOLDS = {
-  MIN_SAMPLE_CONV: 5,        // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 전환수(DB)
-  MIN_SAMPLE_COST_MAN: 5,    // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 비용(B2C, 만원)
+  MIN_SAMPLE_CONV: SAMPLE_MIN_CONV,        // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 전환수(DB)
+  MIN_SAMPLE_COST_MAN: SAMPLE_MIN_COST_MAN,    // best/worst 캠페인 비교, 목표(KPI) 진행률 계산에 필요한 최소 비용(B2C, 만원)
   DIAG_MIN_IMPRESSIONS: 100, // 캠페인 원인진단 — 이 미만이면 "노출 자체가 적음"으로 판단
   DIAG_LOW_CTR_RATIO: 0.6,   // 캠페인 원인진단 — best 캠페인 CTR의 이 비율 미만이면 "CTR 낮음"
   DIAG_LOW_CVR_RATIO: 0.6,   // 캠페인 원인진단 — best 캠페인 CVR의 이 비율 미만이면 "CVR 낮음"
@@ -2119,8 +2227,8 @@ function buildInsightsHTML(insights){
    자동 수집기가 API 원본에서 따로 집계해 month.mediaStats로 넣어준다(계정에 자동수집을 켠 업체만 표시).
    판정 원칙: 표본이 작은 매체는 CPA가 극단적으로 나오므로 최소 표본(전환·클릭)을 넘는 곳만 상대 비교하고,
    나머지는 "표본 부족"으로 판정을 보류한다 — 클릭 몇 번짜리 관측이 결론이 되면 안 되므로. */
-const MEDIA_MIN_CONV = 5;     // 상대 CPA 판정 최소 전환수
-const MEDIA_MIN_CLICKS = 30;  // 상대 CPA 판정 최소 클릭수
+const MEDIA_MIN_CONV = SAMPLE_MIN_CONV;      // 상대 CPA 판정 최소 전환수
+const MEDIA_MIN_CLICKS = SAMPLE_MIN_CLICKS;  // 상대 CPA 판정 최소 클릭수
 function buildMediaStatsHTML(data, months, isDB){
   const rows = [];
   // mediaStats는 배열이지만, 예전 저장분이나 로드 실패 시 {}가 들어올 수 있어 형태를 확인하고 씀
@@ -3486,21 +3594,36 @@ function auMonthStats(m){
   const daily = Array.isArray(m.daily) ? m.daily : [];
   const dailySum = daily.reduce((a,x)=>a+(Number(x.cost)||0),0);
   const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(Number(c.cost)||0),0);
+  const N0 = x => Math.round(Number(x)||0);
+  const N1 = x => Math.round((Number(x)||0)*10)/10;
   return {
     label: m.label,
     impressions: Math.round(Number(m.impressions)||0),
     clicks: Math.round(Number(m.clicks)||0),
     cost: auNum(m.cost),
     conv: Math.round((Number(m.conv)||0)*10)/10,
+    revenue: auNum(m.revenue),
     dailySum: auNum(dailySum),
     campSum: auNum(campSum),
     days: daily.length,
+    // 캠페인 단위 대조용 (월별x캠페인 / 일별x캠페인 시트에서 씀)
+    camps: (m.campaigns||[]).map(c=>({
+      campaign: String(c.campaign||''),
+      impressions: N0(c.impressions), clicks: N0(c.clicks),
+      cost: auNum(c.cost), conv: N1(c.conv), revenue: auNum(c.revenue)
+    })),
+    dailyCamps: (Array.isArray(m.dailyByCampaign)?m.dailyByCampaign:[]).map(r=>({
+      date: String(r.date||''), campaign: String(r.campaign||''),
+      impressions: N0(r.impressions), clicks: N0(r.clicks),
+      cost: auNum(r.cost), conv: N1(r.conv), revenue: auNum(r.revenue)
+    })),
     daily: daily.map(x=>({
       date: String(x.date||''),
       impressions: Math.round(Number(x.impressions)||0),
       clicks: Math.round(Number(x.clicks)||0),
       cost: auNum(x.cost),
-      conv: Math.round((Number(x.conv)||0)*10)/10
+      conv: Math.round((Number(x.conv)||0)*10)/10,
+      revenue: auNum(x.revenue)
     }))
   };
 }
@@ -3611,6 +3734,115 @@ function auExtraHeader(ws, r, title, labels){
     const x=ws.getCell(r,start+k); x.fill=auFill(AU.TEAL); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
     const s=ws.getCell(r+1,start+k); s.value=labels[k]; s.fill=auFill(AU.TEAL); s.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; s.alignment={horizontal:'center',vertical:'middle'}; s.border=auBorder();
   }
+}
+
+/* 캠페인 단위 대조 시트 공통 — 5개 항목(노출/클릭/비용/전환/전환매출)을
+   [우리 / 네이버(노란칸) / 차이] 3칸씩으로 깔아준다. 네이버 값만 채우면 차이가 자동 계산된다. */
+const AU_METRICS = [
+  ['\ub178\ucd9c\uc218','impressions','#,##0',0],
+  ['\ud074\ub9ad\uc218','clicks','#,##0',0],
+  ['\ucd1d\ube44\uc6a9(\uc6d0)','cost',AU.WON,2],
+  ['\uc804\ud658\uc218','conv','#,##0.0',0],
+  ['\uc804\ud658\ub9e4\ucd9c(\uc6d0)','revenue',AU.WON,2]
+];
+function auCampHeader(ws, r, firstLabels){
+  firstLabels.forEach((lab,i)=>{
+    ws.mergeCells(r,i+1,r+1,i+1);
+    [ws.getCell(r,i+1), ws.getCell(r+1,i+1)].forEach(x=>{
+      x.value = x.row===r ? lab : x.value;
+      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
+    });
+    ws.getCell(r,i+1).value=lab;
+  });
+  let col = firstLabels.length + 1;
+  AU_METRICS.forEach(([name])=>{
+    ws.mergeCells(r,col,r,col+2);
+    const g=ws.getCell(r,col); g.value=name;
+    for(let k=0;k<3;k++){
+      const x=ws.getCell(r,col+k);
+      x.fill=auFill(AU.NAVY); x.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      x.alignment={horizontal:'center',vertical:'middle'}; x.border=auBorder();
+      const t=ws.getCell(r+1,col+k); t.value=['\ub300\uc2dc\ubcf4\ub4dc','\ub124\uc774\ubc84','\ucc28\uc774'][k];
+      t.fill=auFill(AU.NAVY); t.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      t.alignment={horizontal:'center',vertical:'middle'}; t.border=auBorder();
+    }
+    col += 3;
+  });
+  return col - 1;
+}
+function auCampRow(ws, r, firstVals, obj){
+  firstVals.forEach((v,i)=>{
+    const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Arial',size:10};
+    c.alignment={horizontal:i===firstVals.length-1?'left':'center'}; c.border=auBorder();
+  });
+  let col = firstVals.length + 1;
+  AU_METRICS.forEach(([,key,fmt,tol])=>{
+    const L=ws.getColumn(col).letter, N=ws.getColumn(col+1).letter;
+    const a=ws.getCell(r,col); a.value=Number(obj[key])||0; a.numFmt=fmt;
+    a.font={name:'Arial',size:10}; a.alignment={horizontal:'right'}; a.border=auBorder();
+    const b=ws.getCell(r,col+1); b.numFmt=fmt; b.font={name:'Arial',size:10,color:{argb:'FF0000FF'}};
+    b.alignment={horizontal:'right'}; b.border=auBorder(); b.fill=auFill(AU.YEL);
+    const d=ws.getCell(r,col+2);
+    d.value={formula:`IF(${N}${r}="","",${N}${r}-${L}${r})`}; d.numFmt=fmt;
+    d.font={name:'Arial',size:10}; d.alignment={horizontal:'right'}; d.border=auBorder(); d.fill=auFill(AU.GRAY);
+    col += 3;
+  });
+}
+function auCampWidths(ws, firstWidths){
+  const w = firstWidths.concat([]);
+  AU_METRICS.forEach(()=>{ w.push(13,13,11); });
+  w.forEach((x,i)=>{ ws.getColumn(i+1).width=x; });
+}
+function auCampSheet(ws, stats, title, note){
+  ws.getCell('A1').value=title; ws.getCell('A1').font={name:'Arial',size:14,bold:true};
+  ws.getCell('A2').value=note; ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
+  auCampHeader(ws, 4, ['\uc6d4','\ucea0\ud398\uc778\uba85']);
+  let r=6;
+  stats.slice().reverse().forEach(s=>{
+    const camps=(s.camps||[]).slice().sort((a,b)=>b.cost-a.cost);
+    if(!camps.length) return;
+    camps.forEach(c=>{ auCampRow(ws, r, [s.label, c.campaign], c); r++; });
+    // 그 달 소계
+    const sum={};
+    AU_METRICS.forEach(([,k])=>{ sum[k]=camps.reduce((a,c)=>a+(Number(c[k])||0),0); });
+    auCampRow(ws, r, [s.label, '\u2014 ' + s.label + ' \ud569\uacc4'], sum);
+    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(!x.fill||x.fill.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
+    r+=2;
+  });
+  auCampWidths(ws, [10,34]);
+  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
+}
+function auDailyCampSheet(ws, stats, dailyLabel){
+  const target = stats.find(s=>s.label===dailyLabel) || stats[stats.length-1];
+  ws.getCell('A1').value='\uc77c\ubcc4 \u00d7 \uce90\ud398\uc778 \ub300\uc870' + (target?(' \u2014 '+target.label):'');
+  ws.getCell('A1').font={name:'Arial',size:14,bold:true};
+  if(!target || !(target.dailyCamps||[]).length){
+    ws.getCell('A3').value='\uc774 \ub2ec\uc740 \ub0a0\uc9dc\u00d7\uce90\ud398\uc778 \uc0c1\uc138\uac00 \uc800\uc7a5\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. (\uc218\uc9d1 \ub2f9\uc2dc \uc0c1\uc138\ub97c \ubc1b\uc9c0 \uc54a\uc558\uac70\ub098 \ubc31\uc5c5\uc5d0\uc11c \uc81c\uc678\ub41c \uacbd\uc6b0)';
+    ws.getCell('A3').font={name:'Arial',size:10,color:{argb:'FF808080'}};
+    ws.getColumn(1).width=80; return;
+  }
+  ws.getCell('A2').value='\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uc77c\ubcc4 + \uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud558\uba74 \uc774 \ud45c\uc640 \uac19\uc740 \ubaa8\uc591\uc774 \ub098\uc635\ub2c8\ub2e4.';
+  ws.getCell('A2').font={name:'Arial',size:9,color:{argb:'FF808080'}};
+  auCampHeader(ws, 4, ['\uc77c\uc790','\ucea0\ud398\uc778\uba85']);
+  const rows=(target.dailyCamps||[]).slice().sort((a,b)=>
+    String(a.date).localeCompare(String(b.date)) || b.cost-a.cost);
+  let r=6, curDate=null, dayStart=r;
+  const closeDay=()=>{
+    if(curDate===null) return;
+    const same=rows.filter(x=>x.date===curDate);
+    const sum={}; AU_METRICS.forEach(([,k])=>{ sum[k]=same.reduce((a,c)=>a+(Number(c[k])||0),0); });
+    auCampRow(ws, r, [curDate, '\u2014 ' + curDate + ' \ud569\uacc4'], sum);
+    for(let c=1;c<=17;c++){ const x=ws.getCell(r,c); x.font={name:'Arial',size:10,bold:true}; if(x.fill?.fgColor?.argb!==AU.YEL) x.fill=auFill(AU.GREEN); }
+    r+=2;
+  };
+  rows.forEach(x=>{
+    if(x.date!==curDate){ closeDay(); curDate=x.date; dayStart=r; }
+    auCampRow(ws, r, [x.date, x.campaign], x); r++;
+  });
+  closeDay();
+  auCampWidths(ws, [12,34]);
+  ws.views=[{state:'frozen', xSplit:2, ySplit:5}];
 }
 
 async function buildAuditWorkbook(name, stats, dailyLabel){
@@ -3725,6 +3957,15 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
   ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q'].forEach((L,i)=>{ s2.getColumn(i+1).width=[8,12,12,6,14,14,12,9,12,12,9,11,12,9,10,11,9][i]; });
   s2.views=[{state:'frozen', xSplit:4, ySplit:4}];
 
+  // ── 월별 x 캠페인  (어느 캠페인에서 어긋나는지)
+  const s4 = wb.addWorksheet('월별x캠페인');
+  auCampSheet(s4, stats, '월별 \u00d7 캠페인 대조',
+    '\ub124\uc774\ubc84 \ub2e4\ucc28\uc6d0\ubcf4\uace0\uc11c\ub97c \u300c\uce90\ud398\uc778\u300d \uae30\uc900\uc73c\ub85c \uc870\ud68c\ud574\uc11c \ub098\ub780\ud788 \ub193\uace0 \ubcf4\uc138\uc694.');
+
+  // ── 일별 x 캠페인  (어느 날짜에서 어긋나는지)
+  const s5 = wb.addWorksheet('일별x캠페인');
+  auDailyCampSheet(s5, stats, dailyLabel);
+
   // ── 사용법
   const s3 = wb.addWorksheet('사용법');
   s3.getCell('A1').value='검수표 쓰는 법'; s3.getCell('A1').font={name:'Arial',size:14,bold:true};
@@ -3744,6 +3985,11 @@ async function buildAuditWorkbook(name, stats, dailyLabel){
    '   3일·1주 틀림    → 구간 누락',
    '   1개월만 틀림    → 월 합산 문제',
    '   전부 틀림        → 계정 또는 부가세 기준 문제',
+   '',
+   '어느 캠페인·날짜에서 어긋나는지 보려면',
+   '   「월별×캠페인」 — 네이버를 캠페인 기준으로 조회해서 넣으세요. 어느 캠페인이 문제인지 바로 보입니다.',
+   '   「일별×캠페인」 — 날짜+캠페인 기준으로 조회해서 넣으세요. 어느 날이 문제인지 보입니다.',
+   '   두 표 모두 줄마다 「합계」가 있어서 큰 숫자부터 맞춰보고 내려가면 빠릅니다.',
    '',
    '플레이스는 수집 단계에서 이미 빠져 있어서 이 표에 나오지 않습니다.'
   ].forEach((t,i)=>{ const c=s3.getCell(i+2,1); c.value=t; c.font={name:'Arial',size:10,bold:/^(\d\.|총비용|「표본)/.test(t)}; });
@@ -4005,7 +4251,7 @@ function dcAuditHTML(data, months, isDB, campaignAgg, totals){
   const dead = camps.filter(c=>(c.clicks||0)>=30 && !(c.conv>0)).sort((a,b)=>b.cost-a.cost);
   if(camps.length){
     add(dead.length?'bad':'ok', '클릭은 쌓였는데 전환 0',
-      dead.length ? `${dead.length}개 — 그중 비용이 가장 큰 '${dead[0].campaign}' ${won(dead[0].cost)}원 / ${dead[0].clicks.toLocaleString('ko-KR')}클릭`
+      dead.length ? `${dead.length}개 — 가장 큰 건 '${dead[0].campaign}' ${won(dead[0].cost)}원 / ${dead[0].clicks.toLocaleString('ko-KR')}클릭`
                   : '클릭 30건 이상인 캠페인은 모두 전환이 있어요',
       dead.length ? '랜딩페이지나 전환 추적을 먼저 확인해보세요.' : '');
   }
@@ -4053,7 +4299,7 @@ function dcAuditHTML(data, months, isDB, campaignAgg, totals){
   if(ranked.length){
     const low = ranked.filter(c=>c.avgRank>3).sort((a,b)=>b.cost-a.cost);
     add(low.length>=Math.ceil(ranked.length/2) ? 'warn' : 'ok', '평균 노출 순위',
-      low.length ? `3위 밖 캠페인 ${low.length}개 / ${ranked.length}개 — 그중 비용이 가장 큰 '${low[0].campaign}' ${low[0].avgRank.toFixed(1)}위`
+      low.length ? `3위 밖 캠페인 ${low.length}개 / ${ranked.length}개 — 가장 큰 건 '${low[0].campaign}' ${low[0].avgRank.toFixed(1)}위`
                  : `${ranked.length}개 모두 평균 3위 안`,
       low.length ? '노출 위치가 낮으면 클릭 기회 자체가 줄어요.' : '');
   }

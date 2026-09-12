@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>예산 · 목표 현황판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCzJ77rABIdRQk51xMlzC4FmI40hPG7doQ",
+    authDomain: "ad-report-dashboard-dcd95.firebaseapp.com",
+    projectId: "ad-report-dashboard-dcd95",
+    storageBucket: "ad-report-dashboard-dcd95.firebasestorage.app",
+    messagingSenderId: "427939042880",
+    appId: "1:427939042880:web:eea1cef8afb01f2ad3f1a5"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+</script>
+<style>
+  :root{
+    --bg:#0d0e15; --panel:#171829; --panel-2:#1d1f33; --border:#33354a;
+    --tx:#f5f6fa; --muted:#a8abc4; --good:#4ade9a; --bad:#ff6b85; --warn:#f5a524;
+    --accent:#8b7cff; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#191a2c 0%,var(--bg) 45%);
+    color:var(--tx);font-family:'Pretendard',sans-serif;-webkit-font-smoothing:antialiased;
+    line-height:1.5;font-variant-numeric:tabular-nums;}
+  input,button{font-family:inherit;}
+  /* ── 상단 메뉴바 (드롭다운) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ── */
+  .topbar{max-width:1180px;margin:14px auto 0;padding:8px 14px;display:flex;align-items:center;
+    gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:14px;flex-wrap:wrap;row-gap:8px;}
+  .brandmark{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;
+    letter-spacing:-.02em;margin-right:6px;white-space:nowrap;}
+  .brandmark .bdot{width:16px;height:16px;border-radius:5px;background:var(--accent);flex:none;}
+  .kmenu{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
+  .kmenu .mitem{position:relative;}
+  /* 크기는 기존 .nv 메뉴와 똑같이 맞춤 — 안 맞추면 메뉴바만 두꺼워져 위아래 여백이 뜸 */
+  .kmenu .mbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;
+    color:#a9adc2;font-size:13px;font-weight:500;padding:7px 12px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;text-decoration:none;line-height:1.45;font-family:inherit;
+    transition:background .12s ease,color .12s ease;}
+  .kmenu .mbtn:hover{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mitem.on>.mbtn{background:rgba(139,124,255,.18);color:#fff;}
+  .kmenu .mbtn.cur{color:#fff;background:rgba(139,124,255,.16);}
+  .kmenu .mcaret{font-size:9px;opacity:.7;transition:transform .15s ease;}
+  .kmenu .mitem.on .mcaret{transform:rotate(180deg);}
+  .kmenu .mdrop{position:absolute;top:calc(100% + 8px);left:0;min-width:190px;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:6px;z-index:120;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none;}
+  .kmenu .mdrop::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px;}
+  .kmenu .mitem.on .mdrop{display:block;}
+  .kmenu .mdrop a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);
+    text-decoration:none;font-size:13px;white-space:nowrap;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;}
+  .kmenu .mdrop a:hover{background:rgba(139,124,255,.22);color:#fff;
+    box-shadow:inset 3px 0 0 var(--accent);}
+  .kmenu .mdrop a.cur{color:#fff;background:rgba(139,124,255,.16);font-weight:600;}
+  .kmenu .mdrop .msep{height:1px;background:var(--border);margin:5px 8px;}
+  /* 메뉴는 로고와 오른쪽 묶음 사이의 가운데 — 다른 페이지와 같은 배치 */
+  .topbar .kmenu{margin-left:auto;margin-right:auto;}
+  .navright{margin-left:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .navright .who{font-size:12px;color:var(--muted);}
+  @media(max-width:760px){
+    .topbar{margin:10px 12px 0;}
+    .navright{margin-left:0;width:100%;justify-content:flex-end;}
+    .kmenu .mdrop{left:auto;right:0;}
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 20px 64px;}
+
+  .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .brand{font-size:19px;font-weight:800;letter-spacing:-.02em;}
+  .stamp{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);}
+  .spacer{flex:1;}
+  .save{font-size:12px;color:var(--muted);}
+
+  .totals{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+  @media(max-width:820px){.totals{grid-template-columns:repeat(2,1fr);}}
+  .tot{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .tot.lead{border-color:rgba(139,124,255,.5);
+    background:linear-gradient(180deg,rgba(139,124,255,.13),rgba(139,124,255,.03));}
+  .tlbl{font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .tval{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.2;}
+  .tnote{font-size:12px;color:var(--muted);margin-top:3px;}
+
+  .hint{background:rgba(139,124,255,.08);border:1px solid rgba(139,124,255,.28);
+    border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.7;color:#cfd2e6;margin-bottom:16px;}
+  .hint b{color:#b9aeff;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:12px;}
+  .card.over{border-color:rgba(255,107,133,.55);}
+  .card.tight{border-color:rgba(245,165,36,.5);}
+  .card.fine{border-color:rgba(74,222,154,.4);}
+  .chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .nm{font-size:15px;font-weight:700;}
+  .biz{font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;}
+  .biz.b2c{background:rgba(139,124,255,.18);color:#b9aeff;}
+  .biz.dbt{background:rgba(74,222,154,.15);color:var(--good);}
+  .nsub{font-size:12px;color:var(--muted);}
+  .verdict{margin-left:auto;font-size:12px;font-weight:700;}
+  .v-bad{color:var(--bad);} .v-warn{color:var(--warn);} .v-good{color:var(--good);} .v-none{color:var(--muted);}
+
+  .panes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:820px){.panes{grid-template-columns:1fr;}}
+  .pane{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:12px;}
+  .ptitle{font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:600;}
+  .inrow{display:flex;align-items:center;gap:6px;}
+  input.n{flex:1;min-width:0;background:var(--bg);border:1px solid var(--border);color:var(--tx);
+    border-radius:7px;padding:7px 9px;font-size:13px;text-align:right;}
+  input.n:focus{outline:none;border-color:var(--accent);}
+  .unit{font-size:12px;color:var(--muted);flex:none;}
+  .track{position:relative;height:8px;border-radius:5px;background:var(--bg);
+    overflow:hidden;margin-top:10px;}
+  .fill{height:100%;border-radius:5px;}
+  .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--muted);opacity:.85;}
+  .barlbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .big{font-size:17px;font-weight:800;margin-top:7px;letter-spacing:-.01em;}
+  .bigsub{font-size:11.5px;color:var(--muted);}
+  .empty{font-size:12px;color:var(--muted);margin-top:10px;}
+
+  .foot{font-size:12px;color:var(--muted);line-height:1.8;margin-top:20px;
+    border-top:1px solid var(--border);padding-top:14px;}
+  .foot b{color:var(--tx);}
+  .warnbox{background:rgba(245,165,36,.10);border:1px solid rgba(245,165,36,.4);
+    border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.7;margin-bottom:16px;color:#f0dcb8;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--tx);
+    border-radius:8px;padding:9px 11px;font-size:13px;}
+  .status-msg{font-size:12px;margin-top:10px;color:var(--bad);}
+</style>
+</head>
+<body>
+
+<div id="authScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;">
+    <h2 style="margin:0 0 4px;font-size:20px;">📊 예산 · 목표 현황판</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">팀 계정으로 로그인해주세요.</div>
+    <div class="field"><label>이메일</label><input id="auth-email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>비밀번호</label><input id="auth-pw" type="password" placeholder="6자 이상"></div>
+    <button class="btn btn-accent" id="loginBtn" style="width:100%;padding:9px;">로그인</button>
+    <div class="status-msg" id="authStatus"></div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none;">
+  <div class="topbar">
+    <span class="brandmark"><span class="bdot"></span>km-board</span>
+    <nav class="kmenu">
+      <div class="mitem"><a class="mbtn" href="index.html">대시보드</a></div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">성과 보기 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="overview.html">전체 업체</a>
+          <a href="campaigns.html">캠페인</a>
+          <div class="msep"></div>
+          <a href="keywords.html">파워링크 키워드</a>
+          <a href="shopping.html">쇼핑검색 상품</a>
+          <a href="hourly.html">시간대</a>
+          <a href="age.html">연령 · 성별</a>
+          <a href="media.html">매체 · 기기</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">관리 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="alerts.html">알림</a>
+          <a href="audit.html">검수</a>
+          <a href="status.html">진행상황</a>
+          <a href="live.html">예산 · 목표</a>
+          <a href="checklist.html">체크리스트<b class="nv-b" id="navTodoBadge" style="display:none"></b></a>
+          <a href="memo.html">메모</a>
+        </div>
+      </div>
+
+      <div class="mitem" data-menu>
+        <button class="mbtn" type="button">설정 <span class="mcaret">▼</span></button>
+        <div class="mdrop">
+          <a href="input.html">데이터 입력</a>
+          <a href="changelog.html">개발 이력</a>
+        </div>
+      </div>
+    </nav>
+    <div class="navright">
+      <span class="who" id="who"></span>
+      <button class="btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="bar">
+      <span class="brand">예산 · 목표 현황판</span>
+      <span class="stamp"><span class="dot"></span><span id="stampTxt">불러오는 중…</span></span>
+      <span class="spacer"></span>
+      <span class="save" id="save">입력하면 저장됩니다</span>
+    </div>
+
+    <div class="totals">
+      <div class="tot lead">
+        <div class="tlbl">전체 목표 예산</div>
+        <div class="tval" id="tBudget">—</div>
+        <div class="tnote" id="tBudgetNote">예산을 입력해주세요</div>
+      </div>
+      <div class="tot">
+        <div class="tlbl">지금까지 소진</div>
+        <div class="tval" id="tSpent">—</div>
+        <div class="tnote" id="tRate">—</div>
+      </div>
+      <div class="tot">
+        <div class="tlbl">하루 가능액</div>
+        <div class="tval" id="tDaily">—</div>
+        <div class="tnote" id="tDailyNote">—</div>
+      </div>
+      <div class="tot">
+        <div class="tlbl">확인 필요</div>
+        <div class="tval" id="tBehind">—</div>
+        <div class="tnote">위로 올라옵니다</div>
+      </div>
+    </div>
+
+    <div class="hint">
+      <b>업체 구분에 따라 세 번째 칸이 바뀝니다.</b>
+      쇼핑몰 같은 <b>B2C</b>는 예산 · <b>ROAS</b>를 입력하고 구매 건수는 실제 데이터가 그대로 표시됩니다.
+      상담·문의를 받는 <b>DB</b>형은 예산 · 전환 건수 · <b>전환당 비용</b>을 입력합니다.
+      막대의 세로선은 <b>날짜 진행률</b>이며, 빈 칸은 비워두셔도 됩니다.
+    </div>
+
+    <div id="rows"></div>
+
+    <p class="foot">
+      <b>예산</b> — (목표 예산 − 소진액) ÷ 남은 일수 = 오늘부터 하루에 쓸 수 있는 금액.
+      소진율이 날짜 진행률보다 10%p 넘게 앞설 때만 주의로 표시합니다.<br>
+      <b>전환 건수</b> — 많을수록 좋습니다. 날짜 진행률만큼 채워져 있으면 정상 페이스입니다.<br>
+      <b>전환당 비용</b> (DB형) — 적을수록 좋습니다. 전환이 0건인 업체는 계산이 안 되므로 전환 건수로 관리하세요.<br>
+      <b>ROAS</b> (B2C) — 광고비 대비 매출입니다.<br>
+      업체 구분(B2C/DB)과 소진액·전환수·매출은 대시보드에 저장된 값을 그대로 씁니다.
+    </p>
+  </div>
+</div>
+
+<script>
+// ── 상단 메뉴 (대메뉴 + 소메뉴) ─ 다른 페이지에도 그대로 복사해 쓰는 블록 ──
+(function initMenu(){
+  const items = [...document.querySelectorAll('.kmenu .mitem[data-menu]')];
+  const closeAll = except => items.forEach(it=>{ if(it!==except) it.classList.remove('on'); });
+
+  items.forEach(it=>{
+    const btn = it.querySelector('.mbtn');
+    // 마우스로는 올리면 바로 펴지고, 손가락/클릭으로는 눌러서 펴고 닫음
+    // 마우스가 잠깐 벗어나도 곧바로 닫지 않고 조금 기다린다 (대각선으로 내려갈 때 끊기지 않게)
+    let closeTimer = null;
+    it.addEventListener('mouseenter', ()=>{
+      clearTimeout(closeTimer);
+      closeAll(it); it.classList.add('on');
+    });
+    it.addEventListener('mouseleave', ()=>{
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(()=> it.classList.remove('on'), 260);
+    });
+    btn.addEventListener('click', e=>{
+      e.preventDefault();
+      const open = it.classList.contains('on');
+      closeAll(it);
+      it.classList.toggle('on', !open);
+    });
+  });
+
+  document.addEventListener('click', e=>{ if(!e.target.closest('.kmenu .mitem[data-menu]')) closeAll(null); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAll(null); });
+
+  // 지금 보고 있는 페이지를 대메뉴·소메뉴 양쪽에 표시
+  const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  document.querySelectorAll('.kmenu a[href]').forEach(a=>{
+    if(a.getAttribute('href').toLowerCase() !== here) return;
+    a.classList.add('cur');
+    const parent = a.closest('.mitem');
+    const pbtn = parent && parent.querySelector('button.mbtn');
+    if(pbtn) pbtn.classList.add('cur');
+  });
+})();
+
+// ── 숫자 보정 3종 (index.html 대시보드와 똑같은 코드) ───────────────────────
+// 저장된 원본은 그대로 두고, 화면에 쓸 때만 맞춘다.
+//  ① 플레이스 광고 제외  ② 광고비 부가세 기준 통일  ③ 브랜드검색 정액제 계약금액 얹기
+// 이 셋이 없으면 대시보드와 금액이 어긋난다.
+const IS_PLACE_TYPE = (t) => { const v = String(t==null?'':t).trim();
+  return v === '6' || v.indexOf('플레이스') >= 0; };
+/* ── 브랜드검색 정액제 비용 얹기 ────────────────────────────────────────────
+   브랜드검색광고는 정액제라 네이버 일별 리포트의 비용이 0원으로 온다. input.html에서
+   등록한 계약(brandContracts: 캠페인·시작월·종료월·계약금액)을 읽어, 계약 금액을 계약
+   기간의 각 달에 일수 비율로 나눠 그 달 그 캠페인의 비용으로 채운다. 월 합계(cost)에도
+   같은 금액을 더해서 대시보드 어디서 보든 숫자가 어긋나지 않게 한다.
+   금액 단위: 저장은 '원', 월/캠페인 데이터는 '만원' 단위라 10000으로 나눠서 넣는다.
+   이미 비용이 잡혀 있으면(정액제가 아닌 경우) 건드리지 않는다. */
+function __bcMonthDays(y,m){ return new Date(y,m,0).getDate(); }
+function __bcParseYM(v){ const mm=String(v||'').match(/^(\d{4})-(\d{2})$/); return mm?{y:+mm[1],m:+mm[2]}:null; }
+function __bcSplit(start,end,amount){
+  const s=__bcParseYM(start), e=__bcParseYM(end);
+  if(!s||!e||!(amount>0)) return {};
+  if(e.y*12+e.m < s.y*12+s.m) return {};
+  const spans=[]; let y=s.y,m=s.m,total=0;
+  while(y*12+m <= e.y*12+e.m){
+    const d=__bcMonthDays(y,m);
+    spans.push({label:y+'.'+String(m).padStart(2,'0'), days:d}); total+=d;
+    m++; if(m>12){ m=1; y++; }
+  }
+  if(!total) return {};
+  const out={}; let acc=0;
+  spans.forEach((sp,i)=>{
+    const c = (i===spans.length-1) ? (amount-acc) : Math.round(amount*sp.days/total);
+    if(i<spans.length-1) acc+=c;
+    out[sp.label]=(out[sp.label]||0)+c;
+  });
+  return out;
+}
+function applyBrandContracts(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  const contracts = data.brandContracts;
+  if(!Array.isArray(contracts) || !contracts.length) return data;
+  // 캠페인 → { 'YYYY.MM': 원 } 로 펼쳐둔다(계약이 여러 건이면 같은 달끼리 합산).
+  const byCamp = {};
+  contracts.forEach(ct=>{
+    if(!ct || !ct.campaign) return;
+    const split = __bcSplit(ct.start, ct.end, Number(ct.amount)||0);
+    const bucket = byCamp[ct.campaign] || (byCamp[ct.campaign]={});
+    Object.keys(split).forEach(lab=>{ bucket[lab]=(bucket[lab]||0)+split[lab]; });
+  });
+  data.months.forEach(m=>{
+    const lab = String(m.label||'');
+    let added = 0;
+    (m.campaigns||[]).forEach(c=>{
+      const won = byCamp[c.campaign] && byCamp[c.campaign][lab];
+      if(!won) return;
+      if(Number(c.cost)>0) return;   // 이미 실비용이 있으면 덮어쓰지 않는다
+      const man = won/10000;
+      c.cost = man;
+      c.__brandContractCost = true;  // 화면에서 '계약금액 기준'임을 표시할 때 쓴다
+      added += man;
+    });
+    if(added>0 && typeof m.cost==='number') m.cost = m.cost + added;
+  });
+  return data;
+}
+/* ── 광고비 기준 통일(부가세 제외) ──────────────────────────────────────────
+   네이버가 시기에 따라 부가세를 포함한 금액을 주기도 하고 뺀 금액을 주기도 해서,
+   2025.10~2026.03 구간은 캠페인·월 합계가 부가세 포함으로 저장돼 있다.
+   반면 하루치(daily)는 전 기간 부가세 제외로 통일돼 있다.
+   그래서 하루치를 기준으로 삼아 캠페인·월 합계를 같은 기준으로 낮춘다.
+   (원본은 그대로 두고 화면에 그릴 때만 맞춘다 — 플레이스 제외·브랜드검색 계약과 같은 방식)
+   · 2025.10~2026.02: 모든 캠페인이 정확히 1.1배라 환산이 정확함
+   · 2026.03: 달 중간에 기준이 바뀌어 캠페인마다 1.06~1.10로 제각각 — 월 합계는 정확히 맞고
+     캠페인 개별값은 최대 2% 안쪽 오차가 남음
+   · 2026.04 이후: 이미 같은 기준이라 건드리지 않음 */
+function normalizeCostBasis(data){
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const dailySum = (m.daily||[]).reduce((a,x)=>a+(x.cost||0),0);
+    const campSum  = (m.campaigns||[]).reduce((a,c)=>a+(c.cost||0),0);
+    if(!(dailySum>0) || !(campSum>0)) return;
+    const k = dailySum / campSum;
+    if(k > 0.999) return;   // 이미 같은 기준이면 그대로
+    if(k < 0.85)  return;   // 부가세 차이로 보기엔 너무 큰 격차 — 다른 원인이므로 손대지 않음
+    (m.campaigns||[]).forEach(c=>{ if(typeof c.cost === 'number') c.cost = c.cost * k; });
+    if(typeof m.cost === 'number') m.cost = dailySum;
+    m.__costRebased = true;   // 화면에서 "기준 맞춤" 표시가 필요할 때 쓴다
+  });
+  return data;
+}
+function stripPlaceCampaigns(data){
+  /* 2026-09-11: 플레이스를 다시 보여주기로 함 — 수집기가 플레이스를 정상 저장하므로
+     화면에서 걸러내면 네이버 관리자 화면 금액과 어긋난다. 아래 옛 제외 로직은 그대로 두되 쓰지 않는다. */
+  return data;
+  if(!data || !Array.isArray(data.months)) return data;
+  data.months.forEach(m=>{
+    const camps = m.campaigns || [];
+    const place = camps.filter(c=>IS_PLACE_TYPE(c.type));
+    /* [중요] 플레이스는 두 갈래로 존재한다.
+       ① 캠페인 목록에 유형이 '플레이스'로 남아 있는 경우 → 아래에서 걸러낸다.
+       ② 수집기가 저장할 때 이미 캠페인 목록에서는 빼놨는데 하루치 상세에는 남아 있는 경우
+          → 캠페인 목록에 없으니 ①로는 절대 못 찾는다. 태림이 이 경우였고, 그래서
+            "월 합계 54,717,412 vs 일별 합계 58,723,251"처럼 화면 숫자가 어긋났다.
+            (차액 4,005,839원 = 하루치에만 있는 캠페인 77개의 합)
+       그래서 '캠페인 목록에 없는데 하루치에만 있는 캠페인'도 함께 제외 대상으로 잡는다. */
+    const known = new Set(camps.map(c=>c.campaign));
+    const orphanNames = new Set();
+    if(Array.isArray(m.dailyByCampaign)){
+      m.dailyByCampaign.forEach(r=>{ if(r && r.campaign && !known.has(r.campaign)) orphanNames.add(r.campaign); });
+    }
+    const names = new Set([...place.map(c=>c.campaign), ...orphanNames]);
+    if(!names.size) return;
+
+    // 하루치에서 뺄 몫을 미리 뽑아둔다(아래에서 dailyByCampaign을 걸러내기 전에).
+    const placeDailyRows = Array.isArray(m.dailyByCampaign)
+      ? m.dailyByCampaign.filter(r=>r && names.has(r.campaign)) : [];
+
+    m.campaigns = camps.filter(c=>!IS_PLACE_TYPE(c.type));
+    // 월 합계에서 플레이스 몫 차감 (캠페인 목록에 남아 있던 것만 — 나머지는 애초에 월 합계에 없음)
+    ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+      if(typeof m[k] === 'number'){
+        const sub = place.reduce((a,c)=>a+(Number(c[k])||0),0);
+        m[k] = Math.max(0, m[k] - sub);
+      }
+    });
+    // 하루치 합계(daily)에서도 같은 몫을 뺀다 — daily엔 캠페인 이름이 없으므로 날짜로 맞춘다.
+    if(Array.isArray(m.daily) && m.daily.length && placeDailyRows.length){
+      const byDate = {};
+      placeDailyRows.forEach(r=>{
+        if(!r || !r.date) return;
+        const b = byDate[r.date] || (byDate[r.date] = {cost:0,revenue:0,conv:0,impressions:0,clicks:0});
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{ b[k] += Number(r[k])||0; });
+      });
+      m.daily = m.daily.map(d=>{
+        const sub = d && d.date ? byDate[d.date] : null;
+        if(!sub) return d;
+        const out = { ...d };
+        ['cost','revenue','conv','impressions','clicks'].forEach(k=>{
+          if(typeof out[k] === 'number') out[k] = Math.max(0, out[k] - (sub[k]||0));
+        });
+        return out;
+      });
+    }
+    // 캠페인 이름이 붙은 상세 배열에서도 제거
+    ['dailyByCampaign','dailyByKeyword','hourlyByCampaign','hourlyByDowByCampaign','hourlyByAdgroup','hourlyByCampaignDate']
+      .forEach(f=>{ if(Array.isArray(m[f])) m[f] = m[f].filter(r=>!r || !names.has(r.campaign)); });
+    // 캠페인별 지도형 데이터에서도 제거
+    ['keywordsByCampaign','wasteKeywordsByCampaign','expandKeywordsByCampaign','brandKeywordsByCampaign',
+     'wasteBrandKeywordsByCampaign','expandBrandKeywordsByCampaign','searchTermsByCampaign',
+     'wasteSearchTermsByCampaign','expandSearchTermsByCampaign','adgroupsByCampaign']
+      .forEach(f=>{ const o=m[f]; if(o && typeof o==='object'){ names.forEach(n=>{ delete o[n]; }); } });
+  });
+  return data;
+}
+
+function userClientsRef(){
+  if(!auth.currentUser) throw new Error('not signed in');
+  return db.collection('clients');
+}
+function authStatus(msg){ document.getElementById('authStatus').textContent = msg || ''; }
+document.getElementById('loginBtn').onclick = async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if(!email || !pw){ authStatus('이메일과 비밀번호를 입력해주세요.'); return; }
+  try{ await auth.signInWithEmailAndPassword(email, pw); }
+  catch(e){ authStatus('로그인 실패: ' + e.message); }
+};
+document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
+
+const won = n => Math.round(n||0).toLocaleString('ko-KR');
+let C = [];        // [{id,n,spent,conv,rev,biz,goal}]
+let DP=1, DL=1, DT=30, DATE_PCT=0, MONTH_LABEL='';
+
+// 저장된 목표를 화면 입력값 단위로 변환 (예산·전환당비용은 만원, ROAS는 %)
+function goalToState(g){
+  g = g || {};
+  return {
+    b:  g.budgetTarget ? g.budgetTarget/10000 : 0,
+    cp: (g.metric==='cpa' && g.target) ? g.target/10000 : 0,
+    rs: (g.metric==='roas' && g.target) ? g.target : 0
+  };
+}
+let S = {};
+
+function fBudget(c){
+  const b=(S[c.id]?.b||0)*10000;
+  if(!b) return {set:false};
+  const left=b-c.spent, pct=b>0?c.spent/b*100:0;
+  return {set:true,b,left,pct,daily:left>0?left/DL:0,
+    over:left<0, tight:left>0 && (pct-DATE_PCT)>10};
+}
+// 목표 전환 건수는 따로 적지 않고 예산 ÷ 목표 전환당 비용으로 자동 계산한다.
+// (둘 다 만원 단위라 그대로 나누면 건수가 나옴 — 예: 2,000만원 ÷ 8만원 = 250건)
+function fConv(c){
+  const b=S[c.id]?.b, cp=S[c.id]?.cp;
+  if(!b||b<=0||!cp||cp<=0) return {set:false, needs:true};
+  const t=Math.floor(b/cp);
+  if(t<=0) return {set:false, needs:true};
+  const pct=c.conv/t*100;
+  return {set:true,t,pct,behind:pct<DATE_PCT-5,good:pct>=DATE_PCT,left:Math.max(0,t-c.conv),auto:true};
+}
+function fCpa(c){
+  const t=S[c.id]?.cp;
+  if(!t||t<=0) return {set:false};
+  const goal=t*10000;
+  if(!c.conv) return {set:true,t,goal,cur:null,none:true};
+  const cur=c.spent/c.conv;
+  return {set:true,t,goal,cur,over:cur>goal,pct:Math.min(100,goal/cur*100)};
+}
+function fRoas(c){
+  const t=S[c.id]?.rs;
+  if(!t||t<=0) return {set:false};
+  const cur=c.spent?c.rev/c.spent*100:0;
+  return {set:true,t,cur,pct:Math.min(100,cur/t*100),behind:cur<t,good:cur>=t};
+}
+
+function render(){
+  const box=document.getElementById('rows'); box.innerHTML='';
+  const rank=c=>{
+    const b=fBudget(c),cv=fConv(c),cp=fCpa(c),rs=fRoas(c);
+    if(b.over||(c.biz!=='B2C'&&cv.behind)||(c.biz!=='B2C'&&cp.set&&(cp.over||cp.none))||(c.biz==='B2C'&&rs.set&&rs.behind)) return 0;
+    if(b.tight) return 1;
+    if(!b.set&&!cv.set&&!cp.set&&!rs.set) return 3;
+    return 2;
+  };
+  for(const c of C.slice().sort((a,b)=>rank(a)-rank(b)||b.spent-a.spent)){
+    const b=fBudget(c), cv=fConv(c), cp=fCpa(c), rs=fRoas(c), s=S[c.id]||{};
+    const isB2C = c.biz==='B2C';
+    let cls='', vt='설정 안 됨', vc='v-none';
+    if(b.over){cls='over';vt='예산 초과';vc='v-bad';}
+    else if(!isB2C&&cv.behind){cls='over';vt='전환 뒤처짐';vc='v-bad';}
+    else if(!isB2C&&cp.set&&cp.none){cls='over';vt='전환 0건';vc='v-bad';}
+    else if(!isB2C&&cp.set&&cp.over){cls='over';vt='전환당 비용 초과';vc='v-bad';}
+    else if(isB2C&&rs.set&&rs.behind){cls='over';vt='ROAS 미달';vc='v-bad';}
+    else if(b.tight){cls='tight';vt='예산 빠듯';vc='v-warn';}
+    else if(b.set||cv.set||cp.set||rs.set){cls='fine';vt='정상';vc='v-good';}
+    const el=document.createElement('div');
+    el.className='card '+cls;
+    el.innerHTML=`
+      <div class="chead">
+        <span class="nm">${c.n}</span>
+        <span class="biz ${isB2C?'b2c':'dbt'}">${isB2C?'B2C':'DB'}</span>
+        <span class="nsub">${won(c.spent)}원 · ${isB2C?'구매':'전환'} ${c.conv}건${isB2C?' · 매출 '+won(c.rev)+'원':''}</span>
+        <span class="verdict ${vc}">${vt}</span>
+      </div>
+      <div class="panes">
+        <div class="pane">
+          <div class="ptitle">예산</div>
+          <div class="inrow">
+            <input class="n" data-f="b" data-id="${c.id}" type="number" inputmode="numeric"
+                   placeholder="목표 예산" value="${s.b||''}">
+            <span class="unit">만원</span>
+          </div>
+          ${b.set?`
+            <div class="track">
+              <div class="fill" style="width:${Math.min(100,b.pct)}%;background:${b.over?'var(--bad)':(b.tight?'var(--warn)':'var(--good)')}"></div>
+              <div class="marker" style="left:${DATE_PCT}%"></div>
+            </div>
+            <div class="barlbl"><span>${Math.round(b.pct)}% 소진</span>
+              <span>${b.over?won(-b.left)+'원 초과':'남은 '+won(b.left)+'원'}</span></div>
+            <div class="big" style="color:${b.over?'var(--bad)':(b.tight?'var(--warn)':'var(--tx)')}">
+              ${b.over?'예산 초과':won(b.daily)+'원'}</div>
+            <div class="bigsub">${b.over?'집행 중단 검토':'오늘부터 하루 최대'}</div>
+          `:'<div class="empty">입력하면 하루 가능액이 나옵니다</div>'}
+        </div>
+        ${isB2C?`
+        <div class="pane">
+          <div class="ptitle">구매 건수</div>
+          <div class="big" style="margin-top:2px;font-size:22px">${c.conv}건</div>
+          <div class="bigsub">${MONTH_LABEL} 누적</div>
+          <div class="barlbl" style="margin-top:10px">
+            <span>하루 평균 ${(c.conv/DP).toFixed(1)}건</span>
+            <span>${c.conv?'객단가 '+won(c.rev/c.conv)+'원':'구매 없음'}</span>
+          </div>
+          <div class="barlbl" style="margin-top:4px">
+            <span>이 속도면 월 ${Math.round(c.conv/DP*DT)}건</span><span></span>
+          </div>
+        </div>`:`
+        <div class="pane">
+          <div class="ptitle">전환 건수 <span style="font-weight:400;opacity:.75">· 자동</span></div>
+          ${cv.set?`
+            <div class="big" style="margin-top:2px;font-size:22px;color:${cv.good?'var(--good)':(cv.behind?'var(--bad)':'var(--tx)')}">${c.conv}건</div>
+            <div class="bigsub">목표 ${cv.t}건 · 예산 ÷ 전환당 비용</div>
+            <div class="track">
+              <div class="fill" style="width:${Math.min(100,cv.pct)}%;background:${cv.good?'var(--good)':(cv.behind?'var(--bad)':'var(--warn)')}"></div>
+              <div class="marker" style="left:${DATE_PCT}%"></div>
+            </div>
+            <div class="barlbl"><span>${Math.round(cv.pct)}% 달성</span>
+              <span>${cv.left?'남은 '+cv.left+'건':'목표 달성'}</span></div>
+            <div class="bigsub" style="margin-top:5px">날짜는 ${Math.round(DATE_PCT)}% 지남</div>
+          `:'<div class="empty">예산과 전환당 비용을 넣으면<br>목표 건수가 자동으로 나옵니다</div>'}
+        </div>`}
+        ${isB2C?`
+        <div class="pane">
+          <div class="ptitle">ROAS</div>
+          <div class="inrow">
+            <input class="n" data-f="rs" data-id="${c.id}" type="number" inputmode="numeric"
+                   placeholder="목표 이상" value="${s.rs||''}">
+            <span class="unit">%</span>
+          </div>
+          ${rs.set?`
+            <div class="track">
+              <div class="fill" style="width:${Math.max(2,rs.pct)}%;background:${rs.good?'var(--good)':'var(--bad)'}"></div>
+            </div>
+            <div class="barlbl"><span>현재 ${Math.round(rs.cur)}%</span><span>목표 ${rs.t}%</span></div>
+            <div class="big" style="color:${rs.good?'var(--good)':'var(--bad)'}">
+              ${rs.good?'목표 달성':(Math.round(rs.t-rs.cur))+'%p 부족'}</div>
+            <div class="bigsub">매출 ${won(c.rev)}원</div>
+          `:`<div class="empty">현재 ROAS ${c.spent?Math.round(c.rev/c.spent*100):0}% · 입력하면 비교됩니다</div>`}
+        </div>`:`
+        <div class="pane">
+          <div class="ptitle">전환당 비용</div>
+          <div class="inrow">
+            <input class="n" data-f="cp" data-id="${c.id}" type="number" inputmode="numeric"
+                   placeholder="목표 이하" value="${s.cp||''}">
+            <span class="unit">만원</span>
+          </div>
+          ${cp.set?(cp.none?`
+            <div class="track"><div class="fill" style="width:0"></div></div>
+            <div class="barlbl"><span>전환 0건</span><span>계산 불가</span></div>
+            <div class="big" style="color:var(--bad)">—</div>
+            <div class="bigsub">전환 건수로 관리하세요</div>
+          `:`
+            <div class="track">
+              <div class="fill" style="width:${cp.pct}%;background:${cp.over?'var(--bad)':'var(--good)'}"></div>
+            </div>
+            <div class="barlbl"><span>${won(cp.cur)}원</span><span>목표 ${won(cp.goal)}원</span></div>
+            <div class="big" style="color:${cp.over?'var(--bad)':'var(--good)'}">
+              ${cp.over?'+'+won(cp.cur-cp.goal)+'원':'목표 안'}</div>
+            <div class="bigsub">${cp.over?'목표보다 비쌈':'목표보다 저렴'}</div>
+          `):'<div class="empty">입력하면 비교됩니다</div>'}
+        </div>`}
+      </div>`;
+    box.appendChild(el);
+  }
+  box.querySelectorAll('input.n').forEach(i=>{
+    i.addEventListener('change', e=>{
+      const id=e.target.dataset.id, f=e.target.dataset.f;
+      S[id]=S[id]||{};
+      const v=parseFloat(e.target.value);
+      S[id][f]=isNaN(v)?0:v;
+      saveOne(id); render();
+    });
+  });
+  totals();
+}
+
+function totals(){
+  let tB=0,tD=0,any=false,bad=0,spent=0;
+  for(const c of C){
+    spent += c.spent;
+    const b=fBudget(c), cv=fConv(c), cp=fCpa(c), rs=fRoas(c);
+    if(b.set){tB+=b.b;tD+=b.daily;any=true;}
+    if(b.over||(c.biz!=='B2C'&&cv.behind)||(c.biz!=='B2C'&&cp.set&&(cp.over||cp.none))||(c.biz==='B2C'&&rs.set&&rs.behind)) bad++;
+  }
+  document.getElementById('tBudget').textContent = any?won(tB)+'원':'—';
+  document.getElementById('tBudgetNote').textContent = any?'입력된 업체 합계':'예산을 입력해주세요';
+  document.getElementById('tSpent').textContent = won(spent)+'원';
+  document.getElementById('tRate').textContent = any
+    ? '목표의 '+Math.round(spent/tB*100)+'%'
+    : '하루 평균 '+won(spent/DP/10000)+'만원';
+  document.getElementById('tDaily').textContent = any?won(tD)+'원':'—';
+  document.getElementById('tDailyNote').textContent = '남은 '+DL+'일 기준';
+  const anySet = C.some(c=>fBudget(c).set||fConv(c).set||fCpa(c).set||fRoas(c).set);
+  const el=document.getElementById('tBehind');
+  el.textContent = anySet?bad+'곳':'—';
+  el.style.color = bad>0?'var(--bad)':'var(--tx)';
+}
+
+let saveTimer=null;
+function saveOne(id){
+  const el=document.getElementById('save');
+  el.textContent='저장 중…';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async ()=>{
+    const c=C.find(x=>x.id===id); if(!c) return;
+    const s=S[id]||{};
+    const goal = Object.assign({}, c.goal||{});
+    goal.budgetTarget = s.b>0 ? Math.round(s.b*10000) : null;
+    if(c.biz==='B2C'){
+      goal.metric='roas';
+      goal.target = s.rs>0 ? s.rs : null;
+      goal.convTarget = null;                 // B2C 구매 건수는 실제 데이터만 보여줌
+    }else{
+      goal.metric='cpa';
+      goal.target = s.cp>0 ? Math.round(s.cp*10000) : null;
+      // 목표 건수는 사람이 적지 않고 예산 ÷ 전환당 비용으로 계산해서 저장 (대시보드도 같은 값을 봄)
+      const autoCv = fConv(c);
+      goal.convTarget = autoCv.set ? autoCv.t : null;
+    }
+    try{
+      await userClientsRef().doc(c.id).set({ goal }, { merge:true });
+      c.goal = goal;
+      el.textContent='저장됨 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    }catch(e){
+      el.textContent='저장 실패 — '+e.message;
+      el.style.color='var(--bad)';
+    }
+  }, 400);
+}
+
+// 최근 데이터가 있는 달을 기준으로 잡고, 그 달의 일수·경과일을 계산
+function pickMonth(months){
+  const withData=(months||[]).filter(m=>m && (m.cost||m.conv||m.revenue));
+  if(!withData.length) return null;
+  return withData[withData.length-1];
+}
+function monthMeta(label){
+  const m=String(label||'').match(/(\d{4})\D*(\d{1,2})/);
+  const now=new Date();
+  if(!m) return {days:30, elapsed:now.getDate(), label:String(label||'')};
+  const y=+m[1], mo=+m[2];
+  const days=new Date(y,mo,0).getDate();
+  const isNow = (y===now.getFullYear() && mo===now.getMonth()+1);
+  return { days, elapsed: isNow?Math.max(1,now.getDate()-1):days, label:`${y}.${String(mo).padStart(2,'0')}` };
+}
+
+async function load(){
+  const snap = await userClientsRef().get();
+  const list=[];
+  snap.forEach(doc=>{
+    const d=applyBrandContracts(normalizeCostBasis(stripPlaceCampaigns(doc.data()||{})));
+    const mm=pickMonth(d.months);
+    if(!mm) return;
+    list.push({
+      id: doc.id,
+      n: d.name || doc.id,
+      biz: d.bizType === 'B2C' ? 'B2C' : 'DB',
+      spent: Math.round((mm.cost||0)*10000),   // 저장은 만원 단위 → 원으로
+      conv: mm.conv||0,
+      rev: Math.round((mm.revenue||0)*10000),
+      goal: d.goal||null,
+      _label: mm.label
+    });
+  });
+  if(!list.length){
+    document.getElementById('rows').innerHTML='<div class="card">표시할 업체가 없습니다.</div>';
+    return;
+  }
+  // 기준 달은 가장 많은 업체가 공유하는 최근 달
+  const counts={}; list.forEach(c=>counts[c._label]=(counts[c._label]||0)+1);
+  const base=Object.keys(counts).sort().pop();
+  const meta=monthMeta(base);
+  MONTH_LABEL=meta.label; DT=meta.days; DP=Math.max(1,meta.elapsed);
+  DL=Math.max(1, DT-DP); DATE_PCT=DP/DT*100;
+  document.getElementById('stampTxt').textContent =
+    `${meta.label} · ${DP}일까지 집행 · 남은 ${DL}일`;
+  C=list; S={}; C.forEach(c=> S[c.id]=goalToState(c.goal));
+  render();
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  if(user){
+    document.getElementById('authScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    document.getElementById('who').textContent=user.email;
+    try{ await load(); }
+    catch(e){ document.getElementById('rows').innerHTML='<div class="card">불러오기 실패: '+e.message+'</div>'; }
+  } else {
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('mainApp').style.display='none';
+  }
+});
+</script>
+</body>
+</html>
