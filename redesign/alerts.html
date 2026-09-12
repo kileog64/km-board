@@ -402,6 +402,33 @@
     .al-opts{padding:9px 10px;}
     .al-op-r{margin-left:0;}
   }
+
+  /* 묶음 — 같은 업체·같은 종류를 한 장으로 */
+  .al-grp{border:1px solid var(--border);border-radius:12px;background:var(--panel-2);
+    margin-bottom:8px;overflow:hidden;}
+  .al-grp.open{border-color:var(--accent);}
+  .al-ghead{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;
+    background:none;border:none;color:var(--tx);font-family:inherit;text-align:left;
+    cursor:pointer;transition:background .12s ease;}
+  .al-ghead:hover{background:rgba(139,124,255,.09);}
+  .al-gname{font-size:14px;font-weight:600;word-break:keep-all;flex:1;min-width:0;}
+  .al-gname b{color:var(--accent);font-weight:700;}
+  .al-gn{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:6px;background:rgba(168,171,196,.16);color:var(--muted);
+    vertical-align:1px;}
+  .al-gmoney{font-size:15px;font-weight:800;color:var(--bad);white-space:nowrap;
+    font-variant-numeric:tabular-nums;}
+  .al-gcar{font-size:10px;color:var(--muted);flex:none;transition:transform .15s ease;}
+  .al-grp.open .al-gcar{transform:rotate(180deg);}
+  .al-gpeek{padding:0 16px 13px 42px;font-size:12px;color:var(--muted);
+    word-break:keep-all;line-height:1.6;margin-top:-6px;}
+  .al-gbody{padding:2px 16px 8px;border-top:1px solid var(--border);}
+  @media (max-width:600px){
+    .al-ghead{padding:12px 13px;gap:8px;flex-wrap:wrap;}
+    .al-gmoney{font-size:14px;}
+    .al-gpeek{padding-left:13px;}
+    .al-gbody{padding:2px 12px 8px;}
+  }
 </style>
 <body>
 
@@ -646,7 +673,9 @@ let DONE = {};                        // 처리함 기록 { 키: {at, todoId} }
 const expanded = {};                  // 본문을 펼친 줄
 const PICK = {};                      // 고른 선택지 { 키: 'hard' }
 
-const TOP_N = 5;                      // 맨 위에 띄우는 '오늘 할 일' 개수
+const TOP_N = 3;                      // 맨 위에 띄우는 '오늘 할 일' 묶음 개수
+const GROUP_MIN = 2;                  // 이만큼부터 한 장으로 묶는다
+const openGroup = {};                 // 펼쳐 놓은 묶음
 const HIDE_DAYS = 7;                  // '나중에' 누르면 며칠 숨길지
 const NA_DAYS   = 90;                 // '해당없음' 은 오래 숨긴다 (문제가 아니라고 본 것)
 const TEST_DAYS = 14;                 // A/B 시험 기간
@@ -836,6 +865,47 @@ function optionsFor(a){
 }
 
 // ── 오늘 할 일 카드 (금액 큰 순 다섯 개) ────────────────────────────────────
+/* GROUP-START */
+/* ── 묶기 ────────────────────────────────────────────────────────────────────
+   낱개로 두면 한 화면에 120장이 뜬다(태림 '전환 0'만 26건). 하루에 볼 수 있는 양이
+   아니라서, 같은 업체·같은 종류는 한 장으로 묶고 누를 때만 안을 펼친다. */
+function groupKeyOf(a){ return a.client + '|' + a.type; }
+function buildGroups(list){
+  const m = {}, order = [];
+  (list||[]).forEach(a=>{ const k = groupKeyOf(a); if(!m[k]){ m[k] = []; order.push(k); } m[k].push(a); });
+  return order.map(k=>{
+    const items = m[k].slice().sort(sortMoney);
+    return { key:k, client: items[0].client, type: items[0].type, items: items,
+             money: items.reduce((s,x)=> s + moneyOf(x), 0),
+             openN: items.filter(x=>!isDone(x)).length };
+  }).sort((a,b)=> b.money - a.money || b.items.length - a.items.length);
+}
+/* 묶음 한 장. 한 건짜리는 예전처럼 그냥 카드로 보여준다. */
+function groupCard(g, small){
+  if(g.items.length < GROUP_MIN){
+    const a = g.items[0];
+    return small ? alertRow(a, ALL.indexOf(a)) : topCard(a, ALL.indexOf(a));
+  }
+  const open = !!openGroup[g.key];
+  const c = clients.find(x=>x.id===g.client) || {};
+  const peek = g.items.slice(0,3).map(a=> String(a.campaign || a.title || '').slice(0,26)).filter(Boolean);
+  const doneN = g.items.length - g.openN;
+  return `<div class="al-grp${open?' open':''}">
+    <button class="al-ghead" data-grp="${esc2(g.key)}">
+      <span class="al-dot" style="background:${esc2(c.color||'#8b7cff')};"></span>
+      <span class="al-gname"><b>${esc2(g.client)}</b> · ${esc2(kindName(g.type))}
+        <span class="al-gn">${g.items.length}건</span>${doneN?`<span class="al-gn">처리함 ${doneN}</span>`:''}</span>
+      ${g.money?`<span class="al-gmoney">${num(Math.round(g.money))}원</span>`:''}
+      <span class="al-gcar">▾</span>
+    </button>
+    ${open?'':`<div class="al-gpeek">${peek.map(n=>esc2(n)).join(' · ')}${g.items.length>3?` 외 ${g.items.length-3}개`:''}</div>`}
+    <div class="al-gbody"${open?'':' hidden'}>
+      ${g.items.map(a=> alertRow(a, ALL.indexOf(a))).join('')}
+    </div>
+  </div>`;
+}
+/* GROUP-END */
+
 function topCard(a, i){
   const c = clients.find(x=>x.id===a.client) || {};
   const K = kindOf(a.type);
@@ -927,8 +997,12 @@ function render(){
   const rows = ALL.filter(pass).sort(sortMoney);
   const SETUP0 = ['age_bid','device_bid','bid_flat','setting_change'];
   const live = rows.filter(a=>!isDone(a) && SETUP0.indexOf(a.type) < 0);
-  const top = live.slice(0, TOP_N);
-  const rest = rows.filter(a=>top.indexOf(a) < 0 && SETUP0.indexOf(a.type) < 0);
+  // 묶음 단위로 세운다 — 오늘 할 일도 '묶음 3장'이지 '알림 3건'이 아니다
+  const liveGroups = buildGroups(live);
+  const topG = liveGroups.slice(0, TOP_N);
+  const topKeys = {}; topG.forEach(g=>{ topKeys[g.key] = 1; });
+  const restG = buildGroups(rows.filter(a=> SETUP0.indexOf(a.type) < 0 && !topKeys[groupKeyOf(a)]));
+  const restN = restG.reduce((s2,g)=> s2 + g.items.length, 0);
 
   // 맨 위 숫자와 머리말은 '지금 보고 있는 것' 기준이어야 한다 (고른 업체가 있으면 그 업체)
   const totalMoney = rows.filter(a=>(kindOf(a.type).money==='버려지는 돈')).reduce((s,a)=>s+moneyOf(a),0);
@@ -976,9 +1050,10 @@ function render(){
           <div class="sub" style="margin:2px 0 0;">아직 손대지 않은 알림</div></div>
       </div>
      </div>`
-    + `<div class="card"><h3>오늘 할 일 ${top.length}건</h3>
-        <div class="sub">걸린 돈이 큰 것부터. 처리하면 ${HIDE_DAYS}일간 숨고, 그 뒤에도 같으면 다시 올라옵니다.</div>
-        <div class="al-today">${top.length ? top.map((a)=>topCard(a, ALL.indexOf(a))).join('')
+    + `<div class="card"><h3>오늘 할 일 ${topG.length}장</h3>
+        <div class="sub">같은 업체·같은 종류는 한 장으로 묶었습니다. 걸린 돈이 큰 것부터.
+          처리하면 ${HIDE_DAYS}일간 숨고, 그 뒤에도 같으면 다시 올라옵니다.</div>
+        <div class="al-today">${topG.length ? topG.map(g=>groupCard(g, false)).join('')
           : '<div class="empty" style="margin:8px 0 0;">오늘 볼 건 다 봤습니다.</div>'}</div></div>`
     + (setup.length ? `<div class="card"><h3>설정 바꾸기 ${setup.length}건</h3>
         <div class="sub">돈으로 줄 세울 수 없지만 바로 손댈 수 있는 것들입니다. 넣을 숫자가 알림 안에 적혀 있어요.</div>
@@ -986,11 +1061,11 @@ function render(){
     + `<div class="card"><h3>업체별</h3>
         <div class="sub">버려지는 돈이 큰 업체부터. 누르면 그 업체만 봅니다.</div>
         <div class="al-cards">${cards}</div></div>`
-    + `<div class="card"><h3>나머지 ${rest.length}건</h3>
+    + `<div class="card"><h3>나머지 ${restG.length}장 (알림 ${restN}건)</h3>
         <div class="sub">금액 큰 순</div>
         <button class="al-more-btn" id="moreBtn">${showRest?'접기':'펼쳐 보기'}</button>
         <div id="restBox" style="${showRest?'':'display:none;'}margin-top:10px;">
-          ${rest.length ? rest.map((a)=>alertRow(a, ALL.indexOf(a))).join('')
+          ${restG.length ? restG.map(g=>groupCard(g, true)).join('')
             : '<div class="empty" style="margin:10px 0 0;">더 볼 게 없습니다.</div>'}</div></div>`;
 
   wire();
@@ -1001,6 +1076,9 @@ function wire(){
   if(mb) mb.onclick = ()=>{ showRest = !showRest; render(); };
   document.querySelectorAll('.al-card').forEach(b=>b.onclick=()=>{
     fClient = (fClient===b.dataset.card) ? 'all' : b.dataset.card; render(); });
+  // 묶음 제목 누르면 그 안의 알림들을 펼침/접음
+  document.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{
+    const k = b.dataset.grp; openGroup[k] = !openGroup[k]; render(); });
   document.querySelectorAll('.al-cli').forEach(a=>a.onclick=()=>{
     try{ localStorage.setItem('ad_dashboard_active_client', 'client:'+a.dataset.go); }catch(err){} });
   document.querySelectorAll('.al-exp').forEach(s=>s.onclick=()=>{
