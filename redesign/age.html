@@ -750,6 +750,8 @@ function renderChart(ageRows){
   const wrap = document.getElementById('chartWrap');
   if(!wrap) return;
   if(chart){ chart.destroy(); chart=null; }
+  // AGEZERO 안내를 띄웠던 자리면 캔버스를 되살린다
+  if(!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="agChart"></canvas>';
   const on = METRICS.filter(m=>m.on);
   const note = document.getElementById('chartNote');
   if(!on.length || !ageRows.length){
@@ -760,6 +762,26 @@ function renderChart(ageRows){
   const multi = on.length > 1;
   const raw = {};
   on.forEach(m=>{ raw[m.k] = ageRows.map(r=>metricValue(r, m.k)); });
+
+  /* AGEZERO 고른 지표가 전부 비어 있으면 그리지 않고 그렇다고 말한다.
+     예전엔 눈금만 남은 빈 상자가 나와서 "왜 안 나오지?" 하게 됐다.
+     전환이 0건인 기간에 CPA만 골라둔 경우가 대부분이라, 무엇을 보면 되는지까지 적어준다. */
+  const hasAny = k => (raw[k]||[]).some(v => isFinite(v) && v !== 0);
+  const alive = on.filter(m=>hasAny(m.k));
+  if(!alive.length){
+    const convSum = ageRows.reduce((a,r)=> a + (r.conv||0), 0);
+    const names = on.map(m=>metricName(m.k)).join(' · ');
+    wrap.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+        height:230px;gap:7px;color:var(--muted);font-size:13px;text-align:center;line-height:1.7;">
+      <div style="font-size:24px;">📭</div>
+      <div><b style="color:var(--tx);">${names}</b> 는 이 기간에 그릴 값이 없어요.</div>
+      ${convSum === 0
+        ? '<div>이 기간엔 <b style="color:var(--warn);">전환이 0건</b>이라 전환당 비용을 낼 수 없습니다.<br>위에서 <b>비용</b>이나 <b>클릭수</b>를 골라보시거나, 기간을 넓혀보세요.</div>'
+        : '<div>위에서 다른 지표를 골라보세요.</div>'}
+    </div>`;
+    if(note) note.textContent = '';
+    return;
+  }
 
   const datasets = on.map(m=>{
     const vals = raw[m.k];
