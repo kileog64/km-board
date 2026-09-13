@@ -1119,10 +1119,27 @@ async function loadRange(){
     if(monthCache[mk] !== undefined) continue;
     try{
       const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
-      monthCache[mk] = await (await fetch(url)).json();
+      monthCache[mk] = normalizeConvBasis(await (await fetch(url)).json());
     }catch(e){ monthCache[mk] = null; }
   }
   recompute();
+}
+
+/* AGECONV — 업체 종류에 맞는 전환을 쓰게 맞춘다.
+   저장본의 conv 는 '구매완료'만 센 값이라, 매출이 안 찍히는 상담·문의형 업체(lead·custom001)는
+   전부 0으로 나온다. 그런 업체의 성과는 convAll(전체 전환)이다.
+   쇼핑몰(B2C)은 반대로 conv 를 그대로 써야 한다 — convAll 에는 장바구니·회원가입까지 섞여 있다. */
+function normalizeConvBasis(j){
+  if(!j || !isDB) return j;
+  const fix = box => { Object.keys(box||{}).forEach(k=>{
+    const a = box[k]; if(!a) return;
+    if(typeof a.convAll === 'number') a.conv = a.convAll;
+    if(typeof a.revAll  === 'number') a.rev  = a.revAll;
+  }); };
+  fix(j.age); fix(j.gender);
+  Object.keys(j.byGroup||{}).forEach(g=>{ const b=j.byGroup[g]||{}; fix(b.age); fix(b.gender); });
+  Object.keys(j.byDate||{}).forEach(d=>{ const b=j.byDate[d]||{}; fix(b.age); fix(b.gender); });
+  return j;
 }
 
 function fillMonthSelects(){
