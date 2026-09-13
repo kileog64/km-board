@@ -136,6 +136,21 @@ function applyAccentColor(hex){
   }
 
   .main-layout{display:grid;grid-template-columns:1fr 250px;gap:20px;align-items:start;}
+
+/* TIDY2 주제별 서랍 — 한 화면에 19개가 쭉 늘어서 있으면 무엇이 중요한지 안 보인다 */
+.drawer{border:1px solid var(--border);border-radius:12px;background:var(--panel);margin-bottom:14px;overflow:hidden;}
+.drawer > summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;align-items:center;
+  gap:10px;font-size:14px;font-weight:700;color:var(--text);user-select:none;}
+.drawer > summary::-webkit-details-marker{display:none;}
+.drawer > summary:hover{background:var(--panel-2);}
+.drawer > summary .dw-c{margin-left:auto;font-size:12px;font-weight:500;color:var(--muted);}
+.drawer > summary .dw-a{font-size:11px;color:var(--muted);transition:transform .15s;}
+.drawer[open] > summary .dw-a{transform:rotate(90deg);}
+.drawer[open] > summary{border-bottom:1px solid var(--border);}
+.drawer .dw-body{padding:14px 16px 4px;}
+.drawer .dw-body > .panel:last-child,.drawer .dw-body > div:last-child{margin-bottom:10px;}
+@media (max-width:640px){ .drawer > summary{padding:11px 13px;font-size:13px;} .drawer .dw-body{padding:11px 12px 2px;} }
+
   .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:26px 28px;min-height:400px;}
   .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:360px;color:var(--muted);font-size:14px;text-align:center;gap:10px;line-height:1.6;}
   header.rep{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:14px;}
@@ -158,7 +173,9 @@ function applyAccentColor(hex){
   .kpi-note.up{color:var(--up);background:rgba(74,222,154,.14);} .kpi-note.down{color:var(--down);background:rgba(255,107,133,.14);}
   .kpi-spark{width:100%;height:30px;margin-top:9px;}
 
+  /* TIDY5 일별 그래프 두 개는 넓은 화면에서 나란히 둔다 — 세로로 쌓으면 한 화면을 다 먹는다 */
   .charts-row{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:22px;}
+  @media (min-width:1000px){ .charts-row{grid-template-columns:1fr 1fr;} }
   .panel{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:20px;}
   .panel-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
   .chart-box{height:320px;}
@@ -604,7 +621,12 @@ let chartA = null, chartB = null, chartC = null, trendChart = null, hourChart = 
 const filterState = {}; // key -> { types:Set, campaigns:Set }
 function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
 const CAMPAIGN_TYPE_LABELS = { WEB_SITE:'파워링크', SHOPPING:'쇼핑검색', POWER_CONTENTS:'파워컨텐츠', BRAND_SEARCH:'브랜드검색광고', PLACE:'플레이스', PLACE_TP:'플레이스', CATEGORY_EDIT:'세부업종', CAMPAIGN_TYPE_UNKNOWN:'기타' };
-function campaignTypeLabel(t){ return CAMPAIGN_TYPE_LABELS[t] || t; }
+function campaignTypeLabel(t){
+  /* TIDY5 유형이 비어 있는 캠페인이 'undefined' · '-' 로 그대로 보였다 */
+  const s = String(t == null ? '' : t).trim();
+  if(!s || s === '-' || s === 'undefined' || s === 'null') return '유형 없음';
+  return CAMPAIGN_TYPE_LABELS[t] || s;
+}
 function fmtWon(man){ return Math.round(man*10000).toLocaleString('ko-KR'); }
 function fmtMan(man){ return man>=10000 ? (man/10000).toFixed(man%10000===0?0:1)+'억' : Math.round(man).toLocaleString('ko-KR')+'만'; }
 /* 만원 단위로 들고 있는 값을 실제 원 단위로 정확히 표시.
@@ -2100,6 +2122,76 @@ document.addEventListener('change', (e)=>{
    (전환0 캠페인·노출 급감·최저효율 연속·시간대 낭비·CPA 급등·수집 점검·집행 페이싱).
    월 집계 기반의 기존 '성과 인사이트'보다 시점이 하루 단위로 정밀해 별도 패널로 표시.
    수집기를 안 쓰는(수동 업로드만 하는) 업체는 필드가 없으므로 패널 자체가 안 뜸. */
+
+/* TIDY4 ── 지금 어때? ─────────────────────────────────────────────────────
+   화면을 열자마자 "좋은지 나쁜지, 뭐부터 볼지"가 한 줄로 읽혀야 한다.
+   목표가 있으면 목표 대비로, 없으면 직전 기간 대비로 말한다. 없는 건 말하지 않는다. */
+function dcVerdictHTML(data, isDB, tot, prev){
+  const cpa  = tot.conv > 0 ? Math.round(tot.cost * 10000 / tot.conv) : null;
+  const roas = tot.cost > 0 ? (tot.rev / tot.cost * 100) : null;
+  const pCpa  = (prev && prev.conv > 0) ? Math.round(prev.cost * 10000 / prev.conv) : null;
+  const pRoas = (prev && prev.cost > 0) ? (prev.rev / prev.cost * 100) : null;
+  const g = data.goal || null;
+  const goalCpa  = (g && g.metric === 'cpa'  && g.target > 0) ? g.target : null;
+  const goalRoas = (g && g.metric === 'roas' && g.target > 0) ? g.target : null;
+
+  const ci = data.collectorInsights;
+  const alerts = (ci && Array.isArray(ci.alerts)) ? ci.alerts : [];
+  const high = alerts.filter(a => a.severity === 'high').length;
+
+  let tone = 'flat', head = '', why = '', bar = '';
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+
+  if(isDB && goalCpa && cpa){
+    const x = cpa / goalCpa;
+    tone = x <= 1 ? 'good' : (x <= 1.3 ? 'warn' : 'bad');
+    head = x <= 1
+      ? `목표 안에서 돌고 있습니다 — 전환당 ${won(cpa)}원 (목표 ${won(goalCpa)}원)`
+      : `목표보다 비쌉니다 — 전환당 ${won(cpa)}원, 목표 ${won(goalCpa)}원의 ${(Math.round(x*10)/10)}배`;
+    const w = Math.max(4, Math.min(100, Math.round(goalCpa / cpa * 100)));
+    bar = `<div style="height:7px;border-radius:4px;background:var(--panel-2);overflow:hidden;margin-top:10px;max-width:420px;">
+             <div style="height:100%;width:${w}%;background:${x<=1?'var(--up,#3ddc97)':'#ff6b85'};"></div></div>
+           <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">막대가 꽉 차면 목표에 닿은 것입니다</div>`;
+  } else if(!isDB && goalRoas && roas){
+    const x = roas / goalRoas;
+    tone = x >= 1 ? 'good' : (x >= 0.8 ? 'warn' : 'bad');
+    head = x >= 1
+      ? `목표 안에서 돌고 있습니다 — ROAS ${Math.round(roas)} (목표 ${Math.round(goalRoas)})`
+      : `목표에 못 미칩니다 — ROAS ${Math.round(roas)}, 목표 ${Math.round(goalRoas)}`;
+    const w = Math.max(4, Math.min(100, Math.round(x * 100)));
+    bar = `<div style="height:7px;border-radius:4px;background:var(--panel-2);overflow:hidden;margin-top:10px;max-width:420px;">
+             <div style="height:100%;width:${w}%;background:${x>=1?'var(--up,#3ddc97)':'#ff6b85'};"></div></div>`;
+  } else if(isDB && cpa && pCpa){
+    const d = (cpa / pCpa - 1) * 100;
+    tone = d <= -5 ? 'good' : (d >= 15 ? 'bad' : (d >= 5 ? 'warn' : 'flat'));
+    head = Math.abs(d) < 5
+      ? `지난 기간과 비슷합니다 — 전환당 ${won(cpa)}원`
+      : `전환당 비용이 지난 기간보다 ${Math.abs(Math.round(d))} ${d>0?'높습니다':'낮습니다'} — ${won(pCpa)}원 → ${won(cpa)}원`;
+  } else if(!isDB && roas && pRoas){
+    const d = (roas / pRoas - 1) * 100;
+    tone = d >= 5 ? 'good' : (d <= -15 ? 'bad' : (d <= -5 ? 'warn' : 'flat'));
+    head = Math.abs(d) < 5
+      ? `지난 기간과 비슷합니다 — ROAS ${Math.round(roas)}`
+      : `ROAS가 지난 기간보다 ${Math.abs(Math.round(d))} ${d>0?'높습니다':'낮습니다'} — ${Math.round(pRoas)} → ${Math.round(roas)}`;
+  } else {
+    head = isDB
+      ? (cpa ? `전환당 ${won(cpa)}원` : '아직 전환이 없습니다')
+      : (roas ? `ROAS ${Math.round(roas)}` : '아직 매출이 없습니다');
+    why = (g && (g.metric==='cpa'||g.metric==='roas')) ? '' : '목표를 넣어두면 목표 대비로 말해드립니다 (관리 > 예산·목표)';
+  }
+
+  if(high) why = `급히 볼 일이 ${high}건 있습니다 — 바로 아래 '오늘 확인할 일'에 있습니다`;
+  else if(alerts.length && !why) why = `확인할 일 ${alerts.length}건이 아래에 있습니다`;
+
+  const C = { good:'#3ddc97', warn:'#f5a524', bad:'#ff6b85', flat:'var(--muted)' }[tone];
+  return `<div class="panel" style="margin-bottom:16px;padding:16px 18px;border-left:3px solid ${C};">
+    <div style="font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.3px;">지금 어때?</div>
+    <div style="font-size:17px;font-weight:800;color:var(--text);margin-top:5px;line-height:1.5;">${head}</div>
+    ${why ? `<div style="font-size:12.5px;color:${high?C:'var(--muted)'};margin-top:6px;">${why}</div>` : ''}
+    ${bar}
+  </div>`;
+}
+
 function buildCollectorAlertsHTML(data, key){
   const ci = data.collectorInsights;
   if(!ci || !Array.isArray(ci.alerts) || !ci.alerts.length) return '';
@@ -2163,8 +2255,10 @@ function buildCollectorAlertsHTML(data, key){
 
   const high = ci.alerts.filter(a=>a.severity==='high');
   const warn = ci.alerts.filter(a=>a.severity!=='high');
-  const WARN_VISIBLE = 5;
-  const warnHead = warn.slice(0, WARN_VISIBLE), warnRest = warn.slice(WARN_VISIBLE);
+  /* TIDY4 급한 것까지 다 펼치면 이 묶음만 화면 한 장을 넘긴다 — 먼저 볼 3장만 펼치고 나머지는 접는다 */
+  const HEAD_VISIBLE = 3;
+  const headRows = high.slice(0, HEAD_VISIBLE);
+  const restRows = high.slice(HEAD_VISIBLE).concat(warn);
   const asOfTxt = ci.asOf ? ` · ${ci.asOf} 데이터 기준` : '';
   return `<div class="panel" style="margin-bottom:18px;padding:0;overflow:hidden;border-left:3px solid ${high.length?BAD:'var(--border)'};">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--border);">
@@ -2175,9 +2269,8 @@ function buildCollectorAlertsHTML(data, key){
       <div style="font-size:12px;color:var(--muted);">해소되면 다음 수집 때 자동으로 사라져요${asOfTxt}</div>
     </div>
     <div>
-      ${high.map(row).join('')}
-      ${warnHead.map(row).join('')}
-      ${warnRest.length?`<details><summary style="font-size:12.5px;color:var(--accent-text,var(--accent));cursor:pointer;padding:11px 16px;">주의 ${warnRest.length}건 더 보기</summary>${warnRest.map(row).join('')}</details>`:''}
+      ${headRows.map(row).join('')}
+      ${restRows.length?`<details><summary style="font-size:12.5px;color:var(--accent-text,var(--accent));cursor:pointer;padding:11px 16px;list-style:none;">나머지 ${restRows.length}건 보기 ▾</summary>${restRows.map(row).join('')}</details>`:''}
     </div>
   </div>`;
 }
@@ -4991,6 +5084,7 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
             <input type="date" id="dayRangeEndInput" min="${dayBoundsMin}" max="${dayBoundsMax}" value="${dayRangeState[key].end || dayBoundsMax || ''}" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
             ${hasDayFilter ? `<button id="dayRangeResetBtn" style="background:var(--panel-2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;">✕ 날짜 필터 해제</button>` : ''}
           </div>` : ''}
+    ${dcVerdictHTML(data, isDB, {cost:totalCostMan, rev:totalRevenueMan, conv:totalConv}, dcPrevTotals)}
     ${dcKpiRowHTML({cost:totalCostMan, rev:totalRevenueMan, conv:totalConv, imp:totalImp, clk:totalClick}, dcPrevTotals, isDB)}
     <div style="height:16px"></div>
     ${(()=>{ const h = dcSplitPanelHTML({cost:totalCostMan, rev:totalRevenueMan, conv:totalConv, imp:totalImp, clk:totalClick}, dcPrevTotals, isDB, dcPrevLabel);
@@ -4998,15 +5092,17 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
 
     ${buildCollectorAlertsHTML(data, key)}
     <div style="height:18px"></div>
+    ${'<details class="drawer" data-dw="why" open><summary><span class="dw-a">▶</span>왜 이렇게 됐나<span class="dw-c">전환당 비용이 움직인 이유 · 튄 날 · 가장 많이 민 것</span></summary><div class="dw-body">'}
     ${(() => {
       const w = dcWhyHTML(data, months, isDB, dcCtx), h = dcHourHTML(hourlyAgg, isDB);
       if(!w && !h) return '';
       if(!w || !h) return w + h;
       return `<div class="dc-two">${w}${h}</div>`;
     })()}
-    <div style="height:18px"></div>
-    ${dcCampTableHTML(data, months, isDB, lookupCampaignStatusMap(months, data), dcCtx)}
-    <div style="height:18px"></div>
+    ${buildAnomalyPanelHTML(key, dailyAll, hasRealDailyData)}
+    ${buildBreakdownPanelHTML(key, months, fstate, hasDayFilter ? dayRangeState[key] : null, data, isDB)}
+    ${'</div></details>'}
+
     <div class="charts-row">
       <div class="panel">
         <div class="panel-title">📈 일별 유입 성과 (노출수 · 클릭률)</div>
@@ -5018,15 +5114,15 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
       </div>
     </div>
 
+    ${'<details class="drawer" data-dw="leak"><summary><span class="dw-a">▶</span>돈이 새는 곳<span class="dw-c">전환 0인데 돈 나간 곳 · 계정 점검</span></summary><div class="dw-body">'}
+    ${buildWastePanelHTML(key, months, fstate, hasDayFilter ? dayRangeState[key] : null, data)}
     ${(()=>{ const h = dcAuditHTML(data, months, isDB, campaignAgg, {cost:totalCostMan, rev:totalRevenueMan, conv:totalConv});
-             return h ? h + '<div style="height:18px"></div>' : ''; })()}
+             return h || ''; })()}
+    ${'</div></details>'}
 
-    <div class="panel" id="insightsPanel" style="margin-bottom:18px;border-left:3px solid var(--accent);"></div>
-
-    ${buildMediaStatsHTML(data, months, isDB)}
-
+    ${'<details class="drawer" data-dw="good"><summary><span class="dw-a">▶</span>잘 되는 곳 · 목표<span class="dw-c">효율 좋은 캠페인 · 목표 대비 · 예산 옮기기</span></summary><div class="dw-body">'}
+    <div class="panel" id="insightsPanel" style="margin-bottom:14px;border-left:3px solid var(--accent);"></div>
     ${buildCrossAnalysisHTML(data, months, isDB)}
-
     ${renderGoalPanelHTML(data, months, isDB)}
 
     <div class="panel" id="aiBriefPanel" style="margin-bottom:18px;">
@@ -5038,14 +5134,17 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
     </div>
 
     ${renderBudgetSimulatorHTML(months, isDB, fstate)}
+    ${'</div></details>'}
+
+    ${'<details class="drawer" data-dw="table"><summary><span class="dw-a">▶</span>표로 보기<span class="dw-c">캠페인 · 매체(지면)</span></summary><div class="dw-body">'}
+    ${dcCampTableHTML(data, months, isDB, lookupCampaignStatusMap(months, data), dcCtx)}
+    ${buildMediaStatsHTML(data, months, isDB)}
+    ${'</div></details>'}
+
+    ${'<details class="drawer" data-dw="trend"><summary><span class="dw-a">▶</span>추이 · 미리보기<span class="dw-c">기간 비교 · 요일 · 시간대 · TOP 키워드</span></summary><div class="dw-body">'}
 
 
 
-    ${buildAnomalyPanelHTML(key, dailyAll, hasRealDailyData)}
-
-    ${buildWastePanelHTML(key, months, fstate, hasDayFilter ? dayRangeState[key] : null, data)}
-
-    ${buildBreakdownPanelHTML(key, months, fstate, hasDayFilter ? dayRangeState[key] : null, data, isDB)}
 
     ${(refD && cmpD && !isMultiMonth) ? `
     <div class="panel" style="margin-top:18px;">
@@ -5155,8 +5254,18 @@ function renderCardInner(data, key, fstate, allMonths, months, campaignList, all
         `}
       </div>
     </div>
+    ${'</div></details>'}
   `;
 
+  /* TIDY3 접힌 서랍 안에서 그려진 그래프는 폭이 0이라 펼쳤을 때 찌그러진다 — 펼치는 순간 다시 잡아준다 */
+  document.querySelectorAll('details.drawer').forEach(d=>{
+    d.addEventListener('toggle', ()=>{
+      if(!d.open) return;
+      d.querySelectorAll('canvas').forEach(cv=>{
+        try{ const ch = (window.Chart && Chart.getChart) ? Chart.getChart(cv) : null; if(ch) ch.resize(); }catch(e){}
+      });
+    });
+  });
   const insightsForCard = generateInsights(data, months, isDB);
   // 챗봇(buildAIContext)이 "지금 이 업체·이 기간" 맥락을 알 수 있도록 다른 페이지들과 동일하게 채워둠.
   // 예전에는 이 값이 비어있어서 index.html의 AI 챗봇은 항상 전체 업체 요약으로만 답했음.
@@ -5567,9 +5676,19 @@ function renderFilterPanel(key, data, campaignList, allTypes, renderFn){
     <div class="filter-group campaigns">
       <div class="filter-group-title">캠페인명</div>
       <div class="filter-campaign-list">
-      ${campaignList.map(c=>`
-        <label class="filter-item" title="${esc(displayCampaignName(c.campaign))}"><input type="checkbox" data-kind="campaign" value="${esc(c.campaign)}" ${fstate.campaigns.has(c.campaign)?'checked':''}> ${campaignStatusBadge(c)}${esc(displayCampaignName(c.campaign))}</label>
-      `).join('')}
+      ${(()=>{
+        /* TIDY1 살아있는 캠페인만 먼저 보여주고, 이미 지운 캠페인은 접어둔다.
+           지운 캠페인도 과거 성과에는 남아 있어서 목록에서 빼면 합계가 달라진다 — 그래서 지우지 않고 접는다. */
+        const row = c => `<label class="filter-item" title="${esc(displayCampaignName(c.campaign))}"><input type="checkbox" data-kind="campaign" value="${esc(c.campaign)}" ${fstate.campaigns.has(c.campaign)?'checked':''}> ${campaignStatusBadge(c)}${esc(displayCampaignName(c.campaign))}</label>`;
+        const live = campaignList.filter(c=>!isDeletedCampaignName(c.campaign));
+        const gone = campaignList.filter(c=> isDeletedCampaignName(c.campaign));
+        const goneOn = gone.filter(c=>fstate.campaigns.has(c.campaign)).length;
+        return live.map(row).join('')
+          + (gone.length ? `<details class="filter-gone"${goneOn && goneOn < gone.length ? ' open' : ''}>
+               <summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:6px 2px;list-style:none;">
+                 지운 캠페인 ${gone.length}개 ${goneOn ? `<span style="color:var(--accent);">(${goneOn}개 켜짐)</span>` : ''} ▾
+               </summary>${gone.map(row).join('')}</details>` : '');
+      })()}
       </div>
     </div>
     <div style="display:flex;gap:8px;flex:none;">
