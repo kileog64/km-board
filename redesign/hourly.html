@@ -733,13 +733,13 @@ function hourDevOk(r, dev){
   const d = r && r.device; if(!d) return false;
   return dev === 'PC' ? (String(d).toUpperCase() === 'PC') : (String(d).toUpperCase() !== 'PC');
 }
-/* 이 자료원(한 달치 배열)에서 고른 기기만 남길 수 있는가.
-   남길 수 없으면 hourDevIgnored 를 올리고 전체를 쓴다. */
+/* HOURDEV2 기기를 고르면 언제나 기기로 거른다.
+   기기 칸이 없는 옛 달은 걸러지면서 통째로 빠진다 — 그 달을 양쪽에 넣으면
+   PC + 모바일이 전체보다 커져서 숫자가 틀린다. 빠진 달은 화면에 적어준다. */
 function hourDevKeep(list, dev){
   if(dev === 'ALL') return false;
-  if(hourDevHas(list)) return true;
-  if(list && list.length) hourDevIgnored = true;
-  return false;
+  if(!hourDevHas(list) && list && list.length) hourDevIgnored = true;
+  return true;
 }
 /* HOURDEV-END */
 /* 광고그룹별 시간대 분석은 그래프가 늘 펼쳐져 있어 화면을 많이 먹었다.
@@ -2031,6 +2031,12 @@ function renderHourlyPage(data){
   const hourDevAvail = months.some(m=>
     hourDevHas(m.hourly) || hourDevHas(m.hourlyByCampaign) ||
     hourDevHas(m.hourlyByCampaignDate) || hourDevHas(m.hourlyByAdgroup));
+  const hourDevMissMonths = months.filter(m=>{
+    const any = (m.hourly||[]).length || (m.hourlyByCampaign||[]).length;
+    if(!any) return false;
+    return !(hourDevHas(m.hourly) || hourDevHas(m.hourlyByCampaign) ||
+             hourDevHas(m.hourlyByCampaignDate) || hourDevHas(m.hourlyByAdgroup));
+  }).map(m=>m.label);
   if(!hourDevAvail || !(key in hourDevState) || ['ALL','PC','MO'].indexOf(hourDevState[key]) < 0) hourDevState[key] = 'ALL';
   const hgDev = hourDevState[key];
   const hgDevLabel = hgDev === 'PC' ? 'PC' : (hgDev === 'MO' ? '모바일' : '전체 기기');
@@ -2485,7 +2491,7 @@ const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
           </select>
         </label>` : ''}
       </div>
-      ${(hgDev!=='ALL' && hourDevIgnored) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">⚠️ 고른 기간 중 <b>기기 구분이 없는 달</b>이 섞여 있어요. 그 달은 PC·모바일을 합친 값으로 들어가 있습니다.</div>` : ''}
+      ${(hgDev!=='ALL' && hourDevMissMonths.length) ? `<div style="font-size:12px;color:var(--warn);margin-top:10px;max-width:78ch;line-height:1.65;">⚠️ <b>${esc(hourDevMissMonths.join(' · '))}</b>는 네이버가 기기 구분을 주지 않던 때라 <b>이 숫자에서 빠져 있습니다.</b> 기기를 나눠 보려면 ${esc(hourDevMissMonths[hourDevMissMonths.length-1])} 다음 달부터 보세요. (전체 기기로 두면 모든 달이 다 들어갑니다)</div>` : ''}
       ${(hgCamp!=='ALL' && !hgAds.length) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">이 캠페인은 광고그룹 단위 시간대 자료가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 칸이 있어야 채워져요.</div>` : ''}
       ${(hgAd!=='ALL' && hasHourlyDayFilter) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">⚠️ 광고그룹 자료에는 날짜가 없어서 이것만 <b>고른 기간이 속한 달 전체</b> 기준이에요.</div>` : ''}
       ${(() => {

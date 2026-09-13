@@ -814,6 +814,7 @@ function buildRankBands(dailyRows){
   const devNames = Object.keys(byDev);
   if(devNames.length <= 1){
     const only = buildRankBandsOne(devNames.length ? byDev[devNames[0]] : []);
+    // 남은 갈래가 기기 하나뿐이면 그 기기 이름을 그대로 쓴다
     Object.keys(only).forEach(kw=>{ only[kw].devs = [{ dev: devNames[0] || '전체', info: only[kw] }]; });
     return only;
   }
@@ -824,6 +825,12 @@ function buildRankBands(dailyRows){
     (out[kw] = out[kw] || { multiDev:true, devs:[] }).devs.push({ dev:d, info: parts[d][kw] });
   }); });
   Object.keys(out).forEach(kw=>{
+    /* KWDEV2 이 키워드에 기기별 줄이 있으면 '구분 없음'(기기 칸이 없던 옛 달)은 뺀다.
+       섞으면 같은 키워드가 세 갈래로 나뉘어 판정이 흐려진다.
+       옛 달에만 있는 키워드는 그대로 하나로 판정한다 — 빼버리면 판정 자체가 사라진다. */
+    if(out[kw].devs.some(d=> d.dev !== '전체')){
+      out[kw].devs = out[kw].devs.filter(d=> d.dev !== '전체');
+    }
     // 모바일을 앞에 둔다 — 대부분 모바일이 돈을 더 쓴다
     out[kw].devs.sort((a,b)=> (a.dev==='모바일'?0:1) - (b.dev==='모바일'?0:1));
     // 겉에는 판정이 난 기기 중 돈을 제일 많이 쓴 쪽을 둔다(옛 코드가 겉값을 그대로 본다)
@@ -833,6 +840,7 @@ function buildRankBands(dailyRows){
     const i = pick.info || {};
     out[kw].thin = i.thin; out[kw].mixed = i.mixed; out[kw].camps = i.camps;
     out[kw].rows = i.rows; out[kw].best = i.best; out[kw].worst = i.worst; out[kw].gap = i.gap;
+    if(out[kw].devs.length <= 1) out[kw].multiDev = false;   // 갈래가 하나면 예전 화면 그대로
   });
   return out;
 }
