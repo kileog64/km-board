@@ -798,13 +798,53 @@ function rankBandOf(r){
   const f = RANK_BANDS.find(x => r >= x.lo && r < x.hi);
   return f ? f.b : null;
 }
+/* KWDEV-START 기기(PC/모바일)별로 따로 판정한다 ─────────────────────────────
+   같은 키워드라도 PC와 모바일은 순위도 전환도 다르다. 합치면 둘 다 틀린 답이 나온다.
+   자료에 device 칸이 없던 시절 자료는 '전체' 하나로 묶여 예전과 똑같이 나온다. */
+function rankDevOf(r){
+  const d = r && r.device; if(!d) return '전체';
+  return String(d).toUpperCase() === 'PC' ? 'PC' : '모바일';
+}
 function buildRankBands(dailyRows){
+  const byDev = {};
+  (dailyRows||[]).forEach(r=>{
+    if(!r || !r.keyword || r.keyword === '-') return;
+    const d = rankDevOf(r); (byDev[d] = byDev[d] || []).push(r);
+  });
+  const devNames = Object.keys(byDev);
+  if(devNames.length <= 1){
+    const only = buildRankBandsOne(devNames.length ? byDev[devNames[0]] : []);
+    Object.keys(only).forEach(kw=>{ only[kw].devs = [{ dev: devNames[0] || '전체', info: only[kw] }]; });
+    return only;
+  }
+  const parts = {};
+  devNames.forEach(d=>{ parts[d] = buildRankBandsOne(byDev[d]); });
+  const out = {};
+  devNames.forEach(d=>{ Object.keys(parts[d]).forEach(kw=>{
+    (out[kw] = out[kw] || { multiDev:true, devs:[] }).devs.push({ dev:d, info: parts[d][kw] });
+  }); });
+  Object.keys(out).forEach(kw=>{
+    // 모바일을 앞에 둔다 — 대부분 모바일이 돈을 더 쓴다
+    out[kw].devs.sort((a,b)=> (a.dev==='모바일'?0:1) - (b.dev==='모바일'?0:1));
+    // 겉에는 판정이 난 기기 중 돈을 제일 많이 쓴 쪽을 둔다(옛 코드가 겉값을 그대로 본다)
+    const spend = x => (x.info && x.info.rows || []).reduce((a,r)=> a + (r.cost||0), 0);
+    const good = out[kw].devs.filter(x=>x.info && !x.info.thin).sort((a,b)=> spend(b) - spend(a));
+    const pick = good[0] || out[kw].devs[0];
+    const i = pick.info || {};
+    out[kw].thin = i.thin; out[kw].mixed = i.mixed; out[kw].camps = i.camps;
+    out[kw].rows = i.rows; out[kw].best = i.best; out[kw].worst = i.worst; out[kw].gap = i.gap;
+  });
+  return out;
+}
+/* KWDEV-END */
+function buildRankBandsOne(dailyRows){
   const map = {};
   (dailyRows||[]).forEach(r=>{
     // 키워드 이름이 '-' 로 오는 줄이 섞여 있다(키워드가 없는 광고 유형). 판정 대상이 아니다.
     if(!r || !r.keyword || r.keyword === '-') return;
     const b = rankBandOf(r.avgRank); if(!b) return;
-    const o = map[r.keyword] || (map[r.keyword] = { tot:{cost:0,conv:0}, band:{}, camps:{} });
+    const o = map[r.keyword] || (map[r.keyword] = { tot:{cost:0,conv:0}, band:{}, camps:{}, rs:0, ri:0 });
+    if(r.avgRank > 0 && (r.impressions||0) > 0){ o.rs += r.avgRank*r.impressions; o.ri += r.impressions; }
     const x = o.band[b] || (o.band[b] = { cost:0, conv:0, clicks:0, revenue:0, n:0 });
     x.cost += r.cost||0; x.conv += r.conv||0; x.clicks += r.clicks||0; x.revenue += r.revenue||0; x.n++;
     o.tot.cost += r.cost||0; o.tot.conv += r.conv||0;
@@ -826,16 +866,16 @@ function buildRankBands(dailyRows){
       .map(c=>({ name:c, cost:o.camps[c].cost, rank: o.camps[c].ri>0 ? o.camps[c].rs/o.camps[c].ri : null }))
       .sort((a,b)=> b.cost - a.cost);
     // 캠페인이 둘 이상이면 순위를 섞은 값이 되므로 판정하지 않는다
-    if(campList.length > 1){ out[kw] = { thin:true, mixed:true, camps:campList, rows:rows }; return; }
-    if(o.tot.conv < RANK_MIN_TOTAL_CONV || rows.length < 2){ out[kw] = { thin:true, rows:rows }; return; }
+    if(campList.length > 1){ out[kw] = { thin:true, mixed:true, camps:campList, rows:rows, myRank: o.ri>0 ? o.rs/o.ri : null }; return; }
+    if(o.tot.conv < RANK_MIN_TOTAL_CONV || rows.length < 2){ out[kw] = { thin:true, rows:rows, myRank: o.ri>0 ? o.rs/o.ri : null }; return; }
     // 전환이 몇 건 안 되는 구간은 표에는 보여주되 '최적'으로는 안 고른다
     const sumConv = rows.reduce((a,x)=> a + x.conv, 0);
     rows.forEach(r=>{ r.slim = sumConv > 0 && (r.conv / sumConv) < RANK_MIN_SHARE; });
     const cand = rows.filter(r=>!r.slim);
-    if(cand.length < 2){ out[kw] = { thin:true, rows:rows }; return; }
+    if(cand.length < 2){ out[kw] = { thin:true, rows:rows, myRank: o.ri>0 ? o.rs/o.ri : null }; return; }
     const best  = cand.reduce((a,x)=> x.cpa < a.cpa ? x : a);
     const worst = cand.reduce((a,x)=> x.cpa > a.cpa ? x : a);
-    out[kw] = { thin:false, rows:rows, best:best, worst:worst, gap: best.cpa>0 ? worst.cpa/best.cpa : 0 };
+    out[kw] = { thin:false, rows:rows, best:best, worst:worst, gap: best.cpa>0 ? worst.cpa/best.cpa : 0, myRank: o.ri>0 ? o.rs/o.ri : null };
   });
   return out;
 }
@@ -866,6 +906,46 @@ function goalNote(info, goal, isDB){
 }
 // 표의 한 칸. 지금 평균순위와 견줘 올릴지 내릴지까지 적는다.
 function rankBandCellHTML(info, curRank, isDB, goal){ // RANKGOAL
+  /* KWDEV 기기가 둘 이상이면 기기별로 따로 보여준다 */
+  if(info && info.multiDev && info.devs && info.devs.length > 1){
+    const head = info.devs.map(d=>{
+      const i = d.info || {};
+      let lab = '표본 부족', col = 'var(--muted)';
+      if(i.mixed){ lab = '캠페인 ' + (i.camps||[]).length + '개 보류'; col = 'var(--warn)'; }
+      else if(!i.thin && i.best){
+        const ORD = RANK_BANDS.map(x=>x.b);
+        const bi = ORD.indexOf(i.best.band);
+        const cr = (i.myRank!==null && i.myRank!==undefined) ? i.myRank : curRank;
+        const ci = (cr!==null && cr!==undefined && isFinite(cr)) ? ORD.indexOf(rankBandOf(cr)) : -1;
+        let dir = '유지'; col = 'var(--muted)';
+        if(ci >= 0 && bi < ci){ dir = '올리기'; col = 'var(--accent)'; }
+        else if(ci >= 0 && bi > ci){ dir = '내리기'; col = 'var(--down)'; }
+        lab = i.best.band + ' ' + dir;
+      }
+      return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">`
+        + `<span style="font-size:10.5px;color:var(--muted);min-width:30px;">${esc(d.dev)}</span>`
+        + `<span style="font-size:11px;font-weight:700;color:${col};">${esc(lab)}</span></div>`;
+    }).join('');
+    const body = info.devs.map(d=>{
+      const i = d.info || {};
+      const rs = (i.rows||[]).map(r=>`<tr${(i.best && r.band===i.best.band)?' style="font-weight:800;color:var(--up);"':(r.slim?' style="opacity:.5;"':'')}>`
+        + `<td style="padding:3px 8px 3px 0;white-space:nowrap;">${esc(r.band)}</td>`
+        + `<td style="padding:3px 8px;text-align:right;white-space:nowrap;">${r.cpa.toLocaleString('ko-KR')}원${goalMark(r, goal, isDB)}</td>`
+        + `<td style="padding:3px 0 3px 8px;text-align:right;white-space:nowrap;color:var(--muted);">전환 ${r.conv}건${r.slim?' <span style="color:var(--warn);">표본 적음</span>':''}</td>`
+        + '</tr>').join('');
+      return `<div style="margin-bottom:7px;"><div style="font-size:11px;font-weight:800;margin-bottom:2px;">${esc(d.dev)}`
+        + (i.myRank!==null && i.myRank!==undefined ? ` <span style="font-weight:400;color:var(--muted);">지금 ${(Math.round(i.myRank*10)/10)}위</span>` : '')
+        + `</div>`
+        + (rs ? `<table style="border-collapse:collapse;font-size:11.5px;">${rs}</table>`
+              : `<div style="font-size:10.5px;color:var(--muted);">${i.mixed ? '캠페인이 여러 개라 판정을 보류합니다' : '전환이 적어 판정할 수 없습니다'}</div>`)
+        + goalNote(i, goal, isDB) + '</div>';
+    }).join('');
+    return '<td class="km-text" style="white-space:nowrap;min-width:126px;">'
+      + `<button type="button" class="kw-band-toggle" style="text-align:left;padding:3px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);cursor:pointer;">${head}<span style="font-size:10.5px;color:var(--muted);">기기별 ▾</span></button>`
+      + '<div class="kw-band-rest" hidden style="margin-top:5px;">' + body
+      + '<div style="margin-top:4px;font-size:10.5px;color:var(--muted);">PC와 모바일은 순위도 전환도 다릅니다 — 입찰 가중치를 기기별로 따로 두세요</div>'
+      + '</div></td>';
+  }
   if(!info) return '<td class="km-sub" style="white-space:nowrap;">표본 부족</td>';
   if(info.mixed){
     const lst = info.camps.map(c=>`<tr><td style="padding:3px 8px 3px 0;white-space:nowrap;">${esc(String(c.name).slice(0,22))}</td>`

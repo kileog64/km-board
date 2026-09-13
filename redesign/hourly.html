@@ -725,6 +725,23 @@ const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 const hourHeatmapMetric = {};
 const hourGrpCamp = {};            // key -> 고른 캠페인 (캠페인·광고그룹별 시간대)
 const hourGrpAd = {};              // key -> 'ALL'(캠페인 전체) 또는 광고그룹 이름
+/* HOURDEV-START 기기(PC/모바일) 고르기 — key -> 'ALL' | 'PC' | 'MO' */
+const hourDevState = {};
+let hourDevIgnored = false;        // 기기 칸이 없어 어쩔 수 없이 전체로 집계한 자료가 있었나
+function hourDevHas(list){ return !!(list && list.length && list.some(r=>r && r.device)); }
+function hourDevOk(r, dev){
+  const d = r && r.device; if(!d) return false;
+  return dev === 'PC' ? (String(d).toUpperCase() === 'PC') : (String(d).toUpperCase() !== 'PC');
+}
+/* 이 자료원(한 달치 배열)에서 고른 기기만 남길 수 있는가.
+   남길 수 없으면 hourDevIgnored 를 올리고 전체를 쓴다. */
+function hourDevKeep(list, dev){
+  if(dev === 'ALL') return false;
+  if(hourDevHas(list)) return true;
+  if(list && list.length) hourDevIgnored = true;
+  return false;
+}
+/* HOURDEV-END */
 /* 광고그룹별 시간대 분석은 그래프가 늘 펼쳐져 있어 화면을 많이 먹었다.
    캠페인별 시간대 비교처럼 평소엔 고르는 줄만 두고, 볼 때만 그래프를 편다. */
 function slugify(name){ return name.trim().replace(/[\s\/\\'"]+/g,'_'); }
@@ -1929,7 +1946,9 @@ function renderHourlyPage(data){
     monthsList.forEach(m=>{
       if(m.hourlyByCampaign && m.hourlyByCampaign.length){
         hasCampaignData = true;
+        const _dk = hourDevKeep(m.hourlyByCampaign, hgDev);
         m.hourlyByCampaign.forEach(h=>{
+          if(_dk && !hourDevOk(h, hgDev)) return;
           if(campaignFilterSet && !campaignFilterSet.has(h.campaign)) return;
           const idx = hourIndexOf(h.hour);
           agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0; agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
@@ -1949,7 +1968,9 @@ function renderHourlyPage(data){
     const agg = blankAgg();
     let anyData = false;
     monthsList.forEach(m=>{
+      const _dk = hourDevKeep(m.hourlyByAdgroup, hgDev);
       (m.hourlyByAdgroup||[]).forEach(cell=>{
+        if(_dk && !hourDevOk(cell, hgDev)) return;
         if(cell.campaign!==campaignName || cell.adgroup!==adgroupName) return;
         anyData = true;
         const idx = hourIndexOf(cell.hour);
@@ -1985,7 +2006,9 @@ function renderHourlyPage(data){
     const agg = blankAgg();
     let anyData = false;
     monthsList.forEach(m=>{
+      const _dk = hourDevKeep(m.hourlyByCampaignDate, hgDev);
       (m.hourlyByCampaignDate||[]).forEach(cell=>{
+        if(_dk && !hourDevOk(cell, hgDev)) return;
         if(campaignFilterSet && !campaignFilterSet.has(cell.campaign)) return;
         const k = dateKey(cell.date);
         if(range.start && k < range.start.replace(/\D/g,'')) return;
@@ -2003,6 +2026,16 @@ function renderHourlyPage(data){
     return { agg, hasData: anyData };
   }
 
+  /* HOURDEV 고른 기기를 먼저 정한다 — 아래 집계가 전부 이 값을 본다.
+     어느 자료에도 기기 칸이 없으면 칸 자체를 숨기고 'ALL' 로 둔다. */
+  const hourDevAvail = months.some(m=>
+    hourDevHas(m.hourly) || hourDevHas(m.hourlyByCampaign) ||
+    hourDevHas(m.hourlyByCampaignDate) || hourDevHas(m.hourlyByAdgroup));
+  if(!hourDevAvail || !(key in hourDevState) || ['ALL','PC','MO'].indexOf(hourDevState[key]) < 0) hourDevState[key] = 'ALL';
+  const hgDev = hourDevState[key];
+  const hgDevLabel = hgDev === 'PC' ? 'PC' : (hgDev === 'MO' ? '모바일' : '전체 기기');
+  hourDevIgnored = false;
+
   let hourlyAgg, hourlyHasCampaignData;
   if(hasHourlyDayFilter){
     const r = aggHourlyByDateRange(months, isFullSelection ? null : fstate.campaigns, dayRangeState[key]);
@@ -2015,7 +2048,9 @@ function renderHourlyPage(data){
     if(isFullSelection || !hourlyHasCampaignData){
       hourlyAgg = blankAgg();
       months.forEach(m=>{
+        const _dk = hourDevKeep(m.hourly, hgDev);
         (m.hourly||[]).forEach(h=>{
+          if(_dk && !hourDevOk(h, hgDev)) return;
           const idx = hourIndexOf(h.hour);
           hourlyAgg[idx].impressions += h.impressions||0; hourlyAgg[idx].clicks += h.clicks||0; hourlyAgg[idx].cost += h.cost||0; hourlyAgg[idx].conv += h.conv||0; hourlyAgg[idx].revenue += h.revenue||0;
           if(h.avgRank!==null && h.avgRank!==undefined && h.impressions>0){
@@ -2126,18 +2161,20 @@ function renderHourlyPage(data){
       hgByDayRange = true;
     } else {
       const agg = blankAgg();
-      months.forEach(m=>(m.hourlyByCampaign||[]).forEach(h=>{
+      months.forEach(m=>{ const _dk = hourDevKeep(m.hourlyByCampaign, hgDev);
+        (m.hourlyByCampaign||[]).forEach(h=>{
+        if(_dk && !hourDevOk(h, hgDev)) return;
         if(h.campaign!==hgCamp) return;
         const idx = hourIndexOf(h.hour);
         agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0;
         agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
-      }));
+      }); });
       hgAgg = agg;
     }
   } else {
     hgAgg = aggAdgroupHourly(months, hgCamp, hgAd).agg;
   }
-  const hgWhat = hgCamp === 'ALL' ? '전체 캠페인' : (hgAd === 'ALL' ? hgCamp : hgAd);
+  const hgWhat = (hgCamp === 'ALL' ? '전체 캠페인' : (hgAd === 'ALL' ? hgCamp : hgAd)) + (hgDev === 'ALL' ? '' : ' · ' + hgDevLabel);
   /* 고른 것을 이 페이지 전체의 기준으로 삼는다 — 그래야 화면 어디를 봐도 같은 대상이다.
      캠페인·광고그룹을 고르면 직전 기간과 비교할 값이 없어 ▲▼ 추이는 끈다. */
   const hrPicked = (hgCamp !== 'ALL');
@@ -2439,7 +2476,16 @@ const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
             ${hgAds.map(a=>`<option value="${esc(a)}"${a===hgAd?' selected':''}>${esc(a)}</option>`).join('')}`}
           </select>
         </label>
+        ${hourDevAvail ? `<label style="display:flex;flex-direction:column;gap:4px;flex:0 1 180px;min-width:0;">
+          <span style="font-size:11.5px;color:var(--muted);">기기</span>
+          <select id="hgDev" style="width:100%;min-width:0;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;cursor:pointer;">
+            <option value="ALL"${hgDev==='ALL'?' selected':''}>전체 기기</option>
+            <option value="MO"${hgDev==='MO'?' selected':''}>모바일만</option>
+            <option value="PC"${hgDev==='PC'?' selected':''}>PC만</option>
+          </select>
+        </label>` : ''}
       </div>
+      ${(hgDev!=='ALL' && hourDevIgnored) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">⚠️ 고른 기간 중 <b>기기 구분이 없는 달</b>이 섞여 있어요. 그 달은 PC·모바일을 합친 값으로 들어가 있습니다.</div>` : ''}
       ${(hgCamp!=='ALL' && !hgAds.length) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">이 캠페인은 광고그룹 단위 시간대 자료가 없어요. input.html에서 시간대별 리포트를 올릴 때 <b>광고그룹</b> 칸이 있어야 채워져요.</div>` : ''}
       ${(hgAd!=='ALL' && hasHourlyDayFilter) ? `<div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:78ch;line-height:1.65;">⚠️ 광고그룹 자료에는 날짜가 없어서 이것만 <b>고른 기간이 속한 달 전체</b> 기준이에요.</div>` : ''}
       ${(() => {
@@ -2592,7 +2638,7 @@ const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
     ${hasDowData ? `
     <div class="panel" style="margin-top:12px;">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>요일 × 시간대 히트맵 <span style="font-weight:400;color:var(--muted);font-size:12px;">계정 전체 기준</span></span>
+        <span>요일 × 시간대 히트맵 <span style="font-weight:400;color:var(--muted);font-size:12px;">계정 전체 기준${hgDev!=='ALL'?' · 기기 구분 없음':''}</span></span>
         <div style="display:flex;gap:6px;">
           ${(isDB ? [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'cpa',l:'CPA'},{k:'rank',l:'평균노출순위'}] : [{k:'cost',l:'비용'},{k:'conv',l:'전환수'},{k:'revenue',l:'매출'},{k:'roas',l:'ROAS'},{k:'rank',l:'평균노출순위'}]).filter(m=>m.k!=='rank' || dowHasRank).map(m=>`<button class="hour-heat-metric-btn" data-metric="${m.k}" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:${heatMetric===m.k?'var(--accent-solid)':'var(--panel)'};color:${heatMetric===m.k?'#fff':'var(--muted)'};cursor:pointer;">${m.l}</button>`).join('')}
         </div>
@@ -2785,19 +2831,43 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     };
     const hourLabels = hourlyChartRows.map(h=>h.hour+'시');
     let hourChart = null;
+    /* HOURAXIS — 어느 지표를 왼쪽/오른쪽 축에 둘지 값 크기로 정한다.
+       '%'끼리라도 클릭률 0.5 와 ROAS 406 은 100배 차이라 한 축에 두면 작은 쪽이 바닥에 눌린다.
+       고른 지표를 큰 순으로 세우고 차이가 가장 크게 벌어지는 곳에서 둘로 가른다.
+       크기가 다 비슷하면(5배 안쪽) 한 축만 쓴다 — 굳이 나눌 이유가 없다. */
+    function hourAxisMap(keys){
+      const maxOf = k => { let m = 0; (HOUR_METRICS[k].data||[]).forEach(v=>{ if(isFinite(v) && v > m) m = v; }); return m; };
+      const out = {};
+      const arr = keys.map(k=>({k, m:maxOf(k)})).filter(x=>x.m > 0);
+      keys.forEach(k=>{ out[k] = 'y'; });            // 값이 전부 0인 지표는 왼쪽에 둔다
+      if(arr.length <= 1) return out;
+      arr.sort((a,b)=> b.m - a.m);
+      let cut = 1, gap = 0;
+      for(let i = 1; i < arr.length; i++){
+        const r = arr[i-1].m / Math.max(arr[i].m, 1e-9);
+        if(r > gap){ gap = r; cut = i; }
+      }
+      if(gap < 5) return out;                         // 크기가 비슷하면 한 축
+      arr.forEach((x,i)=>{ out[x.k] = (i >= cut) ? 'y1' : 'y'; });
+      return out;
+    }
     function buildChartHour(){
       const selected = [...document.querySelectorAll('.hour-metric:checked')].map(cb=>cb.value);
+      const axisMap = hourAxisMap(selected);
       const datasets = selected.map(k=>{
         const m = HOUR_METRICS[k];
-        return { type:'line', label:m.label, data:m.data, borderColor:m.color, backgroundColor:m.color, tension:.3, pointRadius:2, yAxisID: m.axis==='pct' ? 'y1' : 'y' };
+        return { type:'line', label:m.label, data:m.data, borderColor:m.color, backgroundColor:m.color, tension:.3, pointRadius:2, yAxisID: axisMap[k] || 'y' };
       });
+      // 아무것도 안 올라간 축은 숨긴다 (빈 0~1 눈금만 남아 있으면 헷갈림)
+      const useY  = datasets.some(d=>d.yAxisID === 'y');
+      const useY1 = datasets.some(d=>d.yAxisID === 'y1');
       if(hourChart) hourChart.destroy();
       const hourEl = document.getElementById('chartHour');
       if(!hourEl) return;
       hourChart = new Chart(hourEl, {
         data:{ labels:hourLabels, datasets },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8d90a8',font:{size:10}}}, tooltip: chartTooltipKRW()},
-          scales:{ y:{position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
+          scales:{ y:{display:useY,position:'left',grid:{color:'#292a3d'},ticks:{color:'#8d90a8',font:{size:10}}}, y1:{display:useY1,position:'right',grid:{display:false},ticks:{color:'#8d90a8',font:{size:10}}}, x:{grid:{display:false},ticks:{color:'#8d90a8',font:{size:9},maxTicksLimit:24}} } }
       });
     }
     document.querySelectorAll('.hour-metric').forEach(cb=>{ cb.onchange = buildChartHour; });
@@ -2835,6 +2905,8 @@ document.querySelectorAll('.day-preset-pill-hr').forEach(btn=>{
     if(hgCampEl) hgCampEl.onchange = (e)=>{ hourGrpCamp[key] = e.target.value; hourGrpAd[key] = 'ALL'; renderHourlyPage(data); };
     const hgAdEl = document.getElementById('hgAd');
     if(hgAdEl) hgAdEl.onchange = (e)=>{ hourGrpAd[key] = e.target.value; renderHourlyPage(data); };
+    const hgDevEl = document.getElementById('hgDev');
+    if(hgDevEl) hgDevEl.onchange = (e)=>{ hourDevState[key] = e.target.value; renderHourlyPage(data); };
   }
   /* 이 페이지는 맨 위 '어떤 걸 볼까요' 한 군데에서만 고른다 —
      오른쪽 캠페인 필터는 두 군데가 되어 헷갈리므로 쓰지 않는다. */
