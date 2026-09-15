@@ -2241,6 +2241,74 @@ const SAMPLE_MIN_COST     = 100000;  // B2C형 최소 비용 (원)
 const SAMPLE_MIN_COST_MAN = 10;      // 같은 값을 만원 단위로 쓰는 화면용
 const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
   const MIN_CONV_HOUR = SAMPLE_MIN_CONV; // 표본이 너무 적은 시간대는 우연일 수 있어서 제외
+
+  /* HOURWT ── 시간대 권장 입찰 가중치 ────────────────────────────────
+     네이버 광고그룹의 '요일/시간대 입찰 가중치'에 그대로 넣을 숫자를 뽑는다.
+     연령대 화면과 같은 생각: 입찰가는 클릭 한 번이 벌어주는 값에 비례해야 한다.
+     다만 자료는 위에서 고른 기간이 아니라 **최근 12개월**을 본다 —
+     한 달만 보면 24칸으로 쪼개져 시간마다 전환이 0~2건이라 아무 말도 못 한다.
+     ⚠️ 네이버는 시간대로 쪼갠 전환수를 최근 한 달 반쯤만 준다.
+        그래서 '시간대 전환이 실제로 들어온 달'만 골라서 계산하고, 몇 달을 썼는지 화면에 적는다. */
+  // 네이버에 넣을 수 있는 범위: 평균 100 · 최대 130 · 최저 70 (자료가 얇은 칸은 85~115 안쪽)
+  const HW_MIN_CLICKS = 30, HW_MAX = 130, HW_MIN = 70, HW_MAX_SOFT = 115, HW_MIN_SOFT = 85, HW_PRIOR_CLK = 150;
+  function hwAggOf(list){
+    const r = aggHourly(list, fstate.campaigns);
+    let agg = r.agg;
+    if(isFullSelection || !r.hasCampaignData){
+      agg = blankAgg();
+      list.forEach(m=>{
+        const _dk = hourDevKeep(m.hourly, hgDev);
+        (m.hourly||[]).forEach(h=>{
+          if(_dk && !hourDevOk(h, hgDev)) return;
+          const idx = hourIndexOf(h.hour);
+          agg[idx].impressions += h.impressions||0; agg[idx].clicks += h.clicks||0;
+          agg[idx].cost += h.cost||0; agg[idx].conv += h.conv||0; agg[idx].revenue += h.revenue||0;
+        });
+      });
+    }
+    return agg;
+  }
+  const hwValOf = h => isDB ? (h.conv||0) : (h.revenue||0);
+  const hwWindow = allMonths.slice(-12);
+  // 시간대 전환(매출)이 실제로 들어온 달만 — 0으로 온 달을 섞으면 그 시간대가 억울하게 깎인다
+  const hwMonths = hwWindow.filter(m=>{
+    const hs = (m.hourly||[]).concat(m.hourlyByCampaign||[]);
+    if(!hs.length) return false;
+    return hs.reduce((a,x)=>a+hwValOf(x), 0) > 0;
+  });
+  const hwSkipped = hwWindow.length - hwMonths.length;
+  const hwRows = (()=>{
+    if(!hwMonths.length) return null;
+    const agg = realHours(hwAggOf(hwMonths));
+    const rows = agg.map(h=>({
+      hour: h.hour, clk: h.clicks||0, cost: (h.cost||0)*10000,
+      conv: h.conv||0, rev: (h.revenue||0)*10000,
+      v: h.clicks>0 ? (isDB ? (h.conv||0)/h.clicks : (h.revenue||0)*10000/h.clicks) : null,
+      ok: (h.clicks||0) >= SAMPLE_MIN_CLICKS && (isDB ? (h.conv||0) >= SAMPLE_MIN_CONV
+                                                      : (h.cost||0)*10000 >= SAMPLE_MIN_COST),
+    }));
+    const totClk = rows.reduce((a,r)=>a+r.clk, 0);
+    const totVal = rows.reduce((a,r)=>a+(isDB ? r.conv : r.rev), 0);
+    const p0 = totClk>0 ? totVal/totClk : 0;
+    rows.forEach(r=>{
+      r.use = r.clk >= HW_MIN_CLICKS;
+      r.vs = r.use ? ((isDB ? r.conv : r.rev) + HW_PRIOR_CLK*p0) / (r.clk + HW_PRIOR_CLK) : null;
+    });
+    const usable = rows.filter(r=>r.use);
+    if(!usable.length || !(p0>0)) return { rows, base:null, avg:p0 };
+    rows.forEach(r=>{
+      if(!r.use){ r.w=null; r.conf='none'; return; }
+      r.conf = r.ok ? 'sure' : 'soft';
+      const raw = r.vs/p0*100;                       // 계정 평균을 100 으로 본 값
+      r.raw = raw;
+      const hi = r.ok ? HW_MAX : HW_MAX_SOFT, lo = r.ok ? HW_MIN : HW_MIN_SOFT;
+      r.w = Math.max(lo, Math.min(hi, Math.round(raw/5)*5));
+      r.capped = raw > hi; r.floored = raw < lo;
+    });
+    const base = usable.slice().sort((a,b)=>b.vs-a.vs)[0];   // '제일 좋음' 표시용
+    return { rows, base, avg:p0 };
+  })();
+
   const totalCostWithConv = withConv.reduce((s,h)=>s+h.cost,0), totalConvWithConv = withConv.reduce((s,h)=>s+h.conv,0), totalRevenueWithConv = withConv.reduce((s,h)=>s+h.revenue,0);
   const avgCpaHour = totalConvWithConv>0 ? (totalCostWithConv*10000/totalConvWithConv) : null; // 전환수로 가중한 평균 CPA (시간대별 단순평균이 아님)
   const avgRoasHour = totalCostWithConv>0 ? (totalRevenueWithConv/totalCostWithConv*100) : null; // 비용으로 가중한 평균 ROAS
@@ -2567,6 +2635,72 @@ const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
         </div>` : ''}
       </div>`;
     })()}
+    ${(()=>{
+      // HOURWT 표
+      if(!hwRows) return `<div class="panel" style="margin-bottom:18px;">
+        <div class="panel-title">⏱ 권장 시간대 입찰 가중치</div>
+        <div style="color:var(--muted);font-size:12px;line-height:1.7;">
+          최근 12개월 중 <b>시간대별 ${isDB?'전환':'매출'}이 들어온 달이 없어서</b> 아직 숫자를 뽑을 수 없어요.<br>
+          네이버는 시간대로 쪼갠 ${isDB?'전환수':'매출'}를 최근 한 달 반쯤만 줍니다 — 며칠 더 쌓이면 나옵니다.</div></div>`;
+      const { rows, base } = hwRows;
+      const span = hwMonths.length===1 ? hwMonths[0].label
+        : hwMonths[0].label + ' ~ ' + hwMonths[hwMonths.length-1].label;
+      if(!base) return `<div class="panel" style="margin-bottom:18px;">
+        <div class="panel-title">⏱ 권장 시간대 입찰 가중치</div>
+        <div style="color:var(--muted);font-size:12px;line-height:1.7;">${esc(span)} (${hwMonths.length}개월)을 다 모아도
+          클릭 ${HW_MIN_CLICKS}회를 넘긴 시간대가 없어서 아직 숫자를 뽑을 수 없어요.
+          ${hgDev && hgDev!=='ALL' ? `<br><b>${hgDev==='PC'?'PC':'모바일'}만</b> 골라 본 기준입니다 — 전체 기기로 보면 나올 수 있어요.` : ''}</div></div>`;
+      const softN = rows.filter(r=>r.conf==='soft' && r.w!==null && r.w!==100).length;
+      const vFmt = v => v===null ? '—' : (isDB ? (Math.round(v*10000)/100)+'%' : Math.round(v).toLocaleString('ko-KR')+'원');
+      const body = rows.map(r=>{
+        const isBase = r.hour === base.hour;
+        const cpc = r.clk>0 ? Math.round(r.cost/r.clk) : null;
+        const hi = r.ok ? HW_MAX : HW_MAX_SOFT, lo = r.ok ? HW_MIN : HW_MIN_SOFT;
+        const note = r.w==null ? `클릭 ${HW_MIN_CLICKS}회 미만 — 손대지 마세요`
+          : r.w===100 ? ''
+          : [ r.conf==='soft' ? `참고 — ${isDB?'전환':'매출'}이 적어 ${lo}~${hi} 안에서만 움직였어요` : '',
+              r.capped  ? `계산값 ${Math.round(r.raw)} — 넣을 수 있는 최대가 ${hi}` : '',
+              r.floored ? `계산값 ${Math.round(r.raw)} — 넣을 수 있는 최저가 ${lo}` : ''
+            ].filter(Boolean).join(' · ');
+        return `<tr style="${isBase?'background:rgba(61,220,151,.09);':''}">
+          <td style="padding:5px 8px;">${r.hour}시${isBase?' <span style="color:#3ddc97;font-size:10.5px;font-weight:700;">제일 좋음</span>':''}</td>
+          <td style="padding:5px 8px;text-align:right;">${fmtNum(r.clk)}</td>
+          <td style="padding:5px 8px;text-align:right;">${cpc===null?'—':cpc.toLocaleString('ko-KR')+'원'}</td>
+          <td style="padding:5px 8px;text-align:right;">${isDB?fmtNum(r.conv)+'건':Math.round(r.rev).toLocaleString('ko-KR')+'원'}</td>
+          <td style="padding:5px 8px;text-align:right;">${vFmt(r.v)}</td>
+          <td style="padding:5px 8px;text-align:right;font-weight:${r.w==null?'400':'800'};color:${r.w==null?'var(--muted)':'var(--text)'};">${r.w==null?100:r.w}</td>
+          <td style="padding:5px 8px;color:var(--muted);font-size:11px;">${note}</td></tr>`;
+      }).join('');
+      const copyTxt = rows.filter(r=>r.w!=null).map(r=>r.hour+'시\t'+r.w).join('\n');
+      const _tc = rows.reduce((a,r)=>a+r.cost,0), _tk = rows.reduce((a,r)=>a+r.clk,0);
+      const avgCpc = _tk>0 ? Math.round(_tc/_tk) : null;
+      return `<div class="panel" style="margin-bottom:18px;">
+        <div class="panel-title">⏱ 권장 시간대 입찰 가중치</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.75;margin-bottom:10px;max-width:86ch;">
+          <b style="color:var(--accent);">최근 ${hwMonths.length}개월</b>(${esc(span)}) 자료로 뽑았습니다 —
+          위에서 고른 기간과 상관없이 <b>길게 봐야</b> 24개 시간대의 차이가 드러나서입니다.
+          ${hwSkipped ? `<br>그중 <b>${hwSkipped}개 달</b>은 네이버가 시간대별 ${isDB?'전환수':'매출'}를 주지 않아 뺐습니다.` : ''}
+          ${hgDev && hgDev!=='ALL' ? `<br><b>${hgDev==='PC'?'PC':'모바일'}만</b> 골라 본 기준입니다 — 기기를 바꾸면 숫자도 바뀝니다.` : ''}
+          <br><b>계정 평균을 100</b>으로 놓고, ${isDB?'클릭 한 번당 전환이':'클릭 한 번당 매출이'} 평균보다 좋은 시간대는
+          <b>최대 ${HW_MAX}</b>까지 올리고 나쁜 시간대는 <b>최저 ${HW_MIN}</b>까지 내린 값입니다 (네이버에 넣을 수 있는 범위).
+          지금 제일 좋은 시간대는 <b>${base.hour}시</b>입니다.
+          ${softN ? `이 중 <b>${softN}칸</b>은 ${isDB?'전환':'매출'}이 적어 <b>${HW_MIN_SOFT}~${HW_MAX_SOFT}</b> 안에서만 움직였습니다(메모에 '참고').` : ''}
+          클릭이 ${HW_MIN_CLICKS}회도 안 되는 시간대는 숫자를 만들지 않고 <b>그대로 둡니다</b>(100).
+          ${avgCpc!==null ? `<br><b>기준가</b> — 100 은 <b>평균 클릭당 비용 ${avgCpc.toLocaleString('ko-KR')}원</b>을 뜻합니다. 광고그룹 기본 입찰가를 그 근처에 두세요.` : ''}
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px;">
+          <tr style="color:var(--muted);font-size:11px;text-align:left;border-bottom:1px solid #262a3b;">
+            <th style="padding:0 8px 6px;">시간대</th><th style="padding:0 8px 6px;text-align:right;">클릭</th>
+            <th style="padding:0 8px 6px;text-align:right;">평균 클릭당 비용</th>
+            <th style="padding:0 8px 6px;text-align:right;">${isDB?'전환':'매출'}</th>
+            <th style="padding:0 8px 6px;text-align:right;">${isDB?'클릭당 전환율':'클릭당 매출'}</th>
+            <th style="padding:0 8px 6px;text-align:right;">권장 가중치</th>
+            <th style="padding:0 8px 6px;">메모</th></tr>
+          ${body}
+        </table></div>
+        <button id="hwCopy" data-t="${esc(copyTxt)}" style="margin-top:10px;border:1px solid #2c3145;background:#171829;color:var(--text);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;">가중치 복사하기</button>
+      </div>`;
+    })()}
     ${buildAISummaryBoxHTML(key, periodLabel)}
 
     <div class="panel" style="margin-top:12px;">
@@ -2751,6 +2885,18 @@ const SAMPLE_MIN_CLICKS   = 30;      // 공통 최소 클릭수
     compareMonthState[key] = 'AUTO';
     dayRangeState[key] = { start: null, end: null }; dayPresetChoice[key] = null;
     renderHourlyPage(data);
+  };
+  // HOURWT 가중치 복사 — 네이버 화면·카톡에 그대로 붙일 수 있게 '시간<탭>숫자'
+  const hwBtn = document.getElementById('hwCopy');
+  if(hwBtn) hwBtn.onclick = ()=>{
+    const t = hwBtn.dataset.t || '';
+    const done = ()=>{ hwBtn.textContent='복사했어요'; setTimeout(()=>{ hwBtn.textContent='가중치 복사하기'; }, 1500); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done, ()=>done());
+    } else {
+      const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+      ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); done();
+    }
   };
   document.getElementById('monthRangeAllBtn').onclick = ()=>{
     monthRangeState[key] = { start: allMonths[0].label, end: allMonths[allMonths.length-1].label };

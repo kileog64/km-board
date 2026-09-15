@@ -196,7 +196,8 @@
   .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
   .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
 
-  /* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
+
+/* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
   .wt-basis{margin:10px 0 4px;padding:11px 14px;border-left:3px solid var(--accent);
     border-radius:0 10px 10px 0;background:rgba(139,124,255,.12);
     font-size:12.5px;line-height:1.75;color:var(--tx);word-break:keep-all;}
@@ -631,9 +632,10 @@ function rankRows(axis){
   const { A, B, totA, totB } = collect(axis);
   const dA = dayCount(PA.from, PA.to), dB = dayCount(PB.from, PB.to);
   const names = [...new Set([...Object.keys(A), ...Object.keys(B)])];
+  const same = (dA === dB);
   const rows = names.map(n=>{
     const a = A[n] || blankBox(), b = B[n] || blankBox();
-    const pa = perDay(a, dA), pb = perDay(b, dB);
+    const pa = same ? a : perDay(a, dA), pb = same ? b : perDay(b, dB);
     return {
       name: n, a, b, pa, pb,
       dConv: pa.conv - pb.conv,
@@ -646,7 +648,7 @@ function rankRows(axis){
   });
   const by = isDB ? (x=>Math.abs(x.dConv)) : (x=>Math.abs(x.dRev));
   rows.sort((x,y)=> by(y) - by(x) || Math.abs(y.dCost) - Math.abs(x.dCost));
-  return { rows, totA, totB, dA, dB };
+  return { rows, totA, totB, dA, dB, same };
 }
 
 /* ── 그리기 ───────────────────────────────────────────────────────────── */
@@ -688,7 +690,10 @@ function periodBar(){
 }
 
 function summaryCard(totA, totB, dA, dB){
-  const pa = perDay(totA, dA), pb = perDay(totB, dB);
+  /* WHYSAME 길이가 같으면 나누지 않는다 — 7일 vs 7일을 하루 평균으로 바꾸면
+     전환이 적은 업체는 '0.1건' 같은 숫자만 남아 아무것도 읽히지 않는다. */
+  const same = (dA === dB);
+  const pa = same ? totA : perDay(totA, dA), pb = same ? totB : perDay(totB, dB);
   const cell = (lab, va, vb, fmt, goodUp, tail) => {
     const d = (vb === 0) ? null : (va/vb - 1)*100;
     return `<div style="flex:1 1 150px;min-width:0;">
@@ -714,11 +719,12 @@ function summaryCard(totA, totB, dA, dB){
            ${(roA&&roB)?`<b style="color:${wcol((roA/roB-1)*100, true)};margin-left:5px;">${wpct((roA/roB-1)*100)}</b>`:''}</div></div>`;
   return `
   <div class="card" style="margin-bottom:14px;">
-    <div style="font-size:13px;font-weight:800;margin-bottom:10px;">하루 평균으로 보면</div>
+    <div style="font-size:13px;font-weight:800;margin-bottom:10px;">${same ? `이 기간 합계 <span style="font-weight:400;color:var(--muted);font-size:12px;">(${dA}일씩 견주니 그대로 더한 값입니다)</span>`
+      : `하루 평균 <span style="font-weight:400;color:var(--muted);font-size:12px;">(${dA}일 vs ${dB}일이라 하루치로 맞췄습니다)</span>`}</div>
     <div style="display:flex;flex-wrap:wrap;gap:14px;">
-      ${cell('전환', pa.conv, pb.conv, v=>wnum1(v), true, '건')}
+      ${cell('전환', pa.conv, pb.conv, v=> same ? Math.round(v).toLocaleString('ko-KR') : wnum1(v), true, '건')}
       ${cell('비용', pa.cost, pb.cost, v=>wman(v), false, '원')}
-      ${cell('클릭', pa.clicks, pb.clicks, v=>wnum1(v), true, '회')}
+      ${cell('클릭', pa.clicks, pb.clicks, v=> same ? Math.round(v).toLocaleString('ko-KR') : wnum1(v), true, '회')}
       ${eff}
     </div>
   </div>`;
@@ -729,7 +735,7 @@ function causeCard(totA, totB){
     return `<div class="card" style="margin-bottom:14px;">
       <div style="font-size:13px;font-weight:800;margin-bottom:8px;">전환당 비용이 왜 달라졌나</div>
       <div style="font-size:12.5px;color:var(--muted);line-height:1.7;">
-        표본이 얇아 원인을 말할 수 없습니다 — 양쪽 기간 모두 <b>전환 ${WHY_MIN_CONV}건 · 클릭 ${WHY_MIN_CLICK}회</b> 이상이어야 합니다.
+        자료가 적어 원인을 말할 수 없습니다 — 양쪽 기간 모두 <b>전환 ${WHY_MIN_CONV}건 · 클릭 ${WHY_MIN_CLICK}회</b> 이상이어야 합니다.
         기간을 늘려서 다시 보세요.</div></div>`;
   }
   const s = splitCpa(totA, totB);
@@ -738,7 +744,7 @@ function causeCard(totA, totB){
     <div style="margin-top:9px;">
       <div style="display:flex;justify-content:space-between;font-size:12.5px;">
         <span>${lab} ${isMain?'<span style="font-size:10.5px;font-weight:800;color:#fff;background:var(--accent);border-radius:6px;padding:1px 6px;margin-left:4px;">주원인</span>':''}</span>
-        <span style="color:var(--muted);">밀어올린 몫 ${share}</span>
+        <span style="color:var(--muted);">이만큼 때문 ${share}</span>
       </div>
       <div style="height:8px;border-radius:5px;background:var(--panel-2);margin-top:4px;overflow:hidden;">
         <div style="height:100%;width:${share}%;background:${isMain?'var(--accent)':'var(--border)'};"></div>
@@ -775,7 +781,7 @@ const WHY_AXES = [
   { k:'campaign', t:'캠페인' }, { k:'keyword', t:'키워드' }, { k:'device', t:'기기' },
 ];
 function movedCard(){
-  const { rows, dA, dB } = rankRows(whyAxis);
+  const { rows, dA, dB, same } = rankRows(whyAxis);
   const tabs = WHY_AXES.map(a=>
     `<button class="pill ${whyAxis===a.k?'on':''}" data-ax="${a.k}">${a.t}</button>`).join('');
   const list = rows.slice(0, WHY_TOP);
@@ -785,7 +791,7 @@ function movedCard(){
     const w = Math.round(Math.abs(v)/maxAbs*100);
     const up = v > 0;
     const flat = Math.abs(v) < 0.0001;   // 달라진 게 없으면 색을 쓰지 않는다
-    const val = isDB ? (wsign(v, wnum1(v)) + '건') : (wsign(v, wman(v)) + '원');
+    const val = isDB ? (wsign(v, same ? String(Math.round(v)) : wnum1(v)) + '건') : (wsign(v, wman(v)) + '원');
     const cpaTxt = (r.cpaA && r.cpaB)
       ? `${r.cpaB.toLocaleString('ko-KR')} → ${r.cpaA.toLocaleString('ko-KR')}원`
       : (r.thin ? '표본 적음' : '-');
@@ -809,13 +815,13 @@ function movedCard(){
       <div style="display:flex;gap:6px;">${tabs}</div>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
-      하루 평균 ${isDB?'전환수가':'매출이'} 많이 달라진 순서입니다. 오른쪽은 하루 평균 비용 변화와 전환당 비용.
+      ${same?'':'하루 평균 '}${isDB?'전환수가':'매출이'} 많이 달라진 순서입니다. 오른쪽은 ${same?'':'하루 평균 '}비용 변화와 전환당 비용.
     </div>
     <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
       <thead><tr style="color:var(--muted);font-size:11.5px;text-align:left;">
         <th style="padding:0 10px 6px 0;font-weight:600;">${WHY_AXES.find(a=>a.k===whyAxis).t}</th>
-        <th style="padding:0 8px 6px;font-weight:600;">하루 평균 ${isDB?'전환':'매출'} 변화</th>
-        <th style="padding:0 0 6px 8px;font-weight:600;text-align:right;">하루 평균 비용 변화 · 전환당 비용</th>
+        <th style="padding:0 8px 6px;font-weight:600;">${same?'':'하루 평균 '}${isDB?'전환':'매출'} 변화</th>
+        <th style="padding:0 0 6px 8px;font-weight:600;text-align:right;">${same?'':'하루 평균 '}비용 변화 · 전환당 비용</th>
       </tr></thead><tbody>${body}</tbody></table></div>
   </div>`;
 }
@@ -988,6 +994,7 @@ async function pickClient(id){
   av.textContent = (cur.name||'·').slice(0,1);
   av.style.background = cur.color || '#8b7cff';
   monthCache = {}; PA = null; PB = null; whyPinned = false; whyQuick = 'w7';
+  if(typeof wtState !== 'undefined'){ wtMerged = null; wtRecent = null; wtMonths = []; wtState = 'idle'; }
   await loadRange();
 }
 

@@ -197,7 +197,8 @@
   .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
   .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
 
-  /* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
+
+/* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
   .wt-basis{margin:10px 0 4px;padding:11px 14px;border-left:3px solid var(--accent);
     border-radius:0 10px 10px 0;background:rgba(139,124,255,.12);
     font-size:12.5px;line-height:1.75;color:var(--tx);word-break:keep-all;}
@@ -982,6 +983,7 @@ async function loadRange(){
     }catch(e){ monthCache[mk] = null; }
   }
   recompute();
+  if(typeof loadWt === 'function') loadWt();   // 가중치용 12개월은 화면을 먼저 그린 뒤 뒤에서 받아온다
 }
 
 /* AGECONV — 업체 종류에 맞는 전환을 쓰게 맞춘다.
@@ -1086,6 +1088,7 @@ async function pickClient(id){
   av.style.background = cur.color || '#8b7cff';
   METRICS.forEach(m=>{ m.on = (m.k==='eff' || m.k==='conv'); });
   monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
+  if(typeof wtState !== 'undefined'){ wtMerged = null; wtRecent = null; wtMonths = []; wtState = 'idle'; }
   await loadRange();
 }
 

@@ -196,7 +196,8 @@
   .rbox .rv{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.3;}
   .rbox .rs{font-size:12px;color:var(--muted);margin-top:5px;}
 
-  /* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
+
+/* ── 연령대 권장 입찰 가중치 ───────────────────────────────── */
   .wt-basis{margin:10px 0 4px;padding:11px 14px;border-left:3px solid var(--accent);
     border-radius:0 10px 10px 0;background:rgba(139,124,255,.12);
     font-size:12.5px;line-height:1.75;color:var(--tx);word-break:keep-all;}
@@ -609,55 +610,158 @@ function renderReco(ageRows){
 
    표본이 모자란 연령대는 숫자를 만들지 않고 100(=손 안 댐)으로 둔다.
    섣불리 20 같은 숫자를 넣으면 그 연령대가 아예 안 나오게 된다. */
-const WT_FLOOR = 30;   // 이보다 낮게는 권하지 않는다 — 광고가 아예 안 나올 수 있어서
+/* WT12 ── 가중치 전용 '최근 12개월' 자료 ─────────────────────────────
+   위쪽 기간 칸은 표·그래프용이고, 가중치는 그것과 따로 12개월을 본다.
+   한 달만 보면 연령대마다 전환이 0~3건이라 숫자가 안 나오기 때문.
+   이미 받아둔 달은 다시 받지 않는다(monthCache 공용). */
+let wtMerged = null, wtRecent = null, wtMonths = [], wtState = 'idle';
+
+function mergeMonths(list){
+  const out = { age:{}, gender:{}, groups:{}, info:{} };
+  (list||[]).forEach(mk=>{
+    const d = monthCache[mk]; if(!d) return;
+    Object.assign(out.info, d.groupInfo || {});
+    ['age','gender'].forEach(g=>{
+      Object.keys(d[g]||{}).forEach(code=>{
+        const t = out[g][code] || (out[g][code]=blank()); addTo(t, d[g][code]); });
+    });
+    mergeGroups(out.groups, d.byGroup);
+  });
+  return out;
+}
+
+// 위에서 고른 캠페인·광고그룹을 12개월 자료에도 똑같이 적용한다
+function wtAgeRows(){
+  if(!wtMerged) return null;
+  if(grpCamp === 'ALL') return rowsOf(wtMerged.age, AGE_ORDER);
+  const node = campaignTree().find(t=>t.campaign===grpCamp);
+  if(!node) return rowsOf(wtMerged.age, AGE_ORDER);
+  const gids = (agPick === 'ALL') ? node.groups.map(g=>g.gid) : [agPick];
+  return rowsOf(sumBox(gids, 'age', wtMerged), AGE_ORDER);
+}
+// 기준가(클릭당 비용)는 오래된 값이면 쓸모가 없어 최근 3개월로 따로 본다
+function wtRecentRows(){
+  if(!wtRecent) return null;
+  if(grpCamp === 'ALL') return rowsOf(wtRecent.age, AGE_ORDER);
+  const node = campaignTree().find(t=>t.campaign===grpCamp);
+  if(!node) return rowsOf(wtRecent.age, AGE_ORDER);
+  const gids = (agPick === 'ALL') ? node.groups.map(g=>g.gid) : [agPick];
+  return rowsOf(sumBox(gids, 'age', wtRecent), AGE_ORDER);
+}
+
+async function loadWt(){
+  if(wtState !== 'idle') return;
+  wtState = 'loading';
+  wtMonths = allMonths.slice(-12);
+  for(const mk of wtMonths){
+    if(monthCache[mk] !== undefined) continue;
+    try{
+      const url = await storage.ref('clients/'+cur.id+'/'+mk+'__ageGender.json').getDownloadURL();
+      monthCache[mk] = normalizeConvBasis(await (await fetch(url)).json());
+    }catch(e){ monthCache[mk] = null; }
+  }
+  const got = wtMonths.filter(m=>monthCache[m]);
+  wtMerged = mergeMonths(got);
+  wtRecent = mergeMonths(got.slice(-3));
+  wtMonths = got;
+  wtState = 'done';
+  render();
+}
+
+const WT_MAX        = 130;  // 네이버에 넣을 수 있는 최대
+const WT_MIN        = 70;   // 최저
+const WT_MAX_SOFT   = 115;  // 자료가 얇은 줄은 덜 과감하게
+const WT_MIN_SOFT   = 85;
+const WT_MIN_CLICKS = 30;   // 이보다 클릭이 적으면 숫자를 만들지 않는다
+const WT_PRIOR_CLK  = 150;  /* 얇은 줄을 계정 평균 쪽으로 끌어당기는 세기(클릭 수 기준).
+                               예) 클릭 40회짜리 줄은 제 값 21 : 계정 평균 79 로 섞인다.
+                               클릭이 쌓일수록 제 값 쪽으로 옮겨간다. */
 
 function valuePerClick(r){
   if(!r || !r.clk) return null;
   return isDB ? (r.conv || 0) / r.clk : (r.rev || 0) / r.clk;
 }
 
+/* 생각의 뼈대
+   ① 기준(100)은 '계정 평균'이다. 클릭 한 번이 평균만큼 벌어주는 연령대가 100.
+      평균보다 잘 버는 곳은 130까지 올리고, 못 버는 곳은 70까지 내린다.
+   ② 자료가 얇은 줄은 계정 평균 쪽으로 끌어당겨(WT_PRIOR_CLK) 우연으로 과하게 움직이지 않게 한다.
+      그래도 표본 기준을 못 넘긴 줄은 85~115 안쪽으로만 움직인다.
+   ③ 클릭 30회도 안 되는 줄은 아예 숫자를 만들지 않는다(100 = 손 안 댐). */
 function weightRows(ageRows){
   const rows = ageRows.map(r=>({
     code: r.code, imp:r.imp, clk:r.clk, cost:r.cost, conv:r.conv, rev:r.rev,
     ok: enough(r), v: valuePerClick(r),
   }));
-  const usable = rows.filter(r=>r.ok && r.v > 0);
-  if(!usable.length) return { rows, base:null };
-  const base = usable.slice().sort((a,b)=>b.v-a.v)[0];
+  const totClk = rows.reduce((a,r)=>a+(r.clk||0), 0);
+  const totVal = rows.reduce((a,r)=>a+(isDB ? (r.conv||0) : (r.rev||0)), 0);
+  const p0 = totClk > 0 ? totVal / totClk : 0;      // 계정 평균 — 클릭 한 번당 값
   rows.forEach(r=>{
-    if(!r.ok || !(r.v > 0)){ r.w = null; return; }
-    const raw = r.v / base.v * 100;
-    r.raw = raw;
-    r.w = Math.max(WT_FLOOR, Math.min(500, Math.round(raw / 5) * 5));
-    r.floored = raw < WT_FLOOR;
+    r.use = (r.clk || 0) >= WT_MIN_CLICKS;
+    r.vs = r.use
+      ? ((isDB ? (r.conv||0) : (r.rev||0)) + WT_PRIOR_CLK * p0) / (r.clk + WT_PRIOR_CLK)
+      : null;
   });
-  return { rows, base };
+  const usable = rows.filter(r=>r.use);
+  if(!usable.length || !(p0 > 0)) return { rows, base:null, avg:p0 };
+  rows.forEach(r=>{
+    if(!r.use){ r.w = null; r.conf = 'none'; return; }
+    r.conf = r.ok ? 'sure' : 'soft';
+    const raw = r.vs / p0 * 100;                    // 평균을 100으로 본 값
+    r.raw = raw;
+    const hi = r.ok ? WT_MAX : WT_MAX_SOFT, lo = r.ok ? WT_MIN : WT_MIN_SOFT;
+    r.w = Math.max(lo, Math.min(hi, Math.round(raw / 5) * 5));
+    r.capped = raw > hi;                            // 더 올리고 싶어도 못 올린 줄
+    r.floored = raw < lo;
+  });
+  // 제일 잘 버는 줄 — 화면에 '제일 좋음' 표시를 달아주기 위해서만 쓴다
+  const base = usable.slice().sort((a,b)=>b.vs-a.vs)[0];
+  return { rows, base, avg:p0 };
 }
 
-function renderWeights(ageRows){
+function renderWeights(ageRowsNow){
+  if(wtState === 'loading'){
+    return `<div class="card"><h3>권장 입찰 가중치</h3>
+      <div class="sub">최근 12개월 자료를 불러오는 중이에요…</div></div>`;
+  }
+  // 12개월 자료가 있으면 그걸로, 없으면(못 받았으면) 보고 있는 기간으로
+  const wtRows = wtAgeRows();
+  const ageRows = wtRows || ageRowsNow;
+  const basis = wtRows
+    ? (wtMonths.length ? (wtMonths.length===1 ? wtMonths[0]
+        : wtMonths[0]+' ~ '+wtMonths[wtMonths.length-1]) + ' · ' + wtMonths.length + '개월' : '')
+    : '';
+  const recRows = wtRecentRows();
   const { rows, base } = weightRows(ageRows);
   const totCost = rows.reduce((a,r)=>a+(r.cost||0), 0);
   if(!base){
     return `<div class="card"><h3>권장 입찰 가중치</h3>
-      <div class="sub">표본이 충분한 연령대가 없어서 아직 숫자를 뽑을 수 없어요.
-        기간을 넓히거나 자료가 더 쌓이면 나옵니다.</div></div>`;
+      <div class="sub">${basis ? `최근 ${wtMonths.length}개월(${basis})을 다 모아도 ` : ''}클릭 ${WT_MIN_CLICKS}회를 넘긴 연령대가 없어서
+        아직 숫자를 뽑을 수 없어요.</div></div>`;
   }
+  const softN = rows.filter(r=>r.conf === 'soft' && r.w !== null && r.w !== 100).length;
   const vFmt = v => v===null ? '—'
     : (isDB ? (Math.round(v*10000)/100) + '%' : won(v) + '원');
   const vHead = isDB ? '클릭당 전환율' : '클릭당 매출';
 
   const body = rows.map(r=>{
     const isBase = r.code === base.code;
-    const cls = isBase ? 'base' : (r.ok ? '' : 'thin');
+    const cls = isBase ? 'base' : (r.conf === 'none' ? 'thin' : '');
     const wTxt = r.w == null
       ? `<span style="color:var(--muted);">100</span>`
       : `<span class="wt-num">${r.w}</span>`;
-    const note = r.w == null ? '표본 부족 — 손대지 마세요'
-      : (isBase ? '' : (r.floored ? `계산값 ${Math.round(r.raw)} — 너무 낮아 ${WT_FLOOR}으로 올림` : ''));
+    const hi = r.ok ? WT_MAX : WT_MAX_SOFT, lo = r.ok ? WT_MIN : WT_MIN_SOFT;
+    // 100 그대로인 줄은 손댈 일이 없으니 메모도 비워 둔다 — 표가 글자로 도배되지 않게
+    const note = r.w == null ? `클릭 ${WT_MIN_CLICKS}회 미만 — 손대지 마세요`
+      : r.w === 100 ? ''
+      : [ r.conf === 'soft' ? `참고 — ${isDB?'전환':'매출'}이 적어 ${lo}~${hi} 안에서만 움직였어요` : '',
+          r.capped  ? `계산값 ${Math.round(r.raw)} — 넣을 수 있는 최대가 ${hi}` : '',
+          r.floored ? `계산값 ${Math.round(r.raw)} — 넣을 수 있는 최저가 ${lo}` : ''
+        ].filter(Boolean).join(' · ');
     // AGECPC-MARK 클릭 한 번에 실제로 얼마를 냈는지 — 가중치를 넣을 기준가가 된다
     const cpc = r.clk > 0 ? Math.round(r.cost / r.clk) : null;
     return `<tr class="${cls}">
-      <td class="l">${ageLabel(r.code)}${isBase?'<span class="wt-base">기준</span>':''}</td>
+      <td class="l">${ageLabel(r.code)}${isBase?'<span class="wt-base">제일 좋음</span>':''}</td>
       <td>${num(r.clk)}</td>
       <td>${cpc===null ? '—' : won(cpc)+'원'}</td>
       <td>${isDB ? num(r.conv)+'건' : won(r.rev)+'원'}</td>
@@ -678,21 +782,34 @@ function renderWeights(ageRows){
     : '';
 
   // 기준 연령대의 클릭당 비용 — 이게 있어야 '얼마를 기준으로 한 100인지'를 말할 수 있다
-  const baseCpc = (base && base.clk > 0) ? Math.round(base.cost / base.clk) : null;
+  // 기준가 = 100 에 해당하는 값이므로 '계정 평균 클릭당 비용'이다. 오래된 값은 쓸모없어 최근 3개월로 본다
+  const cpcOf = list => {
+    if(!list) return null;
+    const c = list.reduce((a,r)=>a+(r.cost||0), 0), k = list.reduce((a,r)=>a+(r.clk||0), 0);
+    return k > 0 ? Math.round(c / k) : null;
+  };
+  const recCpc = cpcOf(recRows);
+  const useRec = recCpc !== null;
+  const baseCpc = useRec ? recCpc : cpcOf(rows);
+  const cpcWhen = useRec ? '최근 3개월' : (basis ? '최근 '+wtMonths.length+'개월' : '이 기간');
   const copyTxt = rows.filter(r=>r.w != null)
     .map(r=>ageLabel(r.code) + '\t' + r.w).join('\n');
 
   return `<div class="card"><h3>권장 입찰 가중치</h3>
     <div class="sub">
-      ${isDB ? '클릭 한 번당 전환이' : '클릭 한 번당 매출이'} 가장 좋은
-      <b>${ageLabel(base.code)}</b>를 <b>기준(100)</b>으로 놓고, 나머지를 그만큼 낮춘 값입니다.
-      표본이 모자란 연령대는 <b>손대지 않는 게 맞습니다</b>(100).
+      ${basis ? `<b style="color:var(--accent);">최근 ${wtMonths.length}개월</b>(${basis}) 자료로 뽑았습니다 —
+        위에서 고른 기간과 상관없이 <b>길게 봐야</b> 연령대별 차이가 제대로 드러나서입니다.<br>` : ''}
+      <b>계정 평균을 100</b>으로 놓고, ${isDB ? '클릭 한 번당 전환이' : '클릭 한 번당 매출이'}
+      평균보다 좋은 연령대는 <b>최대 ${WT_MAX}</b>까지 올리고 나쁜 곳은 <b>최저 ${WT_MIN}</b>까지 내린 값입니다
+      (네이버에 넣을 수 있는 범위). 지금 제일 좋은 곳은 <b>${ageLabel(base.code)}</b>입니다.
+      ${softN ? `이 중 <b>${softN}줄</b>은 ${isDB?'<b>전환</b>':'<b>매출</b>'}이 적어
+        <b>${WT_MIN_SOFT}~${WT_MAX_SOFT}</b> 안에서만 움직였습니다(메모에 '참고').` : ''}
+      클릭이 ${WT_MIN_CLICKS}회도 안 되는 연령대는 숫자를 만들지 않고 <b>그대로 둡니다</b>(100).
     </div>
     ${baseCpc===null ? '' : `<div class="wt-basis">
-      <b>기준가</b> — 이 가중치는 기준 연령대 <b>${ageLabel(base.code)}</b>의
-      평균 클릭당 비용이 <b>${won(baseCpc)}원</b>일 때를 100으로 본 값입니다.
+      <b>기준가</b> — 100 은 <b>${cpcWhen} 계정 평균 클릭당 비용 ${won(baseCpc)}원</b>을 뜻합니다.
       광고그룹 기본 입찰가를 <b>${won(baseCpc)}원</b> 근처에 두고 아래 숫자를 넣으세요.
-      기본 입찰가가 이보다 많이 낮으면 가중치를 넣어도 그 연령대가 안 올라갑니다.
+      기본 입찰가가 이보다 많이 낮으면 가중치를 올려도 그 연령대가 안 올라갑니다.
     </div>`}
     <div class="wt-wrap"><table class="wt-tbl">
       <tr><th class="l">연령대</th><th>클릭</th><th>평균 클릭당 비용</th><th>${isDB?'전환':'매출'}</th>
@@ -874,8 +991,8 @@ function topCampaigns(tree, n){
   return tree.slice().sort((a,b)=>campCost(b)-campCost(a)).slice(0, n).map(t=>t.campaign);
 }
 
-function sumBox(gids, which){
-  const G = (merged && merged.groups) || {}, out = {};
+function sumBox(gids, which, src){
+  const G = ((src || merged) && (src || merged).groups) || {}, out = {};
   gids.forEach(gid=>{
     const box = (G[gid] && G[gid][which]) || {};
     Object.keys(box).forEach(code=>{
@@ -1146,6 +1263,7 @@ async function loadRange(){
     }catch(e){ monthCache[mk] = null; }
   }
   recompute();
+  if(typeof loadWt === 'function') loadWt();   // 가중치용 12개월은 화면을 먼저 그린 뒤 뒤에서 받아온다
 }
 
 /* AGECONV — 업체 종류에 맞는 전환을 쓰게 맞춘다.
@@ -1250,6 +1368,7 @@ async function pickClient(id){
   av.style.background = cur.color || '#8b7cff';
   METRICS.forEach(m=>{ m.on = (m.k==='eff'); });
   monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
+  if(typeof wtState !== 'undefined'){ wtMerged = null; wtRecent = null; wtMonths = []; wtState = 'idle'; }
   await loadRange();
 }
 
