@@ -288,6 +288,35 @@
 .card .card{margin-bottom:10px;}
 .card .card:last-child{margin-bottom:0;}
 
+/* SIDEFILT 오른쪽 필터 패널 — 대시보드·시간대 화면과 같은 자리·같은 모양 */
+.mainrow{display:flex;gap:16px;align-items:flex-start;}
+.mainrow > #body{flex:1 1 auto;min-width:0;}
+.sidefilter{flex:0 0 250px;position:sticky;top:12px;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;padding:14px;max-height:calc(100vh - 30px);
+  overflow-y:auto;}
+.sidefilter:empty{display:none;}
+.sf-head{font-size:13px;font-weight:800;margin-bottom:10px;}
+.sf-group{margin-bottom:12px;}
+.sf-title{font-size:11.5px;font-weight:700;color:var(--tx);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:7px;padding:5px 9px;margin-bottom:7px;}
+.sf-list{max-height:240px;overflow-y:auto;}
+.sf-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--tx);
+  padding:4px 2px;cursor:pointer;line-height:1.45;}
+.sf-item input{accent-color:var(--accent);width:13px;height:13px;margin-top:2px;flex:none;}
+.sf-item .sf-sub{color:var(--muted);font-size:11px;margin-left:auto;padding-left:6px;white-space:nowrap;}
+.sf-note{font-size:11.5px;color:var(--muted);line-height:1.6;padding:2px 2px 4px;}
+.sf-btns{display:flex;gap:7px;margin-top:4px;}
+.sf-btns button{flex:1;background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+  border-radius:7px;padding:6px 8px;font:inherit;font-size:11.5px;cursor:pointer;}
+.sf-btns button:hover{border-color:var(--accent);}
+@media (max-width:900px){
+  /* 세로로 쌓을 땐 align-items:flex-start 가 남아 있으면 칸이 내용 폭만큼만 줄어들어
+     화면 밖으로 삐져나간다 — 폭을 다시 채우게 한다 */
+  .mainrow{flex-direction:column;align-items:stretch;}
+  .mainrow > #body{width:100%;}
+  .sidefilter{flex:1 1 auto;width:100%;position:static;max-height:none;box-sizing:border-box;}
+}
+
 /* 캠페인 → 광고그룹 고르는 줄 */
 .grp-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px}
 .grp-pick label{display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0}
@@ -404,7 +433,10 @@
       </div>
     </div>
 
-    <div id="body"></div>
+    <div class="mainrow">
+      <div id="body"></div>
+      <div class="sidefilter" id="sideFilter"></div>
+    </div>
 
     <p class="foot">
       네이버 <b>타겟팅 세그먼트 보고서</b>에서 연령·성별만 골라 집계합니다.
@@ -474,6 +506,39 @@ document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
 
 const won = n => Math.round(n||0).toLocaleString('ko-KR');
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
+
+/* SIDEFILT 오른쪽 필터를 그린다. 화면마다 고를 거리가 달라서 '칸 목록'을 받아 그린다.
+   spec = [{ title, kind:'check'|'radio'|'note', name, items:[{v,label,sub,on}], note, btns:true }]
+   고르면 onChange(kind별 값)이 불린다. */
+function renderSideFilter(spec, onChange){
+  const el = document.getElementById('sideFilter');
+  if(!el) return;
+  const groups = (spec||[]).filter(Boolean);
+  if(!groups.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="sf-head">필터</div>' + groups.map((g,gi)=>{
+    const body = g.kind === 'note'
+      ? `<div class="sf-note">${g.note||''}</div>`
+      : `<div class="sf-list">${(g.items||[]).map((it,ii)=>
+          `<label class="sf-item"><input type="${g.kind==='radio'?'radio':'checkbox'}"
+             ${g.kind==='radio'?`name="sf${gi}"`:''} data-g="${gi}" data-i="${ii}" ${it.on?'checked':''}>
+           <span>${it.label}</span>${it.sub?`<span class="sf-sub">${it.sub}</span>`:''}</label>`).join('')}</div>`
+      + (g.btns ? `<div class="sf-btns"><button data-all="${gi}">전체 선택</button>
+           <button data-none="${gi}">전체 해제</button></div>` : '');
+    return `<div class="sf-group"><div class="sf-title">${g.title}</div>${body}</div>`;
+  }).join('');
+  el.querySelectorAll('.sf-item input').forEach(inp=>{
+    inp.onchange = ()=>{
+      const g = groups[+inp.dataset.g], it = g.items[+inp.dataset.i];
+      onChange({ group:g, item:it, checked:inp.checked, kind:g.kind });
+    };
+  });
+  el.querySelectorAll('[data-all]').forEach(b=>{
+    b.onclick = ()=> onChange({ group:groups[+b.dataset.all], all:true });
+  });
+  el.querySelectorAll('[data-none]').forEach(b=>{
+    b.onclick = ()=> onChange({ group:groups[+b.dataset.none], none:true });
+  });
+}
 
 const AGE_ORDER = ['AG0012','AG1318','AG1418','AG1924','AG2529','AG3034','AG3539',
                    'AG4044','AG4549','AG5054','AG5559','AG6099','AGXXXX'];
@@ -960,8 +1025,10 @@ function renderTable(title, sub, rows, labelFn, showFlag){
      groupInfo[그룹번호]      { n: 광고그룹 이름, c: 캠페인 이름 }
    캠페인 단위 숫자는 같은 캠페인에 속한 광고그룹을 더해서 만든다.            */
 
-let grpCamp = 'ALL';        // 'ALL'(전체 캠페인) 또는 캠페인 이름
+let grpCamp = 'ALL';        // 'ALL'(전체 캠페인) 또는 캠페인 이름 — 켜 둔 캠페인이 하나일 때만 이름이 들어간다
 let agPick = 'ALL';         // 'ALL'(캠페인 전체) 또는 광고그룹 번호
+let campOn = null;          // 오른쪽 필터에서 켜 둔 캠페인 이름들(Set). 처음엔 전부 켜짐
+let campSeen = new Set();   // 한 번이라도 목록에 나온 캠페인 — 기간을 바꿔 새로 생긴 것만 자동으로 켠다
 const esc2 = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // 광고그룹을 캠페인으로 묶는다. 이름표가 없는 그룹은 번호로 대신 보여준다.
@@ -1006,67 +1073,93 @@ function sumBox(gids, which, src){
    그 안의 광고그룹만 두 번째 칸에 담는다. 첫 칸의 '전체 캠페인'을 고르면 계정 전체가 보인다. */
 function grpPicked(){
   const tree = campaignTree();
-  if(!grpCamp || (grpCamp !== 'ALL' && !tree.some(t=>t.campaign===grpCamp))) grpCamp = 'ALL';
-  const node = grpCamp === 'ALL' ? null : tree.find(t=>t.campaign===grpCamp);
+  const names = tree.map(t=>t.campaign);
+  if(!campOn) campOn = new Set(names);
+  // 기간을 바꾸면 목록이 달라진다 — 처음 보는 캠페인은 켜 둔 것으로 친다
+  names.forEach(n=>{ if(!campSeen.has(n)){ campSeen.add(n); campOn.add(n); } });
+  [...campOn].forEach(n=>{ if(!names.includes(n)) campOn.delete(n); });
+
+  const on = tree.filter(t=>campOn.has(t.campaign));
+  const allOn = tree.length > 0 && on.length === tree.length;
+  grpCamp = (on.length === 1) ? on[0].campaign : 'ALL';
+  const node = (on.length === 1) ? on[0] : null;
   const groups = node ? node.groups : [];
-  if(grpCamp === 'ALL') agPick = 'ALL';
+  if(!node) agPick = 'ALL';
   else if(agPick !== 'ALL' && !groups.some(g=>g.gid===agPick)) agPick = 'ALL';
 
   let age, gender, what;
-  if(grpCamp === 'ALL'){
+  if(allOn || !tree.length){
     // 계정 전체는 광고그룹을 더한 값이 아니라 원본 합계를 그대로 쓴다
     age = merged.age; gender = merged.gender; what = '전체 캠페인';
-  } else {
+  } else if(!on.length){
+    age = {}; gender = {}; what = '고른 캠페인 없음';
+  } else if(node){
     const gids = (agPick === 'ALL') ? groups.map(g=>g.gid) : [agPick];
     age = sumBox(gids, 'age'); gender = sumBox(gids, 'gender');
-    what = (agPick === 'ALL') ? grpCamp : ((groups.find(g=>g.gid===agPick)||{}).name || agPick);
+    what = (agPick === 'ALL') ? node.campaign : ((groups.find(g=>g.gid===agPick)||{}).name || agPick);
+  } else {
+    const gids = on.flatMap(t=>t.groups.map(g=>g.gid));
+    age = sumBox(gids, 'age'); gender = sumBox(gids, 'gender');
+    what = `고른 캠페인 ${on.length}개`;
   }
-  return { tree, groups, age, gender, what };
+  return { tree, groups, age, gender, what, on, allOn };
 }
 
 /* 화면 맨 위의 고르는 칸.
    여기서 고른 캠페인·광고그룹이 아래 추천·그래프·표에 그대로 반영된다 (한 세트). */
 function renderGrpCard(){
   const P = grpPicked();
-  const tree = P.tree, groups = P.groups;
-  if(!tree.length) return '';
+  if(!P.tree.length) return '';
   const rows = rowsOf(P.age, AGE_ORDER);
   const tot = rows.reduce((a,r)=>{ addTo(a,r); return a; }, blank());
   const hasData = tot.imp>0 || tot.cost>0;
-
-  // 캠페인 칸에는 금액을 안 적는다 — 바로 아래 요약 줄에 같은 숫자가 또 나와서 길기만 하다
-  const campOpts = [`<option value="ALL"${grpCamp==='ALL'?' selected':''}>전체 캠페인 (${tree.length}개)</option>`]
-    .concat(tree.map(t=>
-      `<option value="${esc2(t.campaign)}"${t.campaign===grpCamp?' selected':''}>${esc2(t.campaign)} · ${t.groups.length}그룹</option>`
-    )).join('');
-  const grpOpts = grpCamp === 'ALL'
-    ? `<option value="ALL" selected>캠페인을 골라야 볼 수 있어요</option>`
-    : [`<option value="ALL"${agPick==='ALL'?' selected':''}>이 캠페인 전체 (${groups.length}개 그룹 합계)</option>`]
-        .concat(groups.map(g=>{
-          const b = sumBox([g.gid],'age');
-          const c = Math.round(Object.keys(b).reduce((t,k)=>t+(b[k].cost||0),0));
-          return `<option value="${esc2(g.gid)}"${g.gid===agPick?' selected':''}>${esc2(g.name)} · ${won(c)}원</option>`;
-        })).join('');
-
-  return `<div class="card"><h3>어떤 걸 볼까요</h3>
-    <div class="sub">캠페인과 광고그룹을 고르면 <b>아래 추천·그래프·표가 모두 그 숫자로</b> 바뀝니다.</div>
-    <div class="grp-pick">
-      <label><span class="grp-lab">캠페인</span>
-        <select id="grpCampSel">${campOpts}</select></label>
-      <label><span class="grp-lab">광고그룹</span>
-        <select id="grpSelect"${grpCamp==='ALL'?' disabled':''}>${grpOpts}</select></label>
-    </div>
+  return `<div class="card">
     ${!hasData
-      ? `<div class="sub" style="margin-top:12px;">${esc2(P.what)}은(는) 고른 기간에 자료가 없어요.</div>`
-      : `<div class="grp-sum">
+      ? `<div class="sub">${esc2(P.what)}은(는) 고른 기간에 자료가 없어요.</div>`
+      : `<div class="grp-sum" style="margin-top:0;">
            <span><b>${esc2(P.what)}</b></span>
            <span>비용 ${won(tot.cost)}원</span>
            <span>노출 ${num(tot.imp)}</span>
            <span>클릭 ${num(tot.clk)}</span>
            <span>전환 ${num(tot.conv)}건</span>
            <span>${effLabel()} ${effFmt(effOf(tot))}</span>
+           <span style="margin-left:auto;font-size:11.5px;color:var(--muted);">고르는 칸은 <b>오른쪽 필터</b>에 있어요</span>
          </div>`}
     </div>`;
+}
+
+/* 오른쪽 필터 — 캠페인(여러 개 고름) · 광고그룹(캠페인 하나만 켰을 때) */
+function buildSideFilter(){
+  const P = grpPicked();
+  if(!P.tree.length){ renderSideFilter([], ()=>{}); return; }
+  const campGroup = {
+    title:'캠페인', kind:'check', btns:true,
+    items: P.tree.map(t=>({ v:t.campaign, label:esc2(t.campaign),
+      sub: t.groups.length + '그룹', on: campOn.has(t.campaign) }))
+  };
+  const adGroup = (P.on.length !== 1)
+    ? { title:'광고그룹', kind:'note', note:'캠페인을 <b>하나만</b> 켜면 그 안의 그룹이 나와요' }
+    : (!P.groups.length
+        ? { title:'광고그룹', kind:'note', note:'이 캠페인은 광고그룹 자료가 없어요' }
+        : { title:'광고그룹', kind:'radio',
+            items: [{ v:'ALL', label:`이 캠페인 전체 (${P.groups.length}개 그룹)`, on: agPick==='ALL' }]
+              .concat(P.groups.map(g=>{
+                const b = sumBox([g.gid],'age');
+                const c = Math.round(Object.keys(b).reduce((t,k)=>t+(b[k].cost||0),0));
+                return { v:g.gid, label:esc2(g.name), sub: won(c)+'원', on: agPick===g.gid };
+              })) });
+  renderSideFilter([campGroup, adGroup], ev=>{
+    if(ev.group === campGroup){
+      if(ev.all) campOn = new Set(P.tree.map(t=>t.campaign));
+      else if(ev.none) campOn = new Set();
+      else if(ev.checked) campOn.add(ev.item.v);
+      else campOn.delete(ev.item.v);
+      agPick = 'ALL';
+    } else if(ev.item){
+      agPick = ev.item.v;
+    }
+    render();
+  });
 }
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
@@ -1087,10 +1180,7 @@ function wireGroupUI(){
       document.body.removeChild(ta);
     }
   };
-  const csel = document.getElementById('grpCampSel');
-  if(csel) csel.onchange = ()=>{ grpCamp = csel.value; agPick = 'ALL'; render(); };
-  const sel = document.getElementById('grpSelect');
-  if(sel) sel.onchange = ()=>{ agPick = sel.value; render(); };
+  buildSideFilter();
 }
 
 function render(){
@@ -1368,6 +1458,7 @@ async function pickClient(id){
   av.style.background = cur.color || '#8b7cff';
   METRICS.forEach(m=>{ m.on = (m.k==='eff'); });
   monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
+  campOn = null; campSeen = new Set(); grpCamp='ALL'; agPick='ALL';
   if(typeof wtState !== 'undefined'){ wtMerged = null; wtRecent = null; wtMonths = []; wtState = 'idle'; }
   await loadRange();
 }

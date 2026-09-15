@@ -288,6 +288,35 @@
 .card .card{margin-bottom:10px;}
 .card .card:last-child{margin-bottom:0;}
 
+/* SIDEFILT 오른쪽 필터 패널 — 대시보드·시간대 화면과 같은 자리·같은 모양 */
+.mainrow{display:flex;gap:16px;align-items:flex-start;}
+.mainrow > #body{flex:1 1 auto;min-width:0;}
+.sidefilter{flex:0 0 250px;position:sticky;top:12px;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;padding:14px;max-height:calc(100vh - 30px);
+  overflow-y:auto;}
+.sidefilter:empty{display:none;}
+.sf-head{font-size:13px;font-weight:800;margin-bottom:10px;}
+.sf-group{margin-bottom:12px;}
+.sf-title{font-size:11.5px;font-weight:700;color:var(--tx);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:7px;padding:5px 9px;margin-bottom:7px;}
+.sf-list{max-height:240px;overflow-y:auto;}
+.sf-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--tx);
+  padding:4px 2px;cursor:pointer;line-height:1.45;}
+.sf-item input{accent-color:var(--accent);width:13px;height:13px;margin-top:2px;flex:none;}
+.sf-item .sf-sub{color:var(--muted);font-size:11px;margin-left:auto;padding-left:6px;white-space:nowrap;}
+.sf-note{font-size:11.5px;color:var(--muted);line-height:1.6;padding:2px 2px 4px;}
+.sf-btns{display:flex;gap:7px;margin-top:4px;}
+.sf-btns button{flex:1;background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+  border-radius:7px;padding:6px 8px;font:inherit;font-size:11.5px;cursor:pointer;}
+.sf-btns button:hover{border-color:var(--accent);}
+@media (max-width:900px){
+  /* 세로로 쌓을 땐 align-items:flex-start 가 남아 있으면 칸이 내용 폭만큼만 줄어들어
+     화면 밖으로 삐져나간다 — 폭을 다시 채우게 한다 */
+  .mainrow{flex-direction:column;align-items:stretch;}
+  .mainrow > #body{width:100%;}
+  .sidefilter{flex:1 1 auto;width:100%;position:static;max-height:none;box-sizing:border-box;}
+}
+
 /* 캠페인 → 광고그룹 고르는 줄 */
 .grp-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px}
 .grp-pick label{display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0}

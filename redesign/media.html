@@ -289,6 +289,35 @@
 .card .card{margin-bottom:10px;}
 .card .card:last-child{margin-bottom:0;}
 
+/* SIDEFILT 오른쪽 필터 패널 — 대시보드·시간대 화면과 같은 자리·같은 모양 */
+.mainrow{display:flex;gap:16px;align-items:flex-start;}
+.mainrow > #body{flex:1 1 auto;min-width:0;}
+.sidefilter{flex:0 0 250px;position:sticky;top:12px;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;padding:14px;max-height:calc(100vh - 30px);
+  overflow-y:auto;}
+.sidefilter:empty{display:none;}
+.sf-head{font-size:13px;font-weight:800;margin-bottom:10px;}
+.sf-group{margin-bottom:12px;}
+.sf-title{font-size:11.5px;font-weight:700;color:var(--tx);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:7px;padding:5px 9px;margin-bottom:7px;}
+.sf-list{max-height:240px;overflow-y:auto;}
+.sf-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--tx);
+  padding:4px 2px;cursor:pointer;line-height:1.45;}
+.sf-item input{accent-color:var(--accent);width:13px;height:13px;margin-top:2px;flex:none;}
+.sf-item .sf-sub{color:var(--muted);font-size:11px;margin-left:auto;padding-left:6px;white-space:nowrap;}
+.sf-note{font-size:11.5px;color:var(--muted);line-height:1.6;padding:2px 2px 4px;}
+.sf-btns{display:flex;gap:7px;margin-top:4px;}
+.sf-btns button{flex:1;background:var(--panel-2);border:1px solid var(--border);color:var(--tx);
+  border-radius:7px;padding:6px 8px;font:inherit;font-size:11.5px;cursor:pointer;}
+.sf-btns button:hover{border-color:var(--accent);}
+@media (max-width:900px){
+  /* 세로로 쌓을 땐 align-items:flex-start 가 남아 있으면 칸이 내용 폭만큼만 줄어들어
+     화면 밖으로 삐져나간다 — 폭을 다시 채우게 한다 */
+  .mainrow{flex-direction:column;align-items:stretch;}
+  .mainrow > #body{width:100%;}
+  .sidefilter{flex:1 1 auto;width:100%;position:static;max-height:none;box-sizing:border-box;}
+}
+
 /* 캠페인 → 광고그룹 고르는 줄 */
 .grp-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px}
 .grp-pick label{display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0}
@@ -405,7 +434,10 @@
       </div>
     </div>
 
-    <div id="body"></div>
+    <div class="mainrow">
+      <div id="body"></div>
+      <div class="sidefilter" id="sideFilter"></div>
+    </div>
 
     <p class="foot">
       네이버 <b>매체 보고서</b>(광고가 실제로 걸린 지면)를 기기(PC · 모바일)와 함께 집계합니다.<br>
@@ -480,6 +512,39 @@ document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
 
 const won = n => Math.round(n||0).toLocaleString('ko-KR');
 const num = n => Math.round(n||0).toLocaleString('ko-KR');
+
+/* SIDEFILT 오른쪽 필터를 그린다. 화면마다 고를 거리가 달라서 '칸 목록'을 받아 그린다.
+   spec = [{ title, kind:'check'|'radio'|'note', name, items:[{v,label,sub,on}], note, btns:true }]
+   고르면 onChange(kind별 값)이 불린다. */
+function renderSideFilter(spec, onChange){
+  const el = document.getElementById('sideFilter');
+  if(!el) return;
+  const groups = (spec||[]).filter(Boolean);
+  if(!groups.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="sf-head">필터</div>' + groups.map((g,gi)=>{
+    const body = g.kind === 'note'
+      ? `<div class="sf-note">${g.note||''}</div>`
+      : `<div class="sf-list">${(g.items||[]).map((it,ii)=>
+          `<label class="sf-item"><input type="${g.kind==='radio'?'radio':'checkbox'}"
+             ${g.kind==='radio'?`name="sf${gi}"`:''} data-g="${gi}" data-i="${ii}" ${it.on?'checked':''}>
+           <span>${it.label}</span>${it.sub?`<span class="sf-sub">${it.sub}</span>`:''}</label>`).join('')}</div>`
+      + (g.btns ? `<div class="sf-btns"><button data-all="${gi}">전체 선택</button>
+           <button data-none="${gi}">전체 해제</button></div>` : '');
+    return `<div class="sf-group"><div class="sf-title">${g.title}</div>${body}</div>`;
+  }).join('');
+  el.querySelectorAll('.sf-item input').forEach(inp=>{
+    inp.onchange = ()=>{
+      const g = groups[+inp.dataset.g], it = g.items[+inp.dataset.i];
+      onChange({ group:g, item:it, checked:inp.checked, kind:g.kind });
+    };
+  });
+  el.querySelectorAll('[data-all]').forEach(b=>{
+    b.onclick = ()=> onChange({ group:groups[+b.dataset.all], all:true });
+  });
+  el.querySelectorAll('[data-none]').forEach(b=>{
+    b.onclick = ()=> onChange({ group:groups[+b.dataset.none], none:true });
+  });
+}
 
 /* ─────────── 매체(지면) · 기기 ───────────
    수집기가 월 파일 안에 '지면 묶음 × 기기' 단위로 담아준다.
@@ -611,38 +676,43 @@ function pickWhat(){
 /* 화면 맨 위의 고르는 칸.
    여기서 고른 기기·지면이 아래 그래프와 표에 그대로 반영된다 (한 세트). */
 function renderPickCard(){
-  const devs = allDevices();
-  const meds = rowsOf(aggMedia());
   const tot = aggPick();
   const hasData = tot.imp>0 || tot.cost>0;
-
-  const devOpts = [`<option value="ALL"${devPick==='ALL'?' selected':''}>전체 기기 (PC + 모바일)</option>`]
-    .concat(devs.map(d=>`<option value="${esc2(d)}"${d===devPick?' selected':''}>${esc2(d)}</option>`)).join('');
-  const medOpts = [`<option value="ALL"${medPick==='ALL'?' selected':''}>전체 지면 (${meds.length}곳)</option>`]
-    .concat(meds.map(r=>
-      `<option value="${esc2(r.code)}"${r.code===medPick?' selected':''}>${esc2(r.code)} · ${won(r.cost*MAN)}원</option>`
-    )).join('');
-
-  return `<div class="card"><h3>어떤 걸 볼까요</h3>
-    <div class="sub">기기를 고르면 <b>지면별 표</b>가, 지면을 고르면 <b>기기별 표</b>가 그 숫자로 바뀝니다.
-      맨 아래 <b>정확한 수치</b> 표는 둘 다 반영합니다.</div>
-    <div class="grp-pick">
-      <label><span class="grp-lab">기기</span>
-        <select id="devSelect">${devOpts}</select></label>
-      <label><span class="grp-lab">지면</span>
-        <select id="medSelect">${medOpts}</select></label>
-    </div>
+  return `<div class="card">
     ${!hasData
-      ? `<div class="sub" style="margin-top:12px;">${esc2(pickWhat())}은(는) 고른 기간에 자료가 없어요.</div>`
-      : `<div class="grp-sum">
+      ? `<div class="sub">${esc2(pickWhat())}은(는) 고른 기간에 자료가 없어요.</div>`
+      : `<div class="grp-sum" style="margin-top:0;">
            <span><b>${esc2(pickWhat())}</b></span>
            <span>비용 ${won(tot.cost*MAN)}원</span>
            <span>노출 ${num(tot.imp)}</span>
            <span>클릭 ${num(tot.clk)}</span>
            <span>전환 ${num(tot.conv)}건</span>
            <span>${effLabel()} ${effFmt(effOf(scaled(tot)))}</span>
+           <span style="margin-left:auto;font-size:11.5px;color:var(--muted);">고르는 칸은 <b>오른쪽 필터</b>에 있어요</span>
          </div>`}
     </div>`;
+}
+
+/* 오른쪽 필터 — 기기 · 지면 (연령 화면과 같은 자리·같은 모양) */
+function buildSideFilter(){
+  const devs = allDevices();
+  const meds = rowsOf(aggMedia());
+  if(!devs.length && !meds.length){ renderSideFilter([], ()=>{}); return; }
+  const devGroup = {
+    title:'기기', kind:'radio',
+    items: [{ v:'ALL', label:'전체 기기 (PC + 모바일)', on: devPick==='ALL' }]
+      .concat(devs.map(d=>({ v:d, label:esc2(d), on: d===devPick })))
+  };
+  const medGroup = {
+    title:'지면', kind:'radio',
+    items: [{ v:'ALL', label:`전체 지면 (${meds.length}곳)`, on: medPick==='ALL' }]
+      .concat(meds.map(r=>({ v:r.code, label:esc2(r.code), sub: won(r.cost*MAN)+'원', on: r.code===medPick })))
+  };
+  renderSideFilter([devGroup, medGroup], ev=>{
+    if(!ev.item) return;
+    if(ev.group === devGroup) devPick = ev.item.v; else medPick = ev.item.v;
+    render();
+  });
 }
 
 // 효율은 원 단위로 계산해야 CPA가 맞다
@@ -789,10 +859,7 @@ function renderCross(sub){
 
 // 새로 그린 화면에 클릭 동작을 다시 붙인다
 function wirePickUI(){
-  const dsel = document.getElementById('devSelect');
-  if(dsel) dsel.onchange = ()=>{ devPick = dsel.value; render(); };
-  const msel = document.getElementById('medSelect');
-  if(msel) msel.onchange = ()=>{ medPick = msel.value; render(); };
+  buildSideFilter();
 }
 
 function render(){
@@ -1088,6 +1155,7 @@ async function pickClient(id){
   av.style.background = cur.color || '#8b7cff';
   METRICS.forEach(m=>{ m.on = (m.k==='eff' || m.k==='conv'); });
   monthCache = {}; dayFrom=dayTo=null; dayPreset='all';
+  campOn = null; campSeen = new Set(); grpCamp='ALL'; agPick='ALL';
   if(typeof wtState !== 'undefined'){ wtMerged = null; wtRecent = null; wtMonths = []; wtState = 'idle'; }
   await loadRange();
 }
